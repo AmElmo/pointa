@@ -29,6 +29,7 @@ You can also use the extension to...
 
 - Capture UI from other websites with clean screenshots and CSS metadata
 
+<img src="docs/images/capture_inspiration_feature.png" width="700" alt="Bug report feature">
 
 
 ## Key Features
