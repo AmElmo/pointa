@@ -2068,7 +2068,10 @@ class LocalAnnotationsServer {
 
     // Filter by URL if provided
     if (url) {
-      filtered = filtered.filter((r) => r.context?.page?.url === url);
+      filtered = filtered.filter((r) => {
+        const pageUrl = r.context?.page?.url;
+        return pageUrl && pageUrl.startsWith(url);
+      });
     }
 
     // Apply pagination
