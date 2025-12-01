@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version information in health endpoint
 - Dynamic version reading from package.json in CLI
 
+## [0.2.1] - 2025-12-01
+
+### Fixed
+- Bug report URL filtering now uses `.startsWith()` instead of exact match
+- MCP tool `read_bug_reports` now correctly returns bugs when filtering by base URL (e.g., `http://localhost:3456` now matches `http://localhost:3456/any/path`)
+
 ## [0.1.9] - 2025-11-12
 
 ### Fixed
