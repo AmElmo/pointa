@@ -2323,8 +2323,10 @@ ${taskDescription}`;
 
     // Load bug reports
     const bugReports = await this.loadBugReports();
-    // Match the filter used in showAskAIModal - only 'active' bug reports
-    const activeBugReports = bugReports.filter((r) => r.status === 'active');
+    // Include active, debugging, and in-review statuses
+    const activeBugReports = bugReports.filter((r) =>
+      r.status === 'active' || r.status === 'debugging' || r.status === 'in-review'
+    );
 
     // Get all annotations for page navigation (from API)
     // Request a high limit to ensure we get ALL annotations (default is 50)
@@ -2654,11 +2656,6 @@ ${taskDescription}`;
 
 
 
-
-
-
-
-      const activeBugReports = bugReports.filter((r) => r.status === 'active');
 
 
 
@@ -4034,7 +4031,10 @@ ${taskDescription}`;
     const activeAnnotations = allAnnotations.filter((a) => a.status === 'pending' || !a.status);
     const inReviewAnnotations = allAnnotations.filter((a) => a.status === 'in-review');
     const allWorkableAnnotations = [...activeAnnotations, ...inReviewAnnotations];
-    const activeBugReports = allBugReports.filter((r) => r.status === 'active');
+    // Include active, debugging, and in-review statuses
+    const activeBugReports = allBugReports.filter((r) =>
+      r.status === 'active' || r.status === 'debugging' || r.status === 'in-review'
+    );
 
     // Debug: Show status breakdown of all annotations
     const statusCounts = {};
