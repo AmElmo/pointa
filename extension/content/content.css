@@ -3046,6 +3046,12 @@ body.sidebar-resizing * {
   background: var(--theme-surface);
   border-bottom: 1px solid var(--theme-outline);
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-notification-center-top {
+  display: flex;
   align-items: center;
   gap: 12px;
 }
@@ -3076,6 +3082,43 @@ body.sidebar-resizing * {
   color: var(--theme-text-primary);
   margin: 0;
   flex: 1;
+}
+
+/* Mark all as done button */
+.sidebar-mark-all-done-btn {
+  background: var(--theme-surface-1);
+  border: 1px solid var(--theme-outline);
+  color: var(--theme-text-primary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  width: 100%;
+  text-align: center;
+}
+
+.sidebar-mark-all-done-btn:hover {
+  background: var(--theme-surface-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-mark-all-done-btn:active {
+  transform: translateY(0);
+}
+
+/* Dark mode specific styling for mark all done button */
+[data-pointa-theme="dark"] .sidebar-mark-all-done-btn {
+  background: var(--theme-surface-1);
+  border-color: var(--theme-outline);
+  color: var(--theme-text-primary);
+}
+
+[data-pointa-theme="dark"] .sidebar-mark-all-done-btn:hover {
+  background: var(--theme-surface-hover);
 }
 
 /* Page groups in notification center */

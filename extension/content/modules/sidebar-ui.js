@@ -2614,13 +2614,20 @@ ${taskDescription}`;
           
           ${this.notificationCenterOpen ? `
           <div class="sidebar-notification-center-header">
-            <button id="sidebar-back-btn" class="sidebar-back-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"></path>
-              </svg>
-              Back
+            <div class="sidebar-notification-center-top">
+              <button id="sidebar-back-btn" class="sidebar-back-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+                Back
+              </button>
+              <h3 class="sidebar-section-title">To Review (${allToReviewAnnotations.length})</h3>
+            </div>
+            ${allToReviewAnnotations.length > 0 ? `
+            <button id="sidebar-mark-all-done-btn" class="sidebar-mark-all-done-btn" title="Mark all as done">
+              Mark all as done
             </button>
-            <h3 class="sidebar-section-title">To Review (${allToReviewAnnotations.length})</h3>
+            ` : ''}
           </div>
           ` : ''}
         </div>
@@ -5207,6 +5214,14 @@ IMPORTANT - Git Workflow:
       });
     }
 
+    // Mark all as done button (in notification center view)
+    const markAllDoneBtn = this.sidebar.querySelector('#sidebar-mark-all-done-btn');
+    if (markAllDoneBtn) {
+      markAllDoneBtn.addEventListener('click', async () => {
+        await this.markAllAnnotationsDone(pointa);
+      });
+    }
+
     // Click on annotation item to navigate to it
     const annotationItems = this.sidebar.querySelectorAll('.sidebar-annotation-item');
     annotationItems.forEach((item) => {
@@ -5641,6 +5656,65 @@ IMPORTANT - Git Workflow:
 
     } catch (error) {
       console.error('Error marking annotation as done:', error);
+    }
+  },
+
+  /**
+   * Mark all in-review annotations as done
+   * @param {Pointa} pointa - Reference to main Pointa instance
+   */
+  async markAllAnnotationsDone(pointa) {
+    try {
+      // Get all annotations from all pages
+      const response = await chrome.runtime.sendMessage({
+        action: 'getAnnotations',
+        url: 'all'
+      });
+
+      if (!response.success) {
+        console.error('Failed to load all annotations');
+        return;
+      }
+
+      const allAnnotations = response.annotations || [];
+      const inReviewAnnotations = allAnnotations.filter((a) => a.status === 'in-review');
+
+      if (inReviewAnnotations.length === 0) {
+        console.log('No annotations to mark as done');
+        return;
+      }
+
+      // Mark each annotation as done
+      for (const annotation of inReviewAnnotations) {
+        await chrome.runtime.sendMessage({
+          action: 'updateAnnotation',
+          id: annotation.id,
+          updates: {
+            status: 'done',
+            updated_at: new Date().toISOString()
+          }
+        });
+
+        // Remove badge from page if it's on the current page
+        pointa.badgeManager.removeBadge(annotation.id);
+      }
+
+      // Reload annotations from API to get fresh data
+      const getResponse = await chrome.runtime.sendMessage({
+        action: 'getAnnotations',
+        url: window.location.href
+      });
+      pointa.annotations = getResponse.success ? getResponse.annotations || [] : [];
+
+      // Refresh sidebar content
+      const serverOnline = await this.checkServerStatus();
+      await this.updateContent(pointa, serverOnline);
+
+      // Close notification center since all items are now done
+      this.notificationCenterOpen = false;
+
+    } catch (error) {
+      console.error('Error marking all annotations as done:', error);
     }
   },
 
