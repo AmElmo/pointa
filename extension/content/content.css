@@ -3078,6 +3078,30 @@ body.sidebar-resizing * {
   flex: 1;
 }
 
+/* Mark all as done button */
+.sidebar-mark-all-done-btn {
+  background: var(--theme-primary);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  white-space: nowrap;
+}
+
+.sidebar-mark-all-done-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.sidebar-mark-all-done-btn:active {
+  transform: translateY(0);
+}
+
 /* Page groups in notification center */
 .sidebar-page-group {
   margin-bottom: 24px;
