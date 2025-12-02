@@ -2614,13 +2614,15 @@ ${taskDescription}`;
           
           ${this.notificationCenterOpen ? `
           <div class="sidebar-notification-center-header">
-            <button id="sidebar-back-btn" class="sidebar-back-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 12H5M12 19l-7-7 7-7"></path>
-              </svg>
-              Back
-            </button>
-            <h3 class="sidebar-section-title">To Review (${allToReviewAnnotations.length})</h3>
+            <div class="sidebar-notification-center-top">
+              <button id="sidebar-back-btn" class="sidebar-back-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+                Back
+              </button>
+              <h3 class="sidebar-section-title">To Review (${allToReviewAnnotations.length})</h3>
+            </div>
             ${allToReviewAnnotations.length > 0 ? `
             <button id="sidebar-mark-all-done-btn" class="sidebar-mark-all-done-btn" title="Mark all as done">
               Mark all as done
