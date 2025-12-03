@@ -29,7 +29,7 @@ const packageJson = JSON.parse(readFileSync(path.join(__dirname, '../package.jso
 const PORT = parseInt(process.env.POINTA_PORT || '4242', 10);
 const DATA_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.pointa');
 const DATA_FILE = path.join(DATA_DIR, 'annotations.json');
-const ARCHIVE_FILE = path.join(DATA_DIR, 'annotations_archive.json');
+const ARCHIVE_FILE = path.join(DATA_DIR, 'archive.json');
 const IMAGES_DIR = path.join(DATA_DIR, 'images');
 const INSPIRATIONS_DIR = path.join(DATA_DIR, 'inspirations');
 const INSPIRATIONS_FILE = path.join(DATA_DIR, 'inspirations.json');
@@ -273,12 +273,16 @@ class LocalAnnotationsServer {
           annotations.splice(index, 1);
           await this.saveAnnotations(annotations);
 
-          // Add to archive
+          // Add to unified archive with type marker
           const archive = await this.loadArchive();
-          archive.push(updatedAnnotation);
+          archive.push({
+            ...updatedAnnotation,
+            archived_type: 'annotation',
+            archived_at: new Date().toISOString()
+          });
           await this.saveArchive(archive);
 
-          console.log(`Archived annotation ${id} (moved to annotations_archive.json)`);
+          console.log(`Archived annotation ${id} (moved to archive.json)`);
         } else {
           // Normal update - keep in main file
           annotations[index] = updatedAnnotation;
@@ -1085,15 +1089,15 @@ class LocalAnnotationsServer {
         },
         {
           name: 'read_bug_reports',
-          description: 'Retrieves bug reports with full timeline data including console errors, network failures, and user interactions captured during recording. Use this tool when users mention: bugs, errors, crashes, issues, failures, or when you need to debug problems. Each bug report includes a detailed timeline showing the sequence of events (user clicks, API calls, console errors) that led to the bug, making it easier to identify root causes. Bug reports have statuses: "active" (needs attention), "debugging" (awaiting re-run with new logs), "in-review" (fix ready for testing), or "resolved" (fixed and verified). CRITICAL: If a bug has needs_more_logging=true, do NOT attempt another fix. Instead, use mark_bug_needs_rerun to add console.log statements, debugging output, or instrumentation to gather more information about why the previous fix failed. The failed_fix_attempts counter shows how many fixes have been tried.',
+          description: 'Retrieves bug reports with full timeline data including console errors, network failures, and user interactions captured during recording. Use this tool when users mention: bugs, errors, crashes, issues, failures, or when you need to debug problems. Each bug report includes a detailed timeline showing the sequence of events (user clicks, API calls, console errors) that led to the bug, making it easier to identify root causes. Bug reports have statuses: "active" (needs attention - default), "debugging" (awaiting re-run with new logs), or "in-review" (fix ready for testing). CRITICAL: If a bug has needs_more_logging=true, do NOT attempt another fix. Instead, use mark_bug_needs_rerun to add console.log statements, debugging output, or instrumentation to gather more information about why the previous fix failed. The failed_fix_attempts counter shows how many fixes have been tried.',
           inputSchema: {
             type: 'object',
             properties: {
               status: {
                 type: 'string',
-                enum: ['active', 'debugging', 'in-review', 'resolved', 'all'],
+                enum: ['active', 'debugging', 'in-review'],
                 default: 'active',
-                description: 'Filter bug reports by their actual status value from JSON. "active" (default), "debugging", "in-review", "resolved", or "all" for everything.'
+                description: 'Filter bug reports by status. "active" (default - needs attention), "debugging" (awaiting replay with new logs), or "in-review" (fix ready for testing).'
               },
               limit: {
                 type: 'number',
@@ -2105,9 +2109,13 @@ class LocalAnnotationsServer {
 
     let filtered = bugReports;
 
-    // Filter by status - use actual status values from JSON
-    if (status !== 'all') {
-      filtered = filtered.filter((r) => r.status === status);
+    // Filter by status - only active, debugging, and in-review exist in main file now
+    if (status === 'active') {
+      filtered = filtered.filter((r) => r.status === 'active' || !r.status);
+    } else if (status === 'debugging') {
+      filtered = filtered.filter((r) => r.status === 'debugging');
+    } else if (status === 'in-review') {
+      filtered = filtered.filter((r) => r.status === 'in-review');
     }
 
     // Filter by URL if provided
@@ -2248,13 +2256,26 @@ class LocalAnnotationsServer {
       bugReport.resolution = resolution;
     }
 
+    // Remove from main bug reports array
+    bugReports.splice(index, 1);
     await this.saveBugReports(bugReports);
+
+    // Add to unified archive with type marker
+    const archive = await this.loadArchive();
+    archive.push({
+      ...bugReport,
+      archived_type: 'bug_report',
+      archived_at: new Date().toISOString()
+    });
+    await this.saveArchive(archive);
+
+    console.log(`Archived bug report ${id} (moved to archive.json)`);
 
     return {
       id,
       previous_status: previousStatus,
       current_status: 'resolved',
-      message: `Bug report ${id} has been marked as resolved`,
+      message: `Bug report ${id} has been marked as resolved and archived`,
       bug_report: {
         id: bugReport.id,
         title: bugReport.report?.title || 'Untitled bug',

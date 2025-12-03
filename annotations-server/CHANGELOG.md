@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2025-12-03
+
+### Changed
+- **BREAKING**: Unified archive system for all completed items
+  - Renamed archive file from `annotations_archive.json` to `archive.json`
+  - Single archive now stores both completed annotations and resolved bug reports
+  - Archive items include `archived_type` field ('annotation' or 'bug_report') and `archived_at` timestamp
+  - Keeps main data files clean with only active/actionable items
+
+### Bug Reports
+- **MCP `read_bug_reports` tool**: Removed `resolved` and `all` status options
+  - Now only supports `active` (default), `debugging`, and `in-review` status
+  - Resolved bug reports automatically archived - not exposed to AI
+- **MCP `mark_bug_resolved` tool**: Now automatically archives bug to `archive.json`
+  - Resolved bugs removed from `bug_reports.json`
+  - Archive is write-only from AI perspective
+
+### Architecture
+- Archive is now a unified storage for all completed work (annotations + bugs)
+- MCP tools focus AI on actionable items only
+- HTTP API still supports archive access for UI needs
+
 ## [0.2.4] - 2025-12-03
 
 ### Added
