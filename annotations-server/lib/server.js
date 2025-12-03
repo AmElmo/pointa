@@ -1786,14 +1786,8 @@ class LocalAnnotationsServer {
       throw new Error('Annotation ID is required');
     }
 
-    let annotations = await this.loadAnnotations();
-    let annotation = annotations.find((a) => a.id === id);
-
-    // If not found in main annotations, check archive
-    if (!annotation) {
-      const archive = await this.loadArchive();
-      annotation = archive.find((a) => a.id === id);
-    }
+    const annotations = await this.loadAnnotations();
+    const annotation = annotations.find((a) => a.id === id);
 
     if (!annotation) {
       throw new Error(`Annotation with ID "${id}" not found`);
@@ -2015,16 +2009,10 @@ class LocalAnnotationsServer {
 
     try {
       // Load annotations - we only need to find the specific one
-      let annotations = await this.loadAnnotations();
+      const annotations = await this.loadAnnotations();
 
       // Find annotation by ID
-      let annotation = annotations.find((a) => a.id === id);
-
-      // If not found in main annotations, check archive
-      if (!annotation) {
-        const archive = await this.loadArchive();
-        annotation = archive.find((a) => a.id === id);
-      }
+      const annotation = annotations.find((a) => a.id === id);
 
       if (!annotation) {
         return {
