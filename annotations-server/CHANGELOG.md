@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2025-12-03
+
+### Added
+- Automatic archiving of completed annotations to separate file
+  - Annotations marked as "done" are now automatically moved to `annotations_archive.json`
+  - Keeps main `annotations.json` file clean and only contains active work (pending/in-review)
+  - Archive is for storage only - not exposed to MCP tools
+
+### Changed
+- **MCP `read_annotations` tool**: Removed `done` and `all` status options
+  - Now only supports `pending` (default) and `in-review` status
+  - Archive is write-only from AI perspective - focuses AI on active work only
+- **HTTP API**: Still supports archive access via `status=done` or `status=all` for potential UI needs
+- Archive file renamed from `archive.json` to `annotations_archive.json` for clarity
+
+### Technical
+- PUT `/api/annotations/:id` now automatically archives when status changes to 'done'
+- GET `/api/annotations` can optionally include archived annotations for UI purposes
+- Simplified MCP tool filtering to only show actionable annotations
+
 ## [0.2.3] - 2025-12-02
 
 ### Changed
