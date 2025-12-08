@@ -34,3 +34,6 @@ update-npm.sh
 docs/prd_document.md
 
 .config/
+
+# ToDos
+TODO.md
