@@ -2068,6 +2068,7 @@ ${taskDescription}`;
                 <li style="margin-bottom: 4px;">✓ Console & errors</li>
                 <li style="margin-bottom: 4px;">✓ Network activity</li>
                 <li style="margin-bottom: 4px;">✓ Interactions</li>
+                ${window.BugRecorder?.includeBackendLogs ? '<li style="margin-bottom: 4px;">✓ Backend server logs</li>' : ''}
               </ul>
             </div>
 
@@ -2106,6 +2107,24 @@ ${taskDescription}`;
             <li>🖱️ Your clicks & interactions</li>
             <li>📸 Screenshot of the page</li>
           </ul>
+
+          <!-- Backend Logs Toggle -->
+          <div class="sidebar-backend-logs-section" id="sidebar-backend-logs-section" style="margin: 16px 0; padding: 12px; border-radius: 8px; background: var(--bg-secondary);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🔧</span>
+                <span style="font-size: 13px; font-weight: 500;">Include backend logs</span>
+              </div>
+              <label class="sidebar-toggle-switch" style="position: relative; display: inline-block; width: 40px; height: 22px;">
+                <input type="checkbox" id="sidebar-backend-logs-toggle" style="opacity: 0; width: 0; height: 0;">
+                <span class="sidebar-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-tertiary); transition: .3s; border-radius: 22px;">
+                </span>
+              </label>
+            </div>
+            <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--text-muted);">
+              Checking SDK connection...
+            </div>
+          </div>
           
           <div class="sidebar-bug-instructions-compact">
             <h3>Quick Start:</h3>
@@ -4890,6 +4909,23 @@ IMPORTANT - Git Workflow:
     const startRecordingBtn = this.sidebar.querySelector('#sidebar-start-recording-btn');
     const stopRecordingBtn = this.sidebar.querySelector('#sidebar-stop-recording-btn');
     const backBtn = this.sidebar.querySelector('#sidebar-bug-back-btn');
+    const backendLogsToggle = this.sidebar.querySelector('#sidebar-backend-logs-toggle');
+    const backendLogsStatus = this.sidebar.querySelector('#sidebar-backend-logs-status');
+
+    // Check backend log SDK status
+    if (backendLogsStatus && !this.isRecordingBug) {
+      this.checkBackendLogStatus(backendLogsToggle, backendLogsStatus);
+    }
+
+    // Handle backend logs toggle
+    if (backendLogsToggle) {
+      backendLogsToggle.addEventListener('change', (e) => {
+        if (window.BugRecorder) {
+          window.BugRecorder.setIncludeBackendLogs(e.target.checked);
+          console.log('[Sidebar] Backend logs:', e.target.checked ? 'enabled' : 'disabled');
+        }
+      });
+    }
 
     if (startRecordingBtn) {
       startRecordingBtn.addEventListener('click', async () => {
@@ -4953,6 +4989,68 @@ IMPORTANT - Git Workflow:
         const serverOnline = await this.checkServerStatus();
         await this.updateContent(pointa, serverOnline);
       });
+    }
+  },
+
+  /**
+   * Check backend log SDK connection status and update UI
+   * @param {HTMLElement} toggle - The toggle checkbox element
+   * @param {HTMLElement} statusEl - The status text element
+   */
+  async checkBackendLogStatus(toggle, statusEl) {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getBackendLogStatus' });
+      
+      if (response.success && response.status) {
+        const { connected, clientCount } = response.status;
+        
+        if (connected && clientCount > 0) {
+          // SDK is connected
+          statusEl.innerHTML = `
+            <span style="color: var(--color-success);">✓ SDK connected</span>
+            <span style="margin-left: 4px;">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
+          `;
+          if (toggle) {
+            toggle.disabled = false;
+            toggle.parentElement.style.opacity = '1';
+            toggle.parentElement.style.cursor = 'pointer';
+          }
+        } else {
+          // SDK not connected - show install instructions
+          statusEl.innerHTML = `
+            <span style="color: var(--text-muted);">SDK not connected</span>
+            <div style="margin-top: 6px; font-size: 10px;">
+              Install <code style="background: var(--bg-tertiary); padding: 2px 4px; border-radius: 3px;">@pointa/server-logger</code> in your server
+            </div>
+          `;
+          if (toggle) {
+            toggle.disabled = true;
+            toggle.checked = false;
+            toggle.parentElement.style.opacity = '0.5';
+            toggle.parentElement.style.cursor = 'not-allowed';
+          }
+          // Ensure BugRecorder doesn't try to use backend logs
+          if (window.BugRecorder) {
+            window.BugRecorder.setIncludeBackendLogs(false);
+          }
+        }
+      } else {
+        // Server not reachable
+        statusEl.innerHTML = `<span style="color: var(--text-muted);">Server not connected</span>`;
+        if (toggle) {
+          toggle.disabled = true;
+          toggle.checked = false;
+          toggle.parentElement.style.opacity = '0.5';
+        }
+      }
+    } catch (error) {
+      console.warn('[Sidebar] Error checking backend log status:', error);
+      statusEl.innerHTML = `<span style="color: var(--text-muted);">Could not check status</span>`;
+      if (toggle) {
+        toggle.disabled = true;
+        toggle.checked = false;
+        toggle.parentElement.style.opacity = '0.5';
+      }
     }
   },
 

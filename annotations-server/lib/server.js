@@ -18,6 +18,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import chalk from 'chalk';
+import { WebSocketServer } from 'ws';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -74,6 +75,12 @@ class LocalAnnotationsServer {
     this.saveLock = Promise.resolve(); // Serialize save operations to prevent race conditions
     this.issueReportsSaveLock = Promise.resolve(); // Serialize issue reports save operations
     this.inspirationsSaveLock = Promise.resolve(); // Serialize inspirations save operations
+    
+    // Backend logging state
+    this.backendLogClients = new Set(); // Connected SDK clients
+    this.backendLogRecording = false; // Is recording active?
+    this.backendLogs = []; // Buffered logs during recording
+    this.backendLogRecordingStartTime = null; // When recording started
 
     this.setupExpress();
     this.setupMCP();
@@ -805,6 +812,38 @@ class LocalAnnotationsServer {
       }
     });
 
+    // Backend Logs API endpoints (for @pointa/server-logger SDK integration)
+    
+    // Get backend log connection status
+    this.app.get('/api/backend-logs/status', (req, res) => {
+      res.json(this.getBackendLogStatus());
+    });
+
+    // Start backend log recording (called by extension when bug recording starts)
+    this.app.post('/api/backend-logs/start', (req, res) => {
+      const result = this.startBackendLogRecording();
+      res.json(result);
+    });
+
+    // Stop backend log recording and get captured logs
+    this.app.post('/api/backend-logs/stop', (req, res) => {
+      const logs = this.stopBackendLogRecording();
+      res.json({ 
+        success: true, 
+        logs,
+        count: logs.length 
+      });
+    });
+
+    // Get current backend logs (without stopping recording)
+    this.app.get('/api/backend-logs', (req, res) => {
+      res.json({
+        logs: this.backendLogs,
+        count: this.backendLogs.length,
+        isRecording: this.backendLogRecording
+      });
+    });
+
     // Save bug report screenshot endpoint
     this.app.post('/api/bug-screenshots', async (req, res) => {
       try {
@@ -1089,7 +1128,7 @@ class LocalAnnotationsServer {
         },
         {
           name: 'read_issue_reports',
-          description: 'Retrieves issue reports (bugs and performance investigations) with full timeline data including console errors, network failures, and user interactions captured during recording. Use this tool when users mention: bugs, errors, crashes, issues, failures, performance problems, or when you need to debug problems. Each report includes a detailed timeline showing the sequence of events that led to the issue, making it easier to identify root causes. Issue reports have statuses: "active" (needs attention - default), "debugging" (awaiting re-run with new logs), or "in-review" (fix ready for testing). CRITICAL: If an issue has needs_more_logging=true, do NOT attempt another fix. Instead, use mark_issue_needs_rerun to add console.log statements, debugging output, or instrumentation to gather more information about why the previous fix failed. The failed_fix_attempts counter shows how many fixes have been tried.',
+          description: 'Retrieves issue reports (bugs and performance investigations) with full timeline data including console errors, network failures, user interactions, and backend server logs (when @pointa/server-logger SDK is installed). Use this tool when users mention: bugs, errors, crashes, issues, failures, performance problems, or when you need to debug problems. Each report includes a detailed timeline showing the sequence of events that led to the issue, making it easier to identify root causes. Backend logs (marked with source: "backend" and type: "backend-log", "backend-warn", or "backend-error") provide server-side context. Issue reports have statuses: "active" (needs attention - default), "debugging" (awaiting re-run with new logs), or "in-review" (fix ready for testing). CRITICAL: If an issue has needs_more_logging=true, do NOT attempt another fix. Instead, use mark_issue_needs_rerun to add console.log statements, debugging output, or instrumentation to gather more information about why the previous fix failed. The failed_fix_attempts counter shows how many fixes have been tried.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -2448,6 +2487,140 @@ class LocalAnnotationsServer {
     }
   }
 
+  /**
+   * Setup WebSocket server for backend log streaming
+   * This allows the @pointa/server-logger SDK to connect and stream logs
+   */
+  setupBackendLogWebSocket(httpServer) {
+    this.wss = new WebSocketServer({ 
+      server: httpServer,
+      path: '/backend-logs'
+    });
+
+    this.wss.on('connection', (ws) => {
+      console.log('[Backend Logs] SDK client connected');
+      this.backendLogClients.add(ws);
+
+      // If recording is already active, tell the client to start
+      if (this.backendLogRecording) {
+        ws.send(JSON.stringify({ type: 'start_recording' }));
+      }
+
+      ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data.toString());
+          this.handleBackendLogMessage(ws, message);
+        } catch (e) {
+          // Ignore parse errors
+        }
+      });
+
+      ws.on('close', () => {
+        console.log('[Backend Logs] SDK client disconnected');
+        this.backendLogClients.delete(ws);
+      });
+
+      ws.on('error', (error) => {
+        console.warn('[Backend Logs] WebSocket error:', error.message);
+        this.backendLogClients.delete(ws);
+      });
+    });
+
+    console.log(`   → Backend Logs: ws://127.0.0.1:${PORT}/backend-logs`);
+  }
+
+  /**
+   * Handle messages from backend log SDK clients
+   */
+  handleBackendLogMessage(ws, message) {
+    switch (message.type) {
+      case 'log':
+        if (this.backendLogRecording) {
+          // Add relative time if we have a start time
+          const logEntry = {
+            ...message,
+            source: 'backend',
+            relativeTime: this.backendLogRecordingStartTime 
+              ? Date.now() - this.backendLogRecordingStartTime 
+              : 0
+          };
+          this.backendLogs.push(logEntry);
+        }
+        break;
+
+      case 'pong':
+        // Heartbeat response, client is alive
+        break;
+    }
+  }
+
+  /**
+   * Start backend log recording session
+   * Called when bug recording starts in the extension
+   */
+  startBackendLogRecording() {
+    this.backendLogRecording = true;
+    this.backendLogs = [];
+    this.backendLogRecordingStartTime = Date.now();
+
+    // Notify all connected SDK clients to start sending logs
+    const message = JSON.stringify({ type: 'start_recording' });
+    this.backendLogClients.forEach(ws => {
+      if (ws.readyState === 1) { // WebSocket.OPEN
+        ws.send(message);
+      }
+    });
+
+    console.log(`[Backend Logs] Recording started, ${this.backendLogClients.size} SDK client(s) connected`);
+    
+    return {
+      success: true,
+      clientsConnected: this.backendLogClients.size
+    };
+  }
+
+  /**
+   * Stop backend log recording session
+   * Called when bug recording stops in the extension
+   * @returns {Array} Captured backend logs
+   */
+  stopBackendLogRecording() {
+    this.backendLogRecording = false;
+
+    // Notify all connected SDK clients to stop sending logs
+    const message = JSON.stringify({ type: 'stop_recording' });
+    this.backendLogClients.forEach(ws => {
+      if (ws.readyState === 1) { // WebSocket.OPEN
+        ws.send(message);
+      }
+    });
+
+    const logs = [...this.backendLogs];
+    const duration = this.backendLogRecordingStartTime 
+      ? Date.now() - this.backendLogRecordingStartTime 
+      : 0;
+
+    console.log(`[Backend Logs] Recording stopped, captured ${logs.length} log entries in ${duration}ms`);
+
+    // Clear buffer
+    this.backendLogs = [];
+    this.backendLogRecordingStartTime = null;
+
+    return logs;
+  }
+
+  /**
+   * Get current backend log connection status
+   */
+  getBackendLogStatus() {
+    return {
+      connected: this.backendLogClients.size > 0,
+      clientCount: this.backendLogClients.size,
+      isRecording: this.backendLogRecording,
+      logCount: this.backendLogs.length
+    };
+  }
+
   async start() {
     await this.ensureDataFile();
     await this.ensureBugReportsFile();
@@ -2463,6 +2636,10 @@ class LocalAnnotationsServer {
       console.log(`\n✨ Pointa Server v${packageJson.version} started`);
       console.log(`   → API: http://127.0.0.1:${PORT}`);
       console.log(`   → MCP: http://127.0.0.1:${PORT}/mcp`);
+      
+      // Setup WebSocket for backend logs after server starts
+      this.setupBackendLogWebSocket(this.server);
+      
       console.log(`   → Data: ${DATA_DIR}`);
       console.log(`\n   Press Ctrl+C to stop\n`);
 

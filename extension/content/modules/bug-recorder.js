@@ -20,14 +20,49 @@ const BugRecorder = {
   performanceObserver: null,
   interactionHandlers: new Map(),
   maxRecordingDuration: 30000, // 30 seconds (handled by sidebar UI)
+  
+  // Backend logging integration
+  includeBackendLogs: false,  // Whether to capture backend logs
+  backendLogStatus: null,     // Current SDK connection status
+
+  /**
+   * Check backend log SDK connection status
+   */
+  async checkBackendLogStatus() {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getBackendLogStatus' });
+      if (response.success) {
+        this.backendLogStatus = response.status;
+        return response.status;
+      }
+    } catch (error) {
+      console.warn('[BugRecorder] Could not check backend log status:', error.message);
+    }
+    this.backendLogStatus = { connected: false, clientCount: 0 };
+    return this.backendLogStatus;
+  },
+
+  /**
+   * Set whether to include backend logs in recording
+   */
+  setIncludeBackendLogs(include) {
+    this.includeBackendLogs = include;
+  },
 
   /**
    * Start recording a bug session
+   * @param {Object} options - Recording options
+   * @param {boolean} options.includeBackendLogs - Whether to capture backend server logs
    */
-  async startRecording() {
+  async startRecording(options = {}) {
     if (this.isRecording) {
       console.warn('[BugRecorder] Already recording');
       return;
+    }
+
+    // Apply options
+    if (options.includeBackendLogs !== undefined) {
+      this.includeBackendLogs = options.includeBackendLogs;
     }
 
     this.isRecording = true;
@@ -38,6 +73,7 @@ const BugRecorder = {
       console: [],
       network: [],
       interactions: [],
+      backendLogs: [],  // Backend server logs
       metadata: {
         startTime: new Date(this.startTime).toISOString(),
         url: window.location.href,
@@ -45,7 +81,8 @@ const BugRecorder = {
         viewport: {
           width: window.innerWidth,
           height: window.innerHeight
-        }
+        },
+        includesBackendLogs: this.includeBackendLogs
       }
     };
 
@@ -64,6 +101,20 @@ const BugRecorder = {
       console.warn('[BugRecorder] Could not start CDP recording:', error.message);
     }
 
+    // Start backend log recording if enabled
+    if (this.includeBackendLogs) {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'startBackendLogRecording' });
+        if (response.success) {
+          console.log('[BugRecorder] Backend log recording started, clients:', response.clientsConnected);
+        } else {
+          console.warn('[BugRecorder] Backend log recording failed to start:', response.error);
+        }
+      } catch (error) {
+        console.warn('[BugRecorder] Could not start backend log recording:', error.message);
+      }
+    }
+
     // Start capturing window error events (backup for CDP)
     this.captureWindowErrors();
 
@@ -76,7 +127,8 @@ const BugRecorder = {
       severity: 'info',
       data: {
         url: window.location.href,
-        pageState: 'loaded'
+        pageState: 'loaded',
+        includesBackendLogs: this.includeBackendLogs
       }
     });
 
@@ -124,6 +176,33 @@ const BugRecorder = {
       }
     } catch (error) {
       console.warn('[BugRecorder] Could not stop CDP recording:', error.message);
+    }
+
+    // Stop backend log recording and get captured logs
+    if (this.includeBackendLogs) {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'stopBackendLogRecording' });
+        if (response.success && response.logs) {
+          // Transform backend logs to timeline event format
+          this.recordingData.backendLogs = response.logs.map(log => ({
+            timestamp: log.timestamp,
+            relativeTime: log.relativeTime || 0,
+            type: `backend-${log.level}`,  // backend-log, backend-warn, backend-error
+            severity: log.level === 'error' ? 'error' : log.level === 'warn' ? 'warning' : 'info',
+            source: 'backend',
+            data: {
+              message: log.message,
+              level: log.level,
+              stack: log.stack
+            }
+          }));
+          console.log('[BugRecorder] Merged backend logs:', response.logs.length);
+        } else {
+          console.warn('[BugRecorder] Backend log recording stop failed:', response.error);
+        }
+      } catch (error) {
+        console.warn('[BugRecorder] Could not stop backend log recording:', error.message);
+      }
     }
 
     // Add recording end event
@@ -500,19 +579,23 @@ const BugRecorder = {
     const allEvents = [
     ...this.recordingData.console,
     ...this.recordingData.network,
-    ...this.recordingData.interactions];
+    ...this.recordingData.interactions,
+    ...(this.recordingData.backendLogs || [])];  // Include backend logs
 
 
     // Sort by timestamp
     allEvents.sort((a, b) => a.relativeTime - b.relativeTime);
 
     // Generate summary
+    const backendLogs = this.recordingData.backendLogs || [];
     const summary = {
       totalEvents: allEvents.length,
       userInteractions: this.recordingData.interactions.length,
       networkRequests: this.recordingData.network.length,
       networkFailures: this.recordingData.network.filter((e) => e.subtype === 'failed').length,
       consoleErrors: this.recordingData.console.filter((e) => e.type === 'console-error').length,
+      backendLogs: backendLogs.length,
+      backendErrors: backendLogs.filter((e) => e.type === 'backend-error').length,
       consoleWarnings: this.recordingData.console.filter((e) => e.type === 'console-warning').length,
       consoleLogs: this.recordingData.console.filter((e) => e.type === 'console-log').length
     };

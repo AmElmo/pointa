@@ -283,6 +283,27 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
+        // Backend Logs: Get SDK connection status
+        case 'getBackendLogStatus':
+          this.getBackendLogStatus().
+          then((status) => sendResponse({ success: true, status })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Backend Logs: Start recording
+        case 'startBackendLogRecording':
+          this.startBackendLogRecording().
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Backend Logs: Stop recording and get logs
+        case 'stopBackendLogRecording':
+          this.stopBackendLogRecording().
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -1660,6 +1681,93 @@ class PointaBackground {
     } catch (error) {
       console.error('[Background] Error resetting viewport:', error);
       // Don't throw error on detach failure - tab might be closed
+    }
+  }
+
+  // ============================================================
+  // Backend Logs: SDK Integration for Server-Side Log Capture
+  // ============================================================
+
+  /**
+   * Get backend log SDK connection status from Pointa server
+   */
+  async getBackendLogStatus() {
+    try {
+      const response = await fetch(`${this.apiServerUrl}/api/backend-logs/status`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.warn('[Background] Error getting backend log status:', error.message);
+      return {
+        connected: false,
+        clientCount: 0,
+        isRecording: false,
+        logCount: 0,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Start backend log recording via Pointa server
+   * This signals the @pointa/server-logger SDK to start sending logs
+   */
+  async startBackendLogRecording() {
+    try {
+      const response = await fetch(`${this.apiServerUrl}/api/backend-logs/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[Background] Backend log recording started:', result);
+      return result;
+    } catch (error) {
+      console.warn('[Background] Error starting backend log recording:', error.message);
+      return {
+        success: false,
+        clientsConnected: 0,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Stop backend log recording and get captured logs
+   */
+  async stopBackendLogRecording() {
+    try {
+      const response = await fetch(`${this.apiServerUrl}/api/backend-logs/stop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('[Background] Backend log recording stopped:', result.count, 'logs captured');
+      return result;
+    } catch (error) {
+      console.warn('[Background] Error stopping backend log recording:', error.message);
+      return {
+        success: false,
+        logs: [],
+        count: 0,
+        error: error.message
+      };
     }
   }
 
