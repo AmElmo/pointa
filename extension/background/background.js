@@ -1686,6 +1686,9 @@ class PointaBackground {
         const response = params.response;
         const isSuccess = response.status >= 200 && response.status < 400;
         
+        // Get the HTTP method from the tracked request (requestWillBeSent)
+        const trackedRequest = recording.pendingRequests?.get(params.requestId);
+        
         recording.events.push({
           timestamp,
           relativeTime,
@@ -1694,10 +1697,11 @@ class PointaBackground {
           severity: isSuccess ? 'info' : 'error',
           data: {
             url: response.url,
-            method: params.type === 'XHR' ? 'XHR' : (response.requestHeaders?.['method'] || 'GET'),
+            method: trackedRequest?.method || 'GET', // Use tracked method from requestWillBeSent
             status: response.status,
             statusText: response.statusText,
             mimeType: response.mimeType,
+            resourceType: params.type, // XHR, Fetch, Document, etc.
             type: 'cdp'
           }
         });
