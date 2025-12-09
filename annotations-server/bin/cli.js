@@ -71,13 +71,12 @@ description('Start the Pointa server').
 option('-f, --foreground', 'Run in foreground (not as daemon)').
 action(async (options) => {
   if (isServerRunning()) {
-
-
-
+    console.log(chalk.yellow('⚠️  Pointa server is already running'));
+    console.log(chalk.gray(`   Use ${chalk.white('pointa-server status')} to check details`));
     return;
   }
 
-
+  console.log(chalk.blue('🚀 Starting Pointa server...'));
   const serverPath = join(dirname(__dirname), 'lib', 'server.js');
 
   if (!options.foreground) {
@@ -105,14 +104,15 @@ action(async (options) => {
     }
 
     if (attempts >= 10) {
-
-
+      console.log(chalk.red('❌ Failed to start server'));
+      console.log(chalk.gray(`   Check logs: ${chalk.white('pointa-server logs')}`));
       process.exit(1);
     }
 
-
-
-
+    console.log(chalk.green(`✨ Pointa server v${packageJson.version} started`));
+    console.log(chalk.gray(`   → API: ${chalk.white(`http://127.0.0.1:${PORT}`)}`));
+    console.log(chalk.gray(`   → MCP: ${chalk.white(`http://127.0.0.1:${PORT}/mcp`)}`));
+    console.log(chalk.gray(`   → Logs: ${chalk.white('pointa-server logs -f')}`));
 
   } else {
     // Run in foreground (only with -f flag)
@@ -136,7 +136,7 @@ command('stop').
 description('Stop the Pointa server').
 action(() => {
   if (!isServerRunning()) {
-
+    console.log(chalk.yellow('⚠️  Pointa server is not running'));
     return;
   }
 
@@ -148,10 +148,9 @@ action(() => {
       unlinkSync(PID_FILE);
     }
 
-
+    console.log(chalk.green('✓ Pointa server stopped'));
   } catch (error) {
-
-
+    console.log(chalk.red(`❌ Failed to stop server: ${error.message}`));
   }
 });
 
@@ -159,7 +158,7 @@ program.
 command('restart').
 description('Restart the Pointa server').
 action(async () => {
-
+  console.log(chalk.blue('🔄 Restarting Pointa server...'));
 
   // Stop if running
   if (isServerRunning()) {
@@ -171,12 +170,12 @@ action(async () => {
         unlinkSync(PID_FILE);
       }
 
-
+      console.log(chalk.gray('   Stopping old server...'));
 
       // Wait for process to stop
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (error) {
-
+      console.log(chalk.yellow(`   Warning: ${error.message}`));
     }
   }
 
@@ -191,29 +190,28 @@ action(async () => {
   const running = isServerRunning();
   const portAvailable = await checkPort();
 
-
+  console.log(chalk.blue('\n📊 Pointa Server Status\n'));
 
   if (running && portAvailable) {
-
-
-
+    console.log(chalk.green('   Status: ') + chalk.green.bold('Running ✓'));
+    console.log(chalk.gray(`   URL:    ${chalk.white(`http://127.0.0.1:${PORT}`)}`));
+    console.log(chalk.gray(`   MCP:    ${chalk.white(`http://127.0.0.1:${PORT}/mcp`)}`));
 
     if (existsSync(PID_FILE)) {
       const pid = readFileSync(PID_FILE, 'utf8').trim();
-
+      console.log(chalk.gray(`   PID:    ${chalk.white(pid)}`));
     }
 
-
+    console.log(chalk.gray(`   Data:   ${chalk.white(CONFIG_DIR)}`));
   } else if (running && !portAvailable) {
-
-
-
+    console.log(chalk.yellow('   Status: ') + chalk.yellow.bold('Starting...'));
+    console.log(chalk.gray('   Server process exists but not responding yet'));
   } else {
-
-
+    console.log(chalk.red('   Status: ') + chalk.red.bold('Stopped'));
+    console.log(chalk.gray(`   Start with: ${chalk.white('pointa-server start')}`));
   }
 
-
+  console.log('');
 });
 
 program.
@@ -223,9 +221,8 @@ option('-f, --follow', 'Follow log output').
 option('-n, --lines <number>', 'Number of lines to show', '50').
 action((options) => {
   if (!existsSync(LOG_FILE)) {
-
-
-
+    console.log(chalk.yellow('⚠️  No log file found'));
+    console.log(chalk.gray(`   Log file will be created when server starts: ${LOG_FILE}`));
     return;
   }
 
