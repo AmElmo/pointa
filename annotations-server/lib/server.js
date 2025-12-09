@@ -2460,10 +2460,11 @@ class LocalAnnotationsServer {
     this.checkForUpdates().catch(() => {});
 
     this.server = this.app.listen(PORT, () => {
-
-
-
-
+      console.log(`\n✨ Pointa Server v${packageJson.version} started`);
+      console.log(`   → API: http://127.0.0.1:${PORT}`);
+      console.log(`   → MCP: http://127.0.0.1:${PORT}/mcp`);
+      console.log(`   → Data: ${DATA_DIR}`);
+      console.log(`\n   Press Ctrl+C to stop\n`);
 
 
 
