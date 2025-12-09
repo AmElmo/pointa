@@ -3,16 +3,20 @@
  * 
  * Handles recording bug sessions including console logs, network requests,
  * user interactions, and generates comprehensive timeline data for debugging.
+ * 
+ * IMPORTANT: Network and console capture now uses Chrome DevTools Protocol (CDP)
+ * via the background script. This ensures we capture ALL network requests and
+ * console messages from the page's MAIN world, not just the isolated content script world.
  */
 
 const BugRecorder = {
   isRecording: false,
   recordingData: null,
   startTime: null,
-  consoleBackup: {},
-  originalFetch: null,
-  originalXHROpen: null,
-  originalXHRSend: null,
+  // Note: consoleBackup, originalFetch, originalXHROpen, originalXHRSend are no longer needed
+  // as we now use CDP for network/console capture
+  errorHandler: null,  // Window error handler reference
+  rejectionHandler: null,  // Unhandled rejection handler reference
   performanceObserver: null,
   interactionHandlers: new Map(),
   maxRecordingDuration: 30000, // 30 seconds (handled by sidebar UI)
@@ -47,13 +51,23 @@ const BugRecorder = {
 
     // Screenshot will be captured at the END of recording to show the bug state
 
-    // Start capturing console
-    this.captureConsole();
+    // Start CDP recording via background script
+    // This captures network and console via Chrome DevTools Protocol (CDP)
+    // which runs in the page's MAIN world, capturing ALL requests and console messages
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'startCDPRecording' });
+      if (!response.success) {
+        console.warn('[BugRecorder] CDP recording failed to start:', response.error);
+        // Continue anyway - we'll still capture interactions and error events
+      }
+    } catch (error) {
+      console.warn('[BugRecorder] Could not start CDP recording:', error.message);
+    }
 
-    // Start capturing network
-    this.captureNetwork();
+    // Start capturing window error events (backup for CDP)
+    this.captureWindowErrors();
 
-    // Start capturing interactions
+    // Start capturing interactions (DOM events work in content script)
     this.captureInteractions();
 
     // Add recording start event to timeline
@@ -81,6 +95,37 @@ const BugRecorder = {
       return null;
     }
 
+    this.isRecording = false;
+
+    // Stop CDP recording and get captured events
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'stopCDPRecording' });
+      if (response.success) {
+        // Merge CDP events into recording data
+        // CDP captures network and console from the page's MAIN world
+        if (response.events.network) {
+          this.recordingData.network = [
+            ...this.recordingData.network,
+            ...response.events.network
+          ];
+        }
+        if (response.events.console) {
+          this.recordingData.console = [
+            ...this.recordingData.console,
+            ...response.events.console
+          ];
+        }
+        console.log('[BugRecorder] Merged CDP events:', {
+          network: response.events.network?.length || 0,
+          console: response.events.console?.length || 0
+        });
+      } else {
+        console.warn('[BugRecorder] CDP recording stop failed:', response.error);
+      }
+    } catch (error) {
+      console.warn('[BugRecorder] Could not stop CDP recording:', error.message);
+    }
+
     // Add recording end event
     this.addTimelineEvent({
       type: 'recording-end',
@@ -91,13 +136,8 @@ const BugRecorder = {
       }
     });
 
-    this.isRecording = false;
-
-    // Restore console
-    this.restoreConsole();
-
-    // Stop network monitoring
-    this.stopNetworkMonitoring();
+    // Remove window error handlers
+    this.removeWindowErrorHandlers();
 
     // Remove interaction handlers
     this.removeInteractionHandlers();
@@ -199,60 +239,13 @@ const BugRecorder = {
   },
 
   /**
-   * Override console methods to capture logs
-   * Filters out development logs (lines starting with [ModuleName])
+   * Capture window error events (backup for CDP)
+   * These events fire in the content script world for uncaught errors
+   * CDP should capture most errors, but this provides a backup
    */
-  captureConsole() {
-    const consoleMethods = ['log', 'warn', 'error', 'info', 'debug'];
-
-    consoleMethods.forEach((method) => {
-      this.consoleBackup[method] = console[method];
-
-      console[method] = (...args) => {
-        // Call original
-        this.consoleBackup[method](...args);
-
-        // Record if we're capturing
-        if (this.isRecording) {
-          // Check if this log originated from our extension code
-          const stack = new Error().stack;
-          const isFromOurExtension = stack && (
-          stack.includes('chrome-extension://') ||
-          stack.includes('/extension/content/') ||
-          stack.includes('bug-recorder.js') ||
-          stack.includes('sidebar-ui.js') ||
-          stack.includes('badge-manager.js'));
-
-
-          // Only capture logs from the user's application, not our extension
-          if (!isFromOurExtension) {
-            // Convert args to message string
-            const message = args.map((arg) => {
-              if (typeof arg === 'object') {
-                try {
-                  return JSON.stringify(arg, null, 2);
-                } catch {
-                  return String(arg);
-                }
-              }
-              return String(arg);
-            }).join(' ');
-
-            this.addTimelineEvent({
-              type: method === 'error' ? 'console-error' : method === 'warn' ? 'console-warning' : 'console-log',
-              severity: method === 'error' ? 'error' : method === 'warn' ? 'warning' : 'info',
-              data: {
-                message: message,
-                level: method
-              }
-            });
-          }
-        }
-      };
-    });
-
+  captureWindowErrors() {
     // Capture unhandled errors
-    window.addEventListener('error', (event) => {
+    this.errorHandler = (event) => {
       if (this.isRecording) {
         this.addTimelineEvent({
           type: 'console-error',
@@ -263,14 +256,16 @@ const BugRecorder = {
             lineNumber: event.lineno,
             columnNumber: event.colno,
             stack: event.error?.stack,
-            level: 'error'
+            level: 'error',
+            capturedBy: 'window-error-handler'
           }
         });
       }
-    });
+    };
+    window.addEventListener('error', this.errorHandler);
 
     // Capture unhandled promise rejections
-    window.addEventListener('unhandledrejection', (event) => {
+    this.rejectionHandler = (event) => {
       if (this.isRecording) {
         this.addTimelineEvent({
           type: 'console-error',
@@ -278,188 +273,26 @@ const BugRecorder = {
           data: {
             message: `Unhandled Promise Rejection: ${event.reason}`,
             level: 'error',
-            reason: String(event.reason)
+            reason: String(event.reason),
+            capturedBy: 'unhandled-rejection-handler'
           }
         });
       }
-    });
+    };
+    window.addEventListener('unhandledrejection', this.rejectionHandler);
   },
 
   /**
-   * Restore original console methods
+   * Remove window error handlers
    */
-  restoreConsole() {
-    Object.keys(this.consoleBackup).forEach((method) => {
-      console[method] = this.consoleBackup[method];
-    });
-    this.consoleBackup = {};
-  },
-
-  /**
-   * Capture network requests using fetch and XHR interception
-   */
-  captureNetwork() {
-    // Intercept fetch
-    this.originalFetch = window.fetch;
-    window.fetch = async (...args) => {
-      const url = typeof args[0] === 'string' ? args[0] : args[0].url;
-      const options = args[1] || {};
-
-      try {
-        const startTime = Date.now();
-        const response = await this.originalFetch(...args);
-        const duration = Date.now() - startTime;
-
-        if (this.isRecording) {
-          // Only capture response body for failed requests
-          let responseBody = null;
-          if (!response.ok) {
-            try {
-              const clonedResponse = response.clone();
-              const contentType = response.headers.get('content-type');
-              if (contentType && contentType.includes('application/json')) {
-                responseBody = await clonedResponse.json();
-              } else {
-                const text = await clonedResponse.text();
-                // Limit size
-                responseBody = text.length > 500 ? text.substring(0, 500) + '... (truncated)' : text;
-              }
-            } catch {
-              responseBody = '[Unable to parse response body]';
-            }
-          }
-
-          this.addTimelineEvent({
-            type: 'network',
-            subtype: response.ok ? 'success' : 'failed',
-            severity: response.ok ? 'info' : 'error',
-            data: {
-              url: url,
-              method: options.method || 'GET',
-              status: response.status,
-              statusText: response.statusText,
-              duration: duration,
-              ...(responseBody && { responseBody }), // Only include if not null
-              type: 'fetch'
-            }
-          });
-        }
-
-        return response;
-      } catch (error) {
-        if (this.isRecording) {
-          this.addTimelineEvent({
-            type: 'network',
-            subtype: 'failed',
-            severity: 'error',
-            data: {
-              url: url,
-              method: options.method || 'GET',
-              error: error.message,
-              type: 'fetch'
-            }
-          });
-        }
-        throw error;
-      }
-    };
-
-    // Intercept XHR
-    const self = this;
-    this.originalXHROpen = XMLHttpRequest.prototype.open;
-    this.originalXHRSend = XMLHttpRequest.prototype.send;
-
-    XMLHttpRequest.prototype.open = function (method, url, ...args) {
-      this._bugRecorderData = {
-        id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        method: method,
-        url: url,
-        startTime: Date.now()
-      };
-
-      return self.originalXHROpen.call(this, method, url, ...args);
-    };
-
-    XMLHttpRequest.prototype.send = function (body) {
-      const xhr = this;
-
-      // Add load handler
-      xhr.addEventListener('load', function () {
-        if (self.isRecording && xhr._bugRecorderData) {
-          const duration = Date.now() - xhr._bugRecorderData.startTime;
-          const isSuccess = xhr.status >= 200 && xhr.status < 300;
-
-          // Only capture response body for failed requests
-          let responseBody = null;
-          if (!isSuccess) {
-            try {
-              const contentType = xhr.getResponseHeader('content-type');
-              if (contentType && contentType.includes('application/json')) {
-                responseBody = JSON.parse(xhr.responseText);
-              } else {
-                const text = xhr.responseText || '';
-                responseBody = text.length > 500 ? text.substring(0, 500) + '... (truncated)' : text;
-              }
-            } catch {
-              responseBody = xhr.responseText ? xhr.responseText.substring(0, 500) + '... (truncated)' : '[No response]';
-            }
-          }
-
-          self.addTimelineEvent({
-            type: 'network',
-            subtype: isSuccess ? 'success' : 'failed',
-            severity: isSuccess ? 'info' : 'error',
-            data: {
-              url: xhr._bugRecorderData.url,
-              method: xhr._bugRecorderData.method,
-              status: xhr.status,
-              statusText: xhr.statusText,
-              duration: duration,
-              ...(responseBody && { responseBody }), // Only include if not null
-              type: 'xhr'
-            }
-          });
-        }
-      });
-
-      // Add error handler
-      xhr.addEventListener('error', function () {
-        if (self.isRecording && xhr._bugRecorderData) {
-          self.addTimelineEvent({
-            type: 'network',
-            subtype: 'failed',
-            severity: 'error',
-            data: {
-              url: xhr._bugRecorderData.url,
-              method: xhr._bugRecorderData.method,
-              error: 'Network error',
-              type: 'xhr'
-            }
-          });
-        }
-      });
-
-      return self.originalXHRSend.call(this, body);
-    };
-  },
-
-  /**
-   * Stop network monitoring
-   */
-  stopNetworkMonitoring() {
-    if (this.originalFetch) {
-      window.fetch = this.originalFetch;
-      this.originalFetch = null;
+  removeWindowErrorHandlers() {
+    if (this.errorHandler) {
+      window.removeEventListener('error', this.errorHandler);
+      this.errorHandler = null;
     }
-
-    if (this.originalXHROpen) {
-      XMLHttpRequest.prototype.open = this.originalXHROpen;
-      this.originalXHROpen = null;
-    }
-
-    if (this.originalXHRSend) {
-      XMLHttpRequest.prototype.send = this.originalXHRSend;
-      this.originalXHRSend = null;
+    if (this.rejectionHandler) {
+      window.removeEventListener('unhandledrejection', this.rejectionHandler);
+      this.rejectionHandler = null;
     }
   },
 

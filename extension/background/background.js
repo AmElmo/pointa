@@ -16,6 +16,11 @@ class PointaBackground {
     // this.fileStorage = new FileStorageManager();
     this.viewportOverrides = new Map(); // Track viewport overrides for responsive capture
 
+    // 🎯 CDP Recording: Track active CDP recordings per tab
+    // This captures network/console via Chrome DevTools Protocol (CDP)
+    // CDP runs in the page's MAIN world, capturing ALL network requests and console messages
+    this.cdpRecordings = new Map(); // tabId -> { events: [], startTime: number }
+
     // 🎯 NO LOCAL STORAGE: Extension uses API server as single source of truth
     // This eliminates all race conditions and data loss issues from sync operations
 
@@ -30,6 +35,7 @@ class PointaBackground {
     this.setupTabListener();
     this.setupStorageListener();
     this.setupActionClickListener();
+    this.setupCDPEventListener(); // CDP network/console capture
 
     // Sync bug reports from API server on startup
     this.syncBugReportsFromAPI().catch((err) => {
@@ -260,6 +266,20 @@ class PointaBackground {
         case 'ensureContentScriptsInjected':
           this.ensureContentScriptsInjected(request.tabId).
           then(() => sendResponse({ success: true })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // CDP Recording: Start capturing network/console via Chrome DevTools Protocol
+        case 'startCDPRecording':
+          this.startCDPRecording(sender.tab.id).
+          then(() => sendResponse({ success: true })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // CDP Recording: Stop capturing and return events
+        case 'stopCDPRecording':
+          this.stopCDPRecording(sender.tab.id).
+          then((events) => sendResponse({ success: true, events })).
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
@@ -1640,6 +1660,295 @@ class PointaBackground {
     } catch (error) {
       console.error('[Background] Error resetting viewport:', error);
       // Don't throw error on detach failure - tab might be closed
+    }
+  }
+
+  // ============================================================
+  // CDP Recording: Chrome DevTools Protocol Network/Console Capture
+  // ============================================================
+  
+  /**
+   * Set up CDP event listener for network and console capture
+   * This listener handles ALL CDP events and routes them to active recordings
+   */
+  setupCDPEventListener() {
+    chrome.debugger.onEvent.addListener((source, method, params) => {
+      const tabId = source.tabId;
+      const recording = this.cdpRecordings.get(tabId);
+      
+      if (!recording) return; // Not recording for this tab
+      
+      const timestamp = new Date().toISOString();
+      const relativeTime = Date.now() - recording.startTime;
+      
+      // Handle Network events
+      if (method === 'Network.responseReceived') {
+        const response = params.response;
+        const isSuccess = response.status >= 200 && response.status < 400;
+        
+        recording.events.push({
+          timestamp,
+          relativeTime,
+          type: 'network',
+          subtype: isSuccess ? 'success' : 'failed',
+          severity: isSuccess ? 'info' : 'error',
+          data: {
+            url: response.url,
+            method: params.type === 'XHR' ? 'XHR' : (response.requestHeaders?.['method'] || 'GET'),
+            status: response.status,
+            statusText: response.statusText,
+            mimeType: response.mimeType,
+            type: 'cdp'
+          }
+        });
+      }
+      
+      // Handle Network loading failures (e.g., connection refused, CORS)
+      if (method === 'Network.loadingFailed') {
+        // Find the corresponding request
+        const request = recording.pendingRequests?.get(params.requestId);
+        
+        recording.events.push({
+          timestamp,
+          relativeTime,
+          type: 'network',
+          subtype: 'failed',
+          severity: 'error',
+          data: {
+            url: request?.url || 'unknown',
+            method: request?.method || 'unknown',
+            error: params.errorText,
+            canceled: params.canceled,
+            blockedReason: params.blockedReason,
+            type: 'cdp'
+          }
+        });
+      }
+      
+      // Track pending requests for loading failure correlation
+      if (method === 'Network.requestWillBeSent') {
+        if (!recording.pendingRequests) {
+          recording.pendingRequests = new Map();
+        }
+        recording.pendingRequests.set(params.requestId, {
+          url: params.request.url,
+          method: params.request.method
+        });
+      }
+      
+      // Handle Console messages (Log.entryAdded captures browser console messages)
+      if (method === 'Log.entryAdded') {
+        const entry = params.entry;
+        
+        // Filter out extension's own messages
+        if (entry.url && entry.url.includes('chrome-extension://')) return;
+        
+        // Map CDP log levels to our event types
+        let eventType = 'console-log';
+        let severity = 'info';
+        
+        if (entry.level === 'error') {
+          eventType = 'console-error';
+          severity = 'error';
+        } else if (entry.level === 'warning') {
+          eventType = 'console-warning';
+          severity = 'warning';
+        }
+        
+        recording.events.push({
+          timestamp,
+          relativeTime,
+          type: eventType,
+          severity,
+          data: {
+            message: entry.text,
+            level: entry.level,
+            source: entry.source,
+            url: entry.url,
+            lineNumber: entry.lineNumber
+          }
+        });
+      }
+      
+      // Handle Runtime console API calls (captures console.log, console.error, etc.)
+      if (method === 'Runtime.consoleAPICalled') {
+        // Filter out extension's own messages
+        if (params.stackTrace?.callFrames?.[0]?.url?.includes('chrome-extension://')) return;
+        
+        let eventType = 'console-log';
+        let severity = 'info';
+        
+        if (params.type === 'error') {
+          eventType = 'console-error';
+          severity = 'error';
+        } else if (params.type === 'warning') {
+          eventType = 'console-warning';
+          severity = 'warning';
+        }
+        
+        // Convert args to message string
+        const message = params.args.map(arg => {
+          if (arg.type === 'string') return arg.value;
+          if (arg.type === 'number') return String(arg.value);
+          if (arg.type === 'boolean') return String(arg.value);
+          if (arg.type === 'undefined') return 'undefined';
+          if (arg.type === 'object') {
+            if (arg.preview) {
+              // Try to reconstruct object from preview
+              if (arg.preview.properties) {
+                const props = arg.preview.properties.map(p => `${p.name}: ${p.value}`).join(', ');
+                return `{${props}}`;
+              }
+              return arg.preview.description || '[Object]';
+            }
+            return arg.description || '[Object]';
+          }
+          return arg.description || String(arg.value) || '[Unknown]';
+        }).join(' ');
+        
+        recording.events.push({
+          timestamp,
+          relativeTime,
+          type: eventType,
+          severity,
+          data: {
+            message,
+            level: params.type,
+            stackTrace: params.stackTrace?.callFrames?.slice(0, 3).map(f => ({
+              functionName: f.functionName,
+              url: f.url,
+              lineNumber: f.lineNumber
+            }))
+          }
+        });
+      }
+      
+      // Handle uncaught exceptions
+      if (method === 'Runtime.exceptionThrown') {
+        const exception = params.exceptionDetails;
+        
+        recording.events.push({
+          timestamp,
+          relativeTime,
+          type: 'console-error',
+          severity: 'error',
+          data: {
+            message: exception.text || exception.exception?.description || 'Uncaught exception',
+            level: 'error',
+            source: exception.url,
+            lineNumber: exception.lineNumber,
+            columnNumber: exception.columnNumber,
+            stack: exception.stackTrace?.callFrames?.map(f => 
+              `    at ${f.functionName || '(anonymous)'} (${f.url}:${f.lineNumber}:${f.columnNumber})`
+            ).join('\n')
+          }
+        });
+      }
+    });
+    
+    // Clean up when tab is closed or debugger is detached
+    chrome.debugger.onDetach.addListener((source, reason) => {
+      const tabId = source.tabId;
+      if (this.cdpRecordings.has(tabId)) {
+        console.log(`[CDP] Debugger detached from tab ${tabId}: ${reason}`);
+        // Don't delete recording - let stopCDPRecording handle it
+      }
+    });
+  }
+
+  /**
+   * Start CDP recording for a tab
+   * Attaches debugger and enables Network, Log, and Runtime domains
+   */
+  async startCDPRecording(tabId) {
+    try {
+      // Check if already recording
+      if (this.cdpRecordings.has(tabId)) {
+        console.warn(`[CDP] Already recording for tab ${tabId}`);
+        return;
+      }
+      
+      // Initialize recording data
+      this.cdpRecordings.set(tabId, {
+        events: [],
+        startTime: Date.now(),
+        pendingRequests: new Map()
+      });
+      
+      // Check if debugger is already attached (e.g., for viewport override)
+      const isAttached = this.viewportOverrides.has(tabId);
+      
+      if (!isAttached) {
+        await chrome.debugger.attach({ tabId }, '1.3');
+      }
+      
+      // Enable Network domain - captures all network requests
+      await chrome.debugger.sendCommand({ tabId }, 'Network.enable', {});
+      
+      // Enable Log domain - captures browser console messages (including network errors)
+      await chrome.debugger.sendCommand({ tabId }, 'Log.enable', {});
+      
+      // Enable Runtime domain - captures console.* calls and exceptions
+      await chrome.debugger.sendCommand({ tabId }, 'Runtime.enable', {});
+      
+      console.log(`[CDP] Started recording for tab ${tabId}`);
+      
+    } catch (error) {
+      console.error(`[CDP] Error starting recording for tab ${tabId}:`, error);
+      this.cdpRecordings.delete(tabId);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop CDP recording for a tab and return captured events
+   */
+  async stopCDPRecording(tabId) {
+    try {
+      const recording = this.cdpRecordings.get(tabId);
+      
+      if (!recording) {
+        console.warn(`[CDP] No active recording for tab ${tabId}`);
+        return { network: [], console: [] };
+      }
+      
+      // Disable domains
+      try {
+        await chrome.debugger.sendCommand({ tabId }, 'Network.disable', {});
+        await chrome.debugger.sendCommand({ tabId }, 'Log.disable', {});
+        await chrome.debugger.sendCommand({ tabId }, 'Runtime.disable', {});
+      } catch (e) {
+        console.warn(`[CDP] Error disabling domains:`, e.message);
+      }
+      
+      // Only detach if we're not using it for viewport override
+      if (!this.viewportOverrides.has(tabId)) {
+        try {
+          await chrome.debugger.detach({ tabId });
+        } catch (e) {
+          console.warn(`[CDP] Error detaching debugger:`, e.message);
+        }
+      }
+      
+      // Get events and clean up
+      const events = recording.events;
+      this.cdpRecordings.delete(tabId);
+      
+      // Separate network and console events
+      const networkEvents = events.filter(e => e.type === 'network');
+      const consoleEvents = events.filter(e => e.type.startsWith('console'));
+      
+      console.log(`[CDP] Stopped recording for tab ${tabId}. Captured ${networkEvents.length} network, ${consoleEvents.length} console events`);
+      
+      return {
+        network: networkEvents,
+        console: consoleEvents
+      };
+      
+    } catch (error) {
+      console.error(`[CDP] Error stopping recording for tab ${tabId}:`, error);
+      this.cdpRecordings.delete(tabId);
+      throw error;
     }
   }
 
