@@ -1,11 +1,11 @@
-# @pointa/server-logger
+# pointa-server-logger
 
 Capture backend server logs for Pointa bug reports. When you record a bug with the Pointa Chrome extension, this package streams your server's console output to include in the bug report timeline.
 
 ## Installation
 
 ```bash
-npm install @pointa/server-logger
+npm install pointa-server-logger
 ```
 
 ## Quick Start
@@ -14,7 +14,7 @@ Add one line to your server's entry point:
 
 ```javascript
 // At the top of your server file (e.g., server.js, index.js, app.js)
-import '@pointa/server-logger';
+import 'pointa-server-logger';
 
 // Your existing code...
 import express from 'express';
@@ -36,7 +36,7 @@ That's it! When you record a bug with the Pointa Chrome extension, your server's
 If you need to customize the connection:
 
 ```javascript
-import { initPointaLogger } from '@pointa/server-logger';
+import { initPointaLogger } from 'pointa-server-logger';
 
 initPointaLogger({
   port: 4242,           // Pointa server port (default: 4242)
@@ -51,7 +51,7 @@ initPointaLogger({
 ### Express
 
 ```javascript
-import '@pointa/server-logger';
+import 'pointa-server-logger';
 import express from 'express';
 
 const app = express();
@@ -72,7 +72,7 @@ Create or edit `instrumentation.ts` in your project root:
 // instrumentation.ts
 export async function register() {
   if (process.env.NODE_ENV === 'development') {
-    await import('@pointa/server-logger');
+    await import('pointa-server-logger');
   }
 }
 ```
@@ -80,7 +80,7 @@ export async function register() {
 ### Fastify
 
 ```javascript
-import '@pointa/server-logger';
+import 'pointa-server-logger';
 import Fastify from 'fastify';
 
 const fastify = Fastify();
@@ -96,7 +96,7 @@ fastify.listen({ port: 3000 });
 ### Hono
 
 ```javascript
-import '@pointa/server-logger';
+import 'pointa-server-logger';
 import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 
