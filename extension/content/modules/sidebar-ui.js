@@ -5140,7 +5140,9 @@ IMPORTANT - Git Workflow:
           // SDK not connected - show help button
           statusEl.innerHTML = `
             <span style="color: var(--theme-text-secondary);">SDK not connected</span>
-            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— click <strong>?</strong> for setup</span>
+            <div style="margin-top: 6px; font-size: 10px; color: var(--theme-text-secondary);">
+              Install <code style="background: var(--theme-surface-hover); padding: 2px 4px; border-radius: 3px; color: var(--theme-text-primary);">pointa-server-logger</code> in your server
+            </div>
           `;
           if (toggle) {
             toggle.disabled = true;
