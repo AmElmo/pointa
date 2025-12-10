@@ -2115,8 +2115,8 @@ ${taskDescription}`;
                 <span style="font-size: 16px;">🔧</span>
                 <span style="font-size: 13px; font-weight: 500; color: var(--theme-text-primary);">Include backend logs</span>
               </div>
-              <label class="sidebar-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;">
-                <input type="checkbox" id="sidebar-backend-logs-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;">
+              <label class="sidebar-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; cursor: pointer;">
+                <input type="checkbox" id="sidebar-backend-logs-toggle" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; margin: 0;">
                 <span class="sidebar-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--theme-surface-hover); border: 1px solid var(--theme-outline); transition: .3s; border-radius: 24px;"></span>
               </label>
             </div>
