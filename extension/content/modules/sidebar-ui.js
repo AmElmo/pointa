@@ -5119,10 +5119,12 @@ IMPORTANT - Git Workflow:
     const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
     
     try {
+      console.log('[Sidebar] Checking backend log status for port:', currentPort);
       const response = await chrome.runtime.sendMessage({ 
         action: 'getBackendLogStatus',
         port: currentPort
       });
+      console.log('[Sidebar] Backend log status response:', response);
       
       if (response && response.success && response.status) {
         const { connected, clientCount } = response.status;

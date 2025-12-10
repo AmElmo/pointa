@@ -15,6 +15,9 @@ class PointaBackground {
     // All file operations go through the API server instead
     // this.fileStorage = new FileStorageManager();
     this.viewportOverrides = new Map(); // Track viewport overrides for responsive capture
+    
+    // 🔒 Injection lock: Prevent concurrent content script injections for the same tab
+    this.injectionLocks = new Set(); // Set of tabIds currently being injected
 
     // 🎯 CDP Recording: Track active CDP recordings per tab
     // This captures network/console via Chrome DevTools Protocol (CDP)
@@ -285,9 +288,16 @@ class PointaBackground {
 
         // Backend Logs: Get SDK connection status (optionally for a specific port)
         case 'getBackendLogStatus':
-          this.getBackendLogStatus(message.port || null).
-          then((status) => sendResponse({ success: true, status })).
-          catch((error) => sendResponse({ success: false, error: error.message }));
+          console.log('[Background] getBackendLogStatus called with port:', request.port);
+          this.getBackendLogStatus(request.port || null).
+          then((status) => {
+            console.log('[Background] getBackendLogStatus response:', status);
+            sendResponse({ success: true, status });
+          }).
+          catch((error) => {
+            console.error('[Background] getBackendLogStatus error:', error);
+            sendResponse({ success: false, error: error.message });
+          });
           break;
 
         // Backend Logs: Start recording
@@ -399,6 +409,12 @@ class PointaBackground {
    * Only injects if not already present (checks for window.pointa)
    */
   async ensureContentScriptsInjected(tabId) {
+    // 🔒 Prevent concurrent injections for the same tab (race condition fix)
+    if (this.injectionLocks.has(tabId)) {
+      console.log(`[Background] Injection already in progress for tab ${tabId}, skipping`);
+      return;
+    }
+    
     try {
       // Check if scripts are already injected by checking for window.pointa
       const results = await chrome.scripting.executeScript({
@@ -410,6 +426,9 @@ class PointaBackground {
       if (results && results[0] && results[0].result === true) {
         return;
       }
+      
+      // Acquire lock before injecting
+      this.injectionLocks.add(tabId);
 
       // Inject CSS first
       await chrome.scripting.insertCSS({
@@ -460,6 +479,9 @@ class PointaBackground {
         console.error('Error injecting content scripts:', error);
       }
       throw error;
+    } finally {
+      // 🔓 Always release the lock
+      this.injectionLocks.delete(tabId);
     }
   }
 
