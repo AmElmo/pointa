@@ -613,8 +613,14 @@ const BugRecorder = {
     const keyIssues = [];
     const events = timeline.events;
 
-    // Find console errors
-    const consoleErrors = events.filter((e) => e.type === 'console-error');
+    // Find console errors (exclude errors from chrome extensions - these are not user's app errors)
+    const consoleErrors = events.filter((e) => {
+      if (e.type !== 'console-error') return false;
+      // Skip errors from chrome extensions (including Pointa itself)
+      const source = e.data.source || '';
+      if (source.startsWith('chrome-extension://')) return false;
+      return true;
+    });
     consoleErrors.forEach((error) => {
       keyIssues.push({
         type: 'console-error',
@@ -639,6 +645,20 @@ const BugRecorder = {
         url: failure.data.url,
         status: failure.data.status,
         responseBody: failure.data.responseBody
+      });
+    });
+
+    // Find backend errors
+    const backendErrors = events.filter((e) => e.type === 'backend-error');
+    backendErrors.forEach((error) => {
+      keyIssues.push({
+        type: 'backend-error',
+        description: error.data.message,
+        timestamp: error.timestamp,
+        relativeTime: error.relativeTime,
+        severity: 'error',
+        source: 'backend',
+        stack: error.data.stack
       });
     });
 
