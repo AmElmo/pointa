@@ -66,15 +66,10 @@ app.listen(3000);
 
 ### Next.js
 
-Create or edit `instrumentation.ts` in your project root:
+Edit `next.config.js` in your project root and add:
 
 ```typescript
-// instrumentation.ts
-export async function register() {
-  if (process.env.NODE_ENV === 'development') {
-    await import('pointa-server-logger');
-  }
-}
+import 'pointa-server-logger';
 ```
 
 ### Fastify
