@@ -341,19 +341,7 @@ const BugReportUI = {
         
         <div class="bug-report-form-container">
           <div class="bug-form-field">
-            <label for="bug-what-happened">What happened? *</label>
-            <textarea 
-              id="bug-what-happened"
-              class="pointa-comment-textarea bug-form-textarea" 
-              placeholder="Describe what went wrong in one sentence..."
-              maxlength="500"
-              rows="3"
-            ></textarea>
-            <div class="bug-form-helper">Keep it short - we captured the technical details</div>
-          </div>
-          
-          <div class="bug-form-field">
-            <label for="bug-expected">What did you expect? *</label>
+            <label for="bug-expected">What did you expect? <span class="bug-form-optional">(optional)</span></label>
             <textarea 
               id="bug-expected"
               class="pointa-comment-textarea bug-form-textarea" 
@@ -361,6 +349,7 @@ const BugReportUI = {
               maxlength="500"
               rows="3"
             ></textarea>
+            <div class="bug-form-helper">We already captured the technical details from your recording</div>
           </div>
           
           <div class="bug-captured-data-summary">
@@ -378,7 +367,7 @@ const BugReportUI = {
         
         <div class="pointa-comment-actions">
           <button class="pointa-btn pointa-btn-secondary" id="cancel-bug-report">Cancel</button>
-          <button class="pointa-btn pointa-btn-primary" id="submit-bug-report" disabled>Create Bug Report</button>
+          <button class="pointa-btn pointa-btn-primary" id="submit-bug-report">Create Bug Report</button>
         </div>
       </div>
     `;
@@ -697,7 +686,6 @@ const BugReportUI = {
     const closeBtn = modal.querySelector('.pointa-comment-modal-close');
     const cancelBtn = modal.querySelector('#cancel-bug-report');
     const submitBtn = modal.querySelector('#submit-bug-report');
-    const whatHappenedInput = modal.querySelector('#bug-what-happened');
     const expectedInput = modal.querySelector('#bug-expected');
 
     const closeModal = async () => {
@@ -717,21 +705,10 @@ const BugReportUI = {
       }
     };
 
-    // Enable/disable submit button
-    const updateSubmitButton = () => {
-      const whatHappened = whatHappenedInput.value.trim();
-      const expected = expectedInput.value.trim();
-      submitBtn.disabled = !whatHappened || !expected;
-    };
-
-    whatHappenedInput.addEventListener('input', updateSubmitButton);
-    expectedInput.addEventListener('input', updateSubmitButton);
-
     closeBtn.addEventListener('click', closeModal);
     cancelBtn.addEventListener('click', closeModal);
 
     submitBtn.addEventListener('click', async () => {
-      const whatHappened = whatHappenedInput.value.trim();
       const expected = expectedInput.value.trim();
 
       // Unregister form modal before showing confirmation
@@ -739,10 +716,9 @@ const BugReportUI = {
         window.PointaModalManager.unregisterModal('bug-report-form');
       }
 
-      // Create bug report
+      // Create bug report (expectedBehavior is optional)
       await window.pointa.saveBugReport({
-        whatHappened,
-        expectedBehavior: expected,
+        expectedBehavior: expected || null,
         recordingData
       });
 
