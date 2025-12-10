@@ -2068,6 +2068,7 @@ ${taskDescription}`;
                 <li style="margin-bottom: 4px;">✓ Console & errors</li>
                 <li style="margin-bottom: 4px;">✓ Network activity</li>
                 <li style="margin-bottom: 4px;">✓ Interactions</li>
+                ${window.BugRecorder?.includeBackendLogs ? '<li style="margin-bottom: 4px;">✓ Backend server logs</li>' : ''}
               </ul>
             </div>
 
@@ -2106,6 +2107,23 @@ ${taskDescription}`;
             <li>🖱️ Your clicks & interactions</li>
             <li>📸 Screenshot of the page</li>
           </ul>
+
+          <!-- Backend Logs Toggle -->
+          <div class="sidebar-backend-logs-section" id="sidebar-backend-logs-section" style="margin: 16px 0; padding: 12px; border-radius: 8px; background: var(--theme-surface); border: 1px solid var(--theme-outline);">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px;">🔧</span>
+                <span style="font-size: 13px; font-weight: 500; color: var(--theme-text-primary);">Include backend logs</span>
+              </div>
+              <label class="sidebar-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; cursor: pointer;">
+                <input type="checkbox" id="sidebar-backend-logs-toggle" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; margin: 0;">
+                <span class="sidebar-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--theme-surface-hover); border: 1px solid var(--theme-outline); transition: .3s; border-radius: 24px;"></span>
+              </label>
+            </div>
+            <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--theme-text-secondary);">
+              Checking SDK connection...
+            </div>
+          </div>
           
           <div class="sidebar-bug-instructions-compact">
             <h3>Quick Start:</h3>
@@ -3271,7 +3289,30 @@ ${taskDescription}`;
       return '<p class="bug-no-timeline">No timeline events recorded.</p>';
     }
 
-    return timeline.events.map((event) => {
+    // Filter out noisy events when displaying (for backward compatibility with old data)
+    const filteredEvents = timeline.events.filter((event) => {
+      // Filter chrome extension errors
+      if (event.type === 'console-error') {
+        const source = event.data?.source || '';
+        if (source.startsWith('chrome-extension://')) return false;
+      }
+      // Filter Pointa health checks and OPTIONS requests
+      if (event.type === 'network') {
+        const url = event.data?.url || '';
+        const method = event.data?.method || '';
+        if (url.includes('127.0.0.1:4242/health')) return false;
+        if (url.includes('localhost:4242/health')) return false;
+        if (url.includes('127.0.0.1:4242/api/backend')) return false;
+        if (method === 'OPTIONS') return false;
+      }
+      return true;
+    });
+
+    if (filteredEvents.length === 0) {
+      return '<p class="bug-no-timeline">No relevant timeline events.</p>';
+    }
+
+    return filteredEvents.map((event) => {
       const timeStr = BugRecorder.formatRelativeTime(event.relativeTime);
       const icon = this.getBugEventIcon(event);
       const description = this.getBugEventDescription(event);
@@ -3307,6 +3348,9 @@ ${taskDescription}`;
       case 'console-error':return '🔴';
       case 'console-warning':return '⚠️';
       case 'console-log':return '💬';
+      case 'backend-log':return '🖥️';
+      case 'backend-warn':return '🖥️';
+      case 'backend-error':return '🖥️';
       default:return '•';
     }
   },
@@ -3348,6 +3392,12 @@ ${taskDescription}`;
         return PointaUtils.escapeHtml(this.truncateText(event.data.message, 100));
       case 'console-log':
         return PointaUtils.escapeHtml(this.truncateText(event.data.message, 100));
+      case 'backend-log':
+        return `[Server] ${PointaUtils.escapeHtml(this.truncateText(event.data.message, 100))}`;
+      case 'backend-warn':
+        return `[Server ⚠️] ${PointaUtils.escapeHtml(this.truncateText(event.data.message, 100))}`;
+      case 'backend-error':
+        return `[Server ❌] ${PointaUtils.escapeHtml(this.truncateText(event.data.message, 100))}`;
       default:
         return 'Event';
     }
@@ -3362,6 +3412,7 @@ ${taskDescription}`;
     switch (type) {
       case 'console-error':return '🔴';
       case 'network-failure':return '🌐';
+      case 'backend-error':return '🖥️';
       default:return '⚠️';
     }
   },
@@ -4890,6 +4941,35 @@ IMPORTANT - Git Workflow:
     const startRecordingBtn = this.sidebar.querySelector('#sidebar-start-recording-btn');
     const stopRecordingBtn = this.sidebar.querySelector('#sidebar-stop-recording-btn');
     const backBtn = this.sidebar.querySelector('#sidebar-bug-back-btn');
+    const backendLogsToggle = this.sidebar.querySelector('#sidebar-backend-logs-toggle');
+    const backendLogsStatus = this.sidebar.querySelector('#sidebar-backend-logs-status');
+
+    // Check backend log SDK status
+    if (backendLogsStatus && !this.isRecordingBug) {
+      this.checkBackendLogStatus(backendLogsToggle, backendLogsStatus);
+    }
+
+    // Handle backend logs toggle
+    if (backendLogsToggle) {
+      const backendLogsSection = this.sidebar.querySelector('#sidebar-backend-logs-section');
+      
+      backendLogsToggle.addEventListener('change', (e) => {
+        if (window.BugRecorder) {
+          window.BugRecorder.setIncludeBackendLogs(e.target.checked);
+        }
+        
+        // Visual feedback: light up the container when active
+        if (backendLogsSection) {
+          if (e.target.checked) {
+            backendLogsSection.style.background = 'rgba(16, 185, 129, 0.1)';  // Green tint
+            backendLogsSection.style.borderColor = '#10b981';  // Green border
+          } else {
+            backendLogsSection.style.background = 'var(--theme-surface)';
+            backendLogsSection.style.borderColor = 'var(--theme-outline)';
+          }
+        }
+      });
+    }
 
     if (startRecordingBtn) {
       startRecordingBtn.addEventListener('click', async () => {
@@ -4953,6 +5033,68 @@ IMPORTANT - Git Workflow:
         const serverOnline = await this.checkServerStatus();
         await this.updateContent(pointa, serverOnline);
       });
+    }
+  },
+
+  /**
+   * Check backend log SDK connection status and update UI
+   * @param {HTMLElement} toggle - The toggle checkbox element
+   * @param {HTMLElement} statusEl - The status text element
+   */
+  async checkBackendLogStatus(toggle, statusEl) {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getBackendLogStatus' });
+      
+      if (response.success && response.status) {
+        const { connected, clientCount } = response.status;
+        
+        if (connected && clientCount > 0) {
+          // SDK is connected
+          statusEl.innerHTML = `
+            <span style="color: #10b981;">✓ SDK connected</span>
+            <span style="margin-left: 4px; color: var(--theme-text-secondary);">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
+          `;
+          if (toggle) {
+            toggle.disabled = false;
+            toggle.parentElement.style.opacity = '1';
+            toggle.parentElement.style.cursor = 'pointer';
+          }
+        } else {
+          // SDK not connected - show install instructions
+          statusEl.innerHTML = `
+            <span style="color: var(--theme-text-secondary);">SDK not connected</span>
+            <div style="margin-top: 6px; font-size: 10px; color: var(--theme-text-secondary);">
+              Install <code style="background: var(--theme-surface-hover); padding: 2px 4px; border-radius: 3px; color: var(--theme-text-primary);">@pointa/server-logger</code> in your server
+            </div>
+          `;
+          if (toggle) {
+            toggle.disabled = true;
+            toggle.checked = false;
+            toggle.parentElement.style.opacity = '0.5';
+            toggle.parentElement.style.cursor = 'not-allowed';
+          }
+          // Ensure BugRecorder doesn't try to use backend logs
+          if (window.BugRecorder) {
+            window.BugRecorder.setIncludeBackendLogs(false);
+          }
+        }
+      } else {
+        // Server not reachable
+        statusEl.innerHTML = `<span style="color: var(--theme-text-secondary);">Server not connected</span>`;
+        if (toggle) {
+          toggle.disabled = true;
+          toggle.checked = false;
+          toggle.parentElement.style.opacity = '0.5';
+        }
+      }
+    } catch (error) {
+      console.warn('[Sidebar] Error checking backend log status:', error);
+      statusEl.innerHTML = `<span style="color: var(--theme-text-secondary);">Could not check status</span>`;
+      if (toggle) {
+        toggle.disabled = true;
+        toggle.checked = false;
+        toggle.parentElement.style.opacity = '0.5';
+      }
     }
   },
 

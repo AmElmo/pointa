@@ -250,6 +250,9 @@ const BugReportUI = {
       case 'console-error':return '🔴';
       case 'console-warning':return '⚠️';
       case 'console-log':return '💬';
+      case 'backend-log':return '🖥️';
+      case 'backend-warn':return '🖥️';
+      case 'backend-error':return '🖥️';
       default:return '•';
     }
   },
@@ -288,6 +291,12 @@ const BugReportUI = {
         return this.escapeHtml(this.truncateText(event.data.message, 100));
       case 'console-log':
         return this.escapeHtml(this.truncateText(event.data.message, 100));
+      case 'backend-log':
+        return `[Server] ${this.escapeHtml(this.truncateText(event.data.message, 100))}`;
+      case 'backend-warn':
+        return `[Server ⚠️] ${this.escapeHtml(this.truncateText(event.data.message, 100))}`;
+      case 'backend-error':
+        return `[Server ❌] ${this.escapeHtml(this.truncateText(event.data.message, 100))}`;
       default:
         return 'Event';
     }
@@ -300,6 +309,7 @@ const BugReportUI = {
     switch (type) {
       case 'console-error':return '🔴';
       case 'network-failure':return '🌐';
+      case 'backend-error':return '🖥️';
       default:return '⚠️';
     }
   },

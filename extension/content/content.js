@@ -2210,11 +2210,7 @@ class Pointa {
               height: window.innerHeight
             }
           },
-          browser: {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language
-          }
+          browser: BugRecorder.simplifyUserAgent(navigator.userAgent)  // Simplified: "Chrome 142 / macOS"
         },
         keyIssues: recordingData.keyIssues
       };

@@ -1,0 +1,33 @@
+{
+  "name": "@pointa/server-logger",
+  "version": "0.1.0",
+  "description": "Capture backend server logs for Pointa bug reports",
+  "main": "src/index.js",
+  "type": "module",
+  "keywords": [
+    "pointa",
+    "debugging",
+    "logging",
+    "backend",
+    "server-logs",
+    "mcp",
+    "ai-debugging"
+  ],
+  "author": "Pointa",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/pointa"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.14.0"
+  },
+  "peerDependencies": {},
+  "files": [
+    "src/"
+  ]
+}
+

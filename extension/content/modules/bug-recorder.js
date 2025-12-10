@@ -20,14 +20,220 @@ const BugRecorder = {
   performanceObserver: null,
   interactionHandlers: new Map(),
   maxRecordingDuration: 30000, // 30 seconds (handled by sidebar UI)
+  
+  // Backend logging integration
+  includeBackendLogs: false,  // Whether to capture backend logs
+  backendLogStatus: null,     // Current SDK connection status
+
+  // ========== TOKEN OPTIMIZATION HELPERS ==========
+  
+  /**
+   * Parse userAgent into simplified browser/OS info
+   * e.g., "Chrome 142 / macOS" instead of full UA string
+   */
+  simplifyUserAgent(ua) {
+    if (!ua) return 'Unknown';
+    
+    // Detect browser
+    let browser = 'Unknown';
+    if (ua.includes('Chrome/')) {
+      const match = ua.match(/Chrome\/(\d+)/);
+      browser = match ? `Chrome ${match[1]}` : 'Chrome';
+    } else if (ua.includes('Firefox/')) {
+      const match = ua.match(/Firefox\/(\d+)/);
+      browser = match ? `Firefox ${match[1]}` : 'Firefox';
+    } else if (ua.includes('Safari/') && !ua.includes('Chrome')) {
+      const match = ua.match(/Version\/(\d+)/);
+      browser = match ? `Safari ${match[1]}` : 'Safari';
+    } else if (ua.includes('Edge/')) {
+      const match = ua.match(/Edge\/(\d+)/);
+      browser = match ? `Edge ${match[1]}` : 'Edge';
+    }
+    
+    // Detect OS
+    let os = 'Unknown';
+    if (ua.includes('Mac OS X')) os = 'macOS';
+    else if (ua.includes('Windows')) os = 'Windows';
+    else if (ua.includes('Linux')) os = 'Linux';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    
+    return `${browser} / ${os}`;
+  },
+
+  /**
+   * Strip %c CSS styling from console messages
+   * Chrome's styled console.log uses %c markers with CSS
+   */
+  stripConsoleStyling(message) {
+    if (!message || typeof message !== 'string') return message;
+    
+    // Remove %c markers and their corresponding CSS values
+    // Pattern: %c followed by text, then CSS styling in subsequent args (which appear inline)
+    let cleaned = message
+      .replace(/%c/g, '')  // Remove %c markers
+      .replace(/color:\s*#[0-9a-fA-F]{3,6};?/gi, '')  // Remove color: #xxx
+      .replace(/font-weight:\s*\w+;?/gi, '')  // Remove font-weight
+      .replace(/font-size:\s*[\d.]+px;?/gi, '')  // Remove font-size
+      .replace(/font-family:\s*[^;]+;?/gi, '')  // Remove font-family
+      .replace(/background:\s*[^;]+;?/gi, '')  // Remove background
+      .replace(/\s{2,}/g, ' ')  // Collapse multiple spaces
+      .trim();
+    
+    return cleaned || message;
+  },
+
+  /**
+   * Check if a console event should be filtered out
+   */
+  shouldFilterConsoleEvent(event) {
+    const source = event.data?.source || '';
+    const message = event.data?.message || '';
+    
+    // Filter out chrome extension errors (including Pointa itself)
+    if (source.startsWith('chrome-extension://')) return true;
+    
+    // Filter out some common noisy third-party plugin logs
+    if (message.includes('[code-inspector-plugin]')) return true;
+    if (message.includes('[HMR]') && event.type === 'console-log') return true;  // Hot module reload noise
+    
+    return false;
+  },
+
+  /**
+   * Check if a network event should be filtered out
+   */
+  shouldFilterNetworkEvent(event) {
+    const url = event.data?.url || '';
+    const method = event.data?.method || '';
+    
+    // Filter out Pointa's own health check requests
+    if (url.includes('127.0.0.1:4242/health')) return true;
+    if (url.includes('localhost:4242/health')) return true;
+    
+    // Filter out OPTIONS/preflight requests (CORS preflight)
+    if (method === 'OPTIONS') return true;
+    
+    // Filter out Pointa backend recording API calls
+    if (url.includes('127.0.0.1:4242/api/backend')) return true;
+    
+    return false;
+  },
+
+  /**
+   * Truncate message to max length with ellipsis
+   */
+  truncateMessage(message, maxLength = 200) {
+    if (!message || typeof message !== 'string') return message;
+    if (message.length <= maxLength) return message;
+    return message.substring(0, maxLength) + '...';
+  },
+
+  /**
+   * Clean and optimize a console event
+   */
+  optimizeConsoleEvent(event) {
+    if (!event.data) return event;
+    
+    return {
+      ...event,
+      data: {
+        ...event.data,
+        message: this.truncateMessage(this.stripConsoleStyling(event.data.message), 300),
+        // Remove stackTrace for info-level logs (keep for errors/warnings)
+        stackTrace: event.type === 'console-log' ? undefined : event.data.stackTrace
+      }
+    };
+  },
+
+  /**
+   * Deduplicate repeated consecutive events
+   * Groups identical messages that occur within 100ms
+   */
+  dedupeEvents(events) {
+    if (!events || events.length === 0) return events;
+    
+    const deduped = [];
+    let lastEvent = null;
+    let repeatCount = 0;
+    
+    for (const event of events) {
+      const isSameMessage = lastEvent && 
+        lastEvent.type === event.type &&
+        lastEvent.data?.message === event.data?.message &&
+        Math.abs(event.relativeTime - lastEvent.relativeTime) < 100;
+      
+      if (isSameMessage) {
+        repeatCount++;
+      } else {
+        if (lastEvent) {
+          if (repeatCount > 0) {
+            lastEvent.data = {
+              ...lastEvent.data,
+              message: `${lastEvent.data.message} (×${repeatCount + 1})`
+            };
+          }
+          deduped.push(lastEvent);
+        }
+        lastEvent = { ...event };
+        repeatCount = 0;
+      }
+    }
+    
+    // Don't forget the last event
+    if (lastEvent) {
+      if (repeatCount > 0) {
+        lastEvent.data = {
+          ...lastEvent.data,
+          message: `${lastEvent.data.message} (×${repeatCount + 1})`
+        };
+      }
+      deduped.push(lastEvent);
+    }
+    
+    return deduped;
+  },
+
+  // ========== END TOKEN OPTIMIZATION HELPERS ==========
+
+  /**
+   * Check backend log SDK connection status
+   */
+  async checkBackendLogStatus() {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getBackendLogStatus' });
+      if (response.success) {
+        this.backendLogStatus = response.status;
+        return response.status;
+      }
+    } catch (error) {
+      console.warn('[BugRecorder] Could not check backend log status:', error.message);
+    }
+    this.backendLogStatus = { connected: false, clientCount: 0 };
+    return this.backendLogStatus;
+  },
+
+  /**
+   * Set whether to include backend logs in recording
+   */
+  setIncludeBackendLogs(include) {
+    this.includeBackendLogs = include;
+  },
 
   /**
    * Start recording a bug session
+   * @param {Object} options - Recording options
+   * @param {boolean} options.includeBackendLogs - Whether to capture backend server logs
    */
-  async startRecording() {
+  async startRecording(options = {}) {
     if (this.isRecording) {
       console.warn('[BugRecorder] Already recording');
       return;
+    }
+
+    // Apply options
+    if (options.includeBackendLogs !== undefined) {
+      this.includeBackendLogs = options.includeBackendLogs;
     }
 
     this.isRecording = true;
@@ -38,14 +244,16 @@ const BugRecorder = {
       console: [],
       network: [],
       interactions: [],
+      backendLogs: [],  // Backend server logs
       metadata: {
         startTime: new Date(this.startTime).toISOString(),
         url: window.location.href,
-        userAgent: navigator.userAgent,
+        browser: this.simplifyUserAgent(navigator.userAgent),  // Simplified: "Chrome 142 / macOS"
         viewport: {
           width: window.innerWidth,
           height: window.innerHeight
-        }
+        },
+        includesBackendLogs: this.includeBackendLogs
       }
     };
 
@@ -64,6 +272,20 @@ const BugRecorder = {
       console.warn('[BugRecorder] Could not start CDP recording:', error.message);
     }
 
+    // Start backend log recording if enabled
+    if (this.includeBackendLogs) {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'startBackendLogRecording' });
+        if (response.success) {
+          console.log('[BugRecorder] Backend log recording started, clients:', response.clientsConnected);
+        } else {
+          console.warn('[BugRecorder] Backend log recording failed to start:', response.error);
+        }
+      } catch (error) {
+        console.warn('[BugRecorder] Could not start backend log recording:', error.message);
+      }
+    }
+
     // Start capturing window error events (backup for CDP)
     this.captureWindowErrors();
 
@@ -76,7 +298,8 @@ const BugRecorder = {
       severity: 'info',
       data: {
         url: window.location.href,
-        pageState: 'loaded'
+        pageState: 'loaded',
+        includesBackendLogs: this.includeBackendLogs
       }
     });
 
@@ -124,6 +347,33 @@ const BugRecorder = {
       }
     } catch (error) {
       console.warn('[BugRecorder] Could not stop CDP recording:', error.message);
+    }
+
+    // Stop backend log recording and get captured logs
+    if (this.includeBackendLogs) {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'stopBackendLogRecording' });
+        if (response.success && response.logs) {
+          // Transform backend logs to timeline event format
+          this.recordingData.backendLogs = response.logs.map(log => ({
+            timestamp: log.timestamp,
+            relativeTime: log.relativeTime || 0,
+            type: `backend-${log.level}`,  // backend-log, backend-warn, backend-error
+            severity: log.level === 'error' ? 'error' : log.level === 'warn' ? 'warning' : 'info',
+            source: 'backend',
+            data: {
+              message: log.message,
+              level: log.level,
+              stack: log.stack
+            }
+          }));
+          console.log('[BugRecorder] Merged backend logs:', response.logs.length);
+        } else {
+          console.warn('[BugRecorder] Backend log recording stop failed:', response.error);
+        }
+      } catch (error) {
+        console.warn('[BugRecorder] Could not stop backend log recording:', error.message);
+      }
     }
 
     // Add recording end event
@@ -495,26 +745,52 @@ const BugRecorder = {
 
   /**
    * Generate unified timeline from all events
+   * Applies filtering and optimization to reduce token usage
    */
   generateTimeline() {
-    const allEvents = [
-    ...this.recordingData.console,
-    ...this.recordingData.network,
-    ...this.recordingData.interactions];
-
+    // Filter and optimize console events
+    const filteredConsole = this.recordingData.console
+      .filter(e => !this.shouldFilterConsoleEvent(e))
+      .map(e => this.optimizeConsoleEvent(e));
+    
+    // Filter network events (remove OPTIONS, health checks, etc.)
+    const filteredNetwork = this.recordingData.network
+      .filter(e => !this.shouldFilterNetworkEvent(e));
+    
+    // Backend logs (already clean, just truncate messages)
+    const backendLogs = (this.recordingData.backendLogs || []).map(e => ({
+      ...e,
+      data: e.data ? {
+        ...e.data,
+        message: this.truncateMessage(e.data.message, 300)
+      } : e.data
+    }));
+    
+    // Combine all events
+    let allEvents = [
+      ...filteredConsole,
+      ...filteredNetwork,
+      ...this.recordingData.interactions,
+      ...backendLogs
+    ];
 
     // Sort by timestamp
     allEvents.sort((a, b) => a.relativeTime - b.relativeTime);
+    
+    // Deduplicate repeated consecutive events
+    allEvents = this.dedupeEvents(allEvents);
 
-    // Generate summary
+    // Generate summary (based on filtered events)
     const summary = {
       totalEvents: allEvents.length,
       userInteractions: this.recordingData.interactions.length,
-      networkRequests: this.recordingData.network.length,
-      networkFailures: this.recordingData.network.filter((e) => e.subtype === 'failed').length,
-      consoleErrors: this.recordingData.console.filter((e) => e.type === 'console-error').length,
-      consoleWarnings: this.recordingData.console.filter((e) => e.type === 'console-warning').length,
-      consoleLogs: this.recordingData.console.filter((e) => e.type === 'console-log').length
+      networkRequests: filteredNetwork.length,
+      networkFailures: filteredNetwork.filter((e) => e.subtype === 'failed').length,
+      consoleErrors: filteredConsole.filter((e) => e.type === 'console-error').length,
+      backendLogs: backendLogs.length,
+      backendErrors: backendLogs.filter((e) => e.type === 'backend-error').length,
+      consoleWarnings: filteredConsole.filter((e) => e.type === 'console-warning').length,
+      consoleLogs: filteredConsole.filter((e) => e.type === 'console-log').length
     };
 
     return {
@@ -530,8 +806,14 @@ const BugRecorder = {
     const keyIssues = [];
     const events = timeline.events;
 
-    // Find console errors
-    const consoleErrors = events.filter((e) => e.type === 'console-error');
+    // Find console errors (exclude errors from chrome extensions - these are not user's app errors)
+    const consoleErrors = events.filter((e) => {
+      if (e.type !== 'console-error') return false;
+      // Skip errors from chrome extensions (including Pointa itself)
+      const source = e.data.source || '';
+      if (source.startsWith('chrome-extension://')) return false;
+      return true;
+    });
     consoleErrors.forEach((error) => {
       keyIssues.push({
         type: 'console-error',
@@ -556,6 +838,20 @@ const BugRecorder = {
         url: failure.data.url,
         status: failure.data.status,
         responseBody: failure.data.responseBody
+      });
+    });
+
+    // Find backend errors
+    const backendErrors = events.filter((e) => e.type === 'backend-error');
+    backendErrors.forEach((error) => {
+      keyIssues.push({
+        type: 'backend-error',
+        description: error.data.message,
+        timestamp: error.timestamp,
+        relativeTime: error.relativeTime,
+        severity: 'error',
+        source: 'backend',
+        stack: error.data.stack
       });
     });
 
