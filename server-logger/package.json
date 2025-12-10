@@ -1,6 +1,6 @@
 {
   "name": "pointa-server-logger",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Capture backend server logs for Pointa bug reports",
   "main": "src/index.js",
   "types": "src/index.d.ts",
