@@ -25,6 +25,177 @@ const BugRecorder = {
   includeBackendLogs: false,  // Whether to capture backend logs
   backendLogStatus: null,     // Current SDK connection status
 
+  // ========== TOKEN OPTIMIZATION HELPERS ==========
+  
+  /**
+   * Parse userAgent into simplified browser/OS info
+   * e.g., "Chrome 142 / macOS" instead of full UA string
+   */
+  simplifyUserAgent(ua) {
+    if (!ua) return 'Unknown';
+    
+    // Detect browser
+    let browser = 'Unknown';
+    if (ua.includes('Chrome/')) {
+      const match = ua.match(/Chrome\/(\d+)/);
+      browser = match ? `Chrome ${match[1]}` : 'Chrome';
+    } else if (ua.includes('Firefox/')) {
+      const match = ua.match(/Firefox\/(\d+)/);
+      browser = match ? `Firefox ${match[1]}` : 'Firefox';
+    } else if (ua.includes('Safari/') && !ua.includes('Chrome')) {
+      const match = ua.match(/Version\/(\d+)/);
+      browser = match ? `Safari ${match[1]}` : 'Safari';
+    } else if (ua.includes('Edge/')) {
+      const match = ua.match(/Edge\/(\d+)/);
+      browser = match ? `Edge ${match[1]}` : 'Edge';
+    }
+    
+    // Detect OS
+    let os = 'Unknown';
+    if (ua.includes('Mac OS X')) os = 'macOS';
+    else if (ua.includes('Windows')) os = 'Windows';
+    else if (ua.includes('Linux')) os = 'Linux';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('iOS') || ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    
+    return `${browser} / ${os}`;
+  },
+
+  /**
+   * Strip %c CSS styling from console messages
+   * Chrome's styled console.log uses %c markers with CSS
+   */
+  stripConsoleStyling(message) {
+    if (!message || typeof message !== 'string') return message;
+    
+    // Remove %c markers and their corresponding CSS values
+    // Pattern: %c followed by text, then CSS styling in subsequent args (which appear inline)
+    let cleaned = message
+      .replace(/%c/g, '')  // Remove %c markers
+      .replace(/color:\s*#[0-9a-fA-F]{3,6};?/gi, '')  // Remove color: #xxx
+      .replace(/font-weight:\s*\w+;?/gi, '')  // Remove font-weight
+      .replace(/font-size:\s*[\d.]+px;?/gi, '')  // Remove font-size
+      .replace(/font-family:\s*[^;]+;?/gi, '')  // Remove font-family
+      .replace(/background:\s*[^;]+;?/gi, '')  // Remove background
+      .replace(/\s{2,}/g, ' ')  // Collapse multiple spaces
+      .trim();
+    
+    return cleaned || message;
+  },
+
+  /**
+   * Check if a console event should be filtered out
+   */
+  shouldFilterConsoleEvent(event) {
+    const source = event.data?.source || '';
+    const message = event.data?.message || '';
+    
+    // Filter out chrome extension errors (including Pointa itself)
+    if (source.startsWith('chrome-extension://')) return true;
+    
+    // Filter out some common noisy third-party plugin logs
+    if (message.includes('[code-inspector-plugin]')) return true;
+    if (message.includes('[HMR]') && event.type === 'console-log') return true;  // Hot module reload noise
+    
+    return false;
+  },
+
+  /**
+   * Check if a network event should be filtered out
+   */
+  shouldFilterNetworkEvent(event) {
+    const url = event.data?.url || '';
+    const method = event.data?.method || '';
+    
+    // Filter out Pointa's own health check requests
+    if (url.includes('127.0.0.1:4242/health')) return true;
+    if (url.includes('localhost:4242/health')) return true;
+    
+    // Filter out OPTIONS/preflight requests (CORS preflight)
+    if (method === 'OPTIONS') return true;
+    
+    // Filter out Pointa backend recording API calls
+    if (url.includes('127.0.0.1:4242/api/backend')) return true;
+    
+    return false;
+  },
+
+  /**
+   * Truncate message to max length with ellipsis
+   */
+  truncateMessage(message, maxLength = 200) {
+    if (!message || typeof message !== 'string') return message;
+    if (message.length <= maxLength) return message;
+    return message.substring(0, maxLength) + '...';
+  },
+
+  /**
+   * Clean and optimize a console event
+   */
+  optimizeConsoleEvent(event) {
+    if (!event.data) return event;
+    
+    return {
+      ...event,
+      data: {
+        ...event.data,
+        message: this.truncateMessage(this.stripConsoleStyling(event.data.message), 300),
+        // Remove stackTrace for info-level logs (keep for errors/warnings)
+        stackTrace: event.type === 'console-log' ? undefined : event.data.stackTrace
+      }
+    };
+  },
+
+  /**
+   * Deduplicate repeated consecutive events
+   * Groups identical messages that occur within 100ms
+   */
+  dedupeEvents(events) {
+    if (!events || events.length === 0) return events;
+    
+    const deduped = [];
+    let lastEvent = null;
+    let repeatCount = 0;
+    
+    for (const event of events) {
+      const isSameMessage = lastEvent && 
+        lastEvent.type === event.type &&
+        lastEvent.data?.message === event.data?.message &&
+        Math.abs(event.relativeTime - lastEvent.relativeTime) < 100;
+      
+      if (isSameMessage) {
+        repeatCount++;
+      } else {
+        if (lastEvent) {
+          if (repeatCount > 0) {
+            lastEvent.data = {
+              ...lastEvent.data,
+              message: `${lastEvent.data.message} (×${repeatCount + 1})`
+            };
+          }
+          deduped.push(lastEvent);
+        }
+        lastEvent = { ...event };
+        repeatCount = 0;
+      }
+    }
+    
+    // Don't forget the last event
+    if (lastEvent) {
+      if (repeatCount > 0) {
+        lastEvent.data = {
+          ...lastEvent.data,
+          message: `${lastEvent.data.message} (×${repeatCount + 1})`
+        };
+      }
+      deduped.push(lastEvent);
+    }
+    
+    return deduped;
+  },
+
+  // ========== END TOKEN OPTIMIZATION HELPERS ==========
+
   /**
    * Check backend log SDK connection status
    */
@@ -77,7 +248,7 @@ const BugRecorder = {
       metadata: {
         startTime: new Date(this.startTime).toISOString(),
         url: window.location.href,
-        userAgent: navigator.userAgent,
+        browser: this.simplifyUserAgent(navigator.userAgent),  // Simplified: "Chrome 142 / macOS"
         viewport: {
           width: window.innerWidth,
           height: window.innerHeight
@@ -574,30 +745,52 @@ const BugRecorder = {
 
   /**
    * Generate unified timeline from all events
+   * Applies filtering and optimization to reduce token usage
    */
   generateTimeline() {
-    const allEvents = [
-    ...this.recordingData.console,
-    ...this.recordingData.network,
-    ...this.recordingData.interactions,
-    ...(this.recordingData.backendLogs || [])];  // Include backend logs
-
+    // Filter and optimize console events
+    const filteredConsole = this.recordingData.console
+      .filter(e => !this.shouldFilterConsoleEvent(e))
+      .map(e => this.optimizeConsoleEvent(e));
+    
+    // Filter network events (remove OPTIONS, health checks, etc.)
+    const filteredNetwork = this.recordingData.network
+      .filter(e => !this.shouldFilterNetworkEvent(e));
+    
+    // Backend logs (already clean, just truncate messages)
+    const backendLogs = (this.recordingData.backendLogs || []).map(e => ({
+      ...e,
+      data: e.data ? {
+        ...e.data,
+        message: this.truncateMessage(e.data.message, 300)
+      } : e.data
+    }));
+    
+    // Combine all events
+    let allEvents = [
+      ...filteredConsole,
+      ...filteredNetwork,
+      ...this.recordingData.interactions,
+      ...backendLogs
+    ];
 
     // Sort by timestamp
     allEvents.sort((a, b) => a.relativeTime - b.relativeTime);
+    
+    // Deduplicate repeated consecutive events
+    allEvents = this.dedupeEvents(allEvents);
 
-    // Generate summary
-    const backendLogs = this.recordingData.backendLogs || [];
+    // Generate summary (based on filtered events)
     const summary = {
       totalEvents: allEvents.length,
       userInteractions: this.recordingData.interactions.length,
-      networkRequests: this.recordingData.network.length,
-      networkFailures: this.recordingData.network.filter((e) => e.subtype === 'failed').length,
-      consoleErrors: this.recordingData.console.filter((e) => e.type === 'console-error').length,
+      networkRequests: filteredNetwork.length,
+      networkFailures: filteredNetwork.filter((e) => e.subtype === 'failed').length,
+      consoleErrors: filteredConsole.filter((e) => e.type === 'console-error').length,
       backendLogs: backendLogs.length,
       backendErrors: backendLogs.filter((e) => e.type === 'backend-error').length,
-      consoleWarnings: this.recordingData.console.filter((e) => e.type === 'console-warning').length,
-      consoleLogs: this.recordingData.console.filter((e) => e.type === 'console-log').length
+      consoleWarnings: filteredConsole.filter((e) => e.type === 'console-warning').length,
+      consoleLogs: filteredConsole.filter((e) => e.type === 'console-log').length
     };
 
     return {
