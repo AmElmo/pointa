@@ -77,7 +77,8 @@ class LocalAnnotationsServer {
     this.inspirationsSaveLock = Promise.resolve(); // Serialize inspirations save operations
     
     // Backend logging state
-    this.backendLogClients = new Set(); // Connected SDK clients
+    this.backendLogClients = new Set(); // Connected SDK clients (WebSocket instances)
+    this.backendLogClientPorts = new Map(); // Map: ws -> port (track which port each client is from)
     this.backendLogRecording = false; // Is recording active?
     this.backendLogs = []; // Buffered logs during recording
     this.backendLogRecordingStartTime = null; // When recording started
@@ -815,8 +816,10 @@ class LocalAnnotationsServer {
     // Backend Logs API endpoints (for @pointa/server-logger SDK integration)
     
     // Get backend log connection status
+    // Optional query param: ?port=3000 to check for SDK on specific port
     this.app.get('/api/backend-logs/status', (req, res) => {
-      res.json(this.getBackendLogStatus());
+      const queryPort = req.query.port || null;
+      res.json(this.getBackendLogStatus(queryPort));
     });
 
     // Start backend log recording (called by extension when bug recording starts)
@@ -2516,13 +2519,16 @@ class LocalAnnotationsServer {
       });
 
       ws.on('close', () => {
-        console.log('[Backend Logs] SDK client disconnected');
+        const port = this.backendLogClientPorts.get(ws);
+        console.log(`[Backend Logs] SDK client disconnected${port ? ` (port ${port})` : ''}`);
         this.backendLogClients.delete(ws);
+        this.backendLogClientPorts.delete(ws);
       });
 
       ws.on('error', (error) => {
         console.warn('[Backend Logs] WebSocket error:', error.message);
         this.backendLogClients.delete(ws);
+        this.backendLogClientPorts.delete(ws);
       });
     });
 
@@ -2534,6 +2540,15 @@ class LocalAnnotationsServer {
    */
   handleBackendLogMessage(ws, message) {
     switch (message.type) {
+      case 'register':
+        // SDK is registering with its server port for identification
+        // This allows the extension to match this SDK to the correct frontend
+        if (message.serverPort) {
+          this.backendLogClientPorts.set(ws, String(message.serverPort));
+          console.log(`[Backend Logs] SDK registered on port ${message.serverPort}`);
+        }
+        break;
+
       case 'log':
         if (this.backendLogRecording) {
           // Add relative time if we have a start time
@@ -2611,13 +2626,42 @@ class LocalAnnotationsServer {
 
   /**
    * Get current backend log connection status
+   * @param {string} [queryPort] - Optional port to filter by (e.g., "3000")
+   * @returns {Object} Connection status with port information
    */
-  getBackendLogStatus() {
+  getBackendLogStatus(queryPort = null) {
+    // Get all unique connected ports
+    const connectedPorts = [...new Set(this.backendLogClientPorts.values())];
+    
+    // If a specific port was requested, check if we have a match
+    let matchedPort = null;
+    let matchedClientCount = 0;
+    
+    if (queryPort) {
+      const normalizedQueryPort = String(queryPort);
+      // Count clients on the requested port
+      for (const [ws, port] of this.backendLogClientPorts.entries()) {
+        if (port === normalizedQueryPort) {
+          matchedPort = port;
+          matchedClientCount++;
+        }
+      }
+    }
+    
     return {
+      // Legacy fields for backwards compatibility
       connected: this.backendLogClients.size > 0,
       clientCount: this.backendLogClients.size,
       isRecording: this.backendLogRecording,
-      logCount: this.backendLogs.length
+      logCount: this.backendLogs.length,
+      // New fields for port-aware detection
+      connectedPorts: connectedPorts,
+      // If a port was queried, include match information
+      ...(queryPort && {
+        queryPort: queryPort,
+        matched: matchedPort !== null,
+        matchedClientCount: matchedClientCount
+      })
     };
   }
 

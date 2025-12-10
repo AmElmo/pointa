@@ -5109,25 +5109,105 @@ IMPORTANT - Git Workflow:
   },
 
   /**
+   * Get the current page's port
+   * @returns {string} Port number as string
+   */
+  getCurrentPagePort() {
+    try {
+      const url = new URL(window.location.href);
+      // Return port, or default ports based on protocol
+      return url.port || (url.protocol === 'https:' ? '443' : '80');
+    } catch (e) {
+      return '80';
+    }
+  },
+
+  /**
+   * Get saved backend port mapping for current frontend
+   * @param {string} frontendPort - The frontend port to look up
+   * @returns {Promise<string|null>} The saved backend port or null
+   */
+  async getSavedBackendPort(frontendPort) {
+    try {
+      const result = await chrome.storage.local.get('backendPortMappings');
+      const mappings = result.backendPortMappings || {};
+      return mappings[frontendPort] || null;
+    } catch (e) {
+      console.warn('[Sidebar] Error getting saved port mapping:', e);
+      return null;
+    }
+  },
+
+  /**
+   * Save backend port mapping for current frontend
+   * @param {string} frontendPort - The frontend port
+   * @param {string} backendPort - The backend port to save
+   */
+  async saveBackendPortMapping(frontendPort, backendPort) {
+    try {
+      const result = await chrome.storage.local.get('backendPortMappings');
+      const mappings = result.backendPortMappings || {};
+      mappings[frontendPort] = backendPort;
+      await chrome.storage.local.set({ backendPortMappings: mappings });
+      console.log(`[Sidebar] Saved port mapping: frontend ${frontendPort} → backend ${backendPort}`);
+    } catch (e) {
+      console.warn('[Sidebar] Error saving port mapping:', e);
+    }
+  },
+
+  /**
+   * Remove saved backend port mapping for current frontend
+   * @param {string} frontendPort - The frontend port
+   */
+  async removeBackendPortMapping(frontendPort) {
+    try {
+      const result = await chrome.storage.local.get('backendPortMappings');
+      const mappings = result.backendPortMappings || {};
+      delete mappings[frontendPort];
+      await chrome.storage.local.set({ backendPortMappings: mappings });
+      console.log(`[Sidebar] Removed port mapping for frontend ${frontendPort}`);
+    } catch (e) {
+      console.warn('[Sidebar] Error removing port mapping:', e);
+    }
+  },
+
+  /**
    * Check backend log SDK connection status and update UI
+   * Implements smart port detection:
+   * 1. Check current page port
+   * 2. Check saved port mapping
+   * 3. Suggest other connected ports if available
+   * 4. Allow manual port entry
    * @param {HTMLElement} toggle - The toggle checkbox element
    * @param {HTMLElement} statusEl - The status text element
    */
   async checkBackendLogStatus(toggle, statusEl) {
     const helpBtn = this.sidebar?.querySelector('#sidebar-backend-logs-help-btn');
     const helpPanel = this.sidebar?.querySelector('#sidebar-backend-logs-help');
+    const currentPort = this.getCurrentPagePort();
     
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'getBackendLogStatus' });
+      // First, check for saved port mapping
+      const savedBackendPort = await this.getSavedBackendPort(currentPort);
+      const portToCheck = savedBackendPort || currentPort;
+      
+      // Query the server for SDK status on the port we're checking
+      const response = await chrome.runtime.sendMessage({ 
+        action: 'getBackendLogStatus',
+        port: portToCheck
+      });
       
       if (response.success && response.status) {
-        const { connected, clientCount } = response.status;
+        const { matched, matchedClientCount, connectedPorts, connected, clientCount } = response.status;
         
-        if (connected && clientCount > 0) {
-          // SDK is connected - hide help button
+        // Case 1: Found SDK on the checked port (either current or saved)
+        if (matched && matchedClientCount > 0) {
+          const portInfo = savedBackendPort && savedBackendPort !== currentPort 
+            ? ` (port ${savedBackendPort})` 
+            : '';
           statusEl.innerHTML = `
-            <span style="color: #10b981;">✓ SDK connected</span>
-            <span style="margin-left: 4px; color: var(--theme-text-secondary);">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
+            <span style="color: #10b981;">✓ SDK connected${portInfo}</span>
+            <span style="margin-left: 4px; color: var(--theme-text-secondary);">(${matchedClientCount} client${matchedClientCount > 1 ? 's' : ''})</span>
           `;
           if (toggle) {
             toggle.disabled = false;
@@ -5136,24 +5216,22 @@ IMPORTANT - Git Workflow:
           }
           if (helpBtn) helpBtn.style.display = 'none';
           if (helpPanel) helpPanel.style.display = 'none';
-        } else {
-          // SDK not connected - show help button
-          statusEl.innerHTML = `
-            <span style="color: var(--theme-text-secondary);">SDK not connected</span>
-            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— click <strong>?</strong> for setup</span>
-          `;
-          if (toggle) {
-            toggle.disabled = true;
-            toggle.checked = false;
-            toggle.parentElement.style.opacity = '0.5';
-            toggle.parentElement.style.cursor = 'not-allowed';
-          }
-          if (helpBtn) helpBtn.style.display = 'inline-flex';
-          // Ensure BugRecorder doesn't try to use backend logs
-          if (window.BugRecorder) {
-            window.BugRecorder.setIncludeBackendLogs(false);
-          }
+          // Store the active backend port for this session
+          this.activeBackendPort = portToCheck;
+          return;
         }
+        
+        // Case 2: SDK not found on checked port, but found on other ports
+        const otherPorts = (connectedPorts || []).filter(p => p !== currentPort);
+        if (otherPorts.length > 0) {
+          // SDK found on different port - show suggestion
+          this.showBackendPortSuggestion(statusEl, toggle, helpBtn, helpPanel, currentPort, otherPorts);
+          return;
+        }
+        
+        // Case 3: No SDK found anywhere - show setup guide with manual port option
+        this.showBackendNotConnected(statusEl, toggle, helpBtn, helpPanel, currentPort, connected);
+        
       } else {
         // Server not reachable
         statusEl.innerHTML = `<span style="color: var(--theme-text-secondary);">Pointa server not running</span>`;
@@ -5177,6 +5255,224 @@ IMPORTANT - Git Workflow:
     
     // Setup help button and framework tabs event listeners
     this.setupBackendLogsHelpListeners();
+  },
+
+  /**
+   * Show UI when SDK is found on a different port
+   */
+  showBackendPortSuggestion(statusEl, toggle, helpBtn, helpPanel, currentPort, otherPorts) {
+    const suggestedPort = otherPorts[0]; // Take the first available port
+    
+    statusEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="color: #f59e0b;">🔍 SDK found on port ${suggestedPort}</span>
+        </div>
+        <div style="font-size: 11px; color: var(--theme-text-secondary);">
+          Is that your backend server?
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button id="sidebar-use-suggested-port" class="sidebar-small-btn sidebar-btn-primary" style="font-size: 11px; padding: 4px 10px;">
+            Yes, use port ${suggestedPort}
+          </button>
+          <button id="sidebar-enter-different-port" class="sidebar-small-btn sidebar-btn-secondary" style="font-size: 11px; padding: 4px 10px;">
+            No, enter different
+          </button>
+        </div>
+      </div>
+    `;
+    
+    if (toggle) {
+      toggle.disabled = true;
+      toggle.checked = false;
+      toggle.parentElement.style.opacity = '0.5';
+      toggle.parentElement.style.cursor = 'not-allowed';
+    }
+    if (helpBtn) helpBtn.style.display = 'none';
+    if (helpPanel) helpPanel.style.display = 'none';
+    
+    // Add event listeners
+    setTimeout(() => {
+      const useSuggestedBtn = this.sidebar?.querySelector('#sidebar-use-suggested-port');
+      const enterDifferentBtn = this.sidebar?.querySelector('#sidebar-enter-different-port');
+      
+      if (useSuggestedBtn) {
+        useSuggestedBtn.addEventListener('click', async () => {
+          await this.saveBackendPortMapping(currentPort, suggestedPort);
+          this.activeBackendPort = suggestedPort;
+          // Re-check status to update UI
+          const backendLogsToggle = this.sidebar?.querySelector('#sidebar-backend-logs-toggle');
+          const backendLogsStatus = this.sidebar?.querySelector('#sidebar-backend-logs-status');
+          if (backendLogsStatus) {
+            await this.checkBackendLogStatus(backendLogsToggle, backendLogsStatus);
+          }
+        });
+      }
+      
+      if (enterDifferentBtn) {
+        enterDifferentBtn.addEventListener('click', () => {
+          this.showManualPortEntry(statusEl, toggle, helpBtn, helpPanel, currentPort);
+        });
+      }
+    }, 0);
+    
+    // Ensure BugRecorder doesn't try to use backend logs
+    if (window.BugRecorder) {
+      window.BugRecorder.setIncludeBackendLogs(false);
+    }
+  },
+
+  /**
+   * Show UI when SDK is not connected
+   */
+  showBackendNotConnected(statusEl, toggle, helpBtn, helpPanel, currentPort, anyConnected) {
+    statusEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span style="color: var(--theme-text-secondary);">SDK not detected on port ${currentPort}</span>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 4px;">
+          <button id="sidebar-show-sdk-setup" class="sidebar-small-btn sidebar-btn-secondary" style="font-size: 11px; padding: 4px 10px;">
+            📦 How to install
+          </button>
+          <button id="sidebar-manual-port-entry" class="sidebar-small-btn sidebar-btn-secondary" style="font-size: 11px; padding: 4px 10px;">
+            Enter backend port
+          </button>
+        </div>
+      </div>
+    `;
+    
+    if (toggle) {
+      toggle.disabled = true;
+      toggle.checked = false;
+      toggle.parentElement.style.opacity = '0.5';
+      toggle.parentElement.style.cursor = 'not-allowed';
+    }
+    if (helpBtn) helpBtn.style.display = 'none';
+    if (helpPanel) helpPanel.style.display = 'none';
+    
+    // Add event listeners
+    setTimeout(() => {
+      const showSetupBtn = this.sidebar?.querySelector('#sidebar-show-sdk-setup');
+      const manualPortBtn = this.sidebar?.querySelector('#sidebar-manual-port-entry');
+      
+      if (showSetupBtn) {
+        showSetupBtn.addEventListener('click', () => {
+          if (helpPanel) {
+            helpPanel.style.display = 'block';
+          }
+        });
+      }
+      
+      if (manualPortBtn) {
+        manualPortBtn.addEventListener('click', () => {
+          this.showManualPortEntry(statusEl, toggle, helpBtn, helpPanel, currentPort);
+        });
+      }
+    }, 0);
+    
+    // Setup help button and framework tabs event listeners
+    this.setupBackendLogsHelpListeners();
+    
+    // Ensure BugRecorder doesn't try to use backend logs
+    if (window.BugRecorder) {
+      window.BugRecorder.setIncludeBackendLogs(false);
+    }
+  },
+
+  /**
+   * Show manual port entry UI
+   */
+  showManualPortEntry(statusEl, toggle, helpBtn, helpPanel, currentPort) {
+    statusEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11px; color: var(--theme-text-secondary);">
+          Enter your backend server port:
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <input type="text" id="sidebar-backend-port-input" 
+                 placeholder="e.g., 3001" 
+                 style="width: 80px; padding: 4px 8px; font-size: 12px; border: 1px solid var(--theme-border); border-radius: 4px; background: var(--theme-bg-primary); color: var(--theme-text-primary);"
+          />
+          <button id="sidebar-check-port-btn" class="sidebar-small-btn sidebar-btn-primary" style="font-size: 11px; padding: 4px 10px;">
+            Check
+          </button>
+          <button id="sidebar-cancel-port-entry" class="sidebar-small-btn sidebar-btn-secondary" style="font-size: 11px; padding: 4px 8px;">
+            Cancel
+          </button>
+        </div>
+        <div id="sidebar-port-check-result" style="font-size: 11px; min-height: 16px;"></div>
+      </div>
+    `;
+    
+    if (toggle) {
+      toggle.disabled = true;
+      toggle.checked = false;
+      toggle.parentElement.style.opacity = '0.5';
+      toggle.parentElement.style.cursor = 'not-allowed';
+    }
+    
+    // Add event listeners
+    setTimeout(() => {
+      const portInput = this.sidebar?.querySelector('#sidebar-backend-port-input');
+      const checkBtn = this.sidebar?.querySelector('#sidebar-check-port-btn');
+      const cancelBtn = this.sidebar?.querySelector('#sidebar-cancel-port-entry');
+      const resultEl = this.sidebar?.querySelector('#sidebar-port-check-result');
+      
+      if (checkBtn && portInput) {
+        const checkPort = async () => {
+          const port = portInput.value.trim();
+          if (!port || !/^\d+$/.test(port)) {
+            if (resultEl) resultEl.innerHTML = '<span style="color: #ef4444;">Please enter a valid port number</span>';
+            return;
+          }
+          
+          if (resultEl) resultEl.innerHTML = '<span style="color: var(--theme-text-secondary);">Checking...</span>';
+          
+          try {
+            const response = await chrome.runtime.sendMessage({ 
+              action: 'getBackendLogStatus',
+              port: port
+            });
+            
+            if (response.success && response.status?.matched && response.status?.matchedClientCount > 0) {
+              // Found SDK on this port!
+              await this.saveBackendPortMapping(currentPort, port);
+              this.activeBackendPort = port;
+              // Re-check status to update UI
+              const backendLogsToggle = this.sidebar?.querySelector('#sidebar-backend-logs-toggle');
+              const backendLogsStatus = this.sidebar?.querySelector('#sidebar-backend-logs-status');
+              if (backendLogsStatus) {
+                await this.checkBackendLogStatus(backendLogsToggle, backendLogsStatus);
+              }
+            } else {
+              if (resultEl) resultEl.innerHTML = `<span style="color: #ef4444;">No SDK found on port ${port}</span>`;
+            }
+          } catch (error) {
+            if (resultEl) resultEl.innerHTML = '<span style="color: #ef4444;">Error checking port</span>';
+          }
+        };
+        
+        checkBtn.addEventListener('click', checkPort);
+        portInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') checkPort();
+        });
+      }
+      
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          // Go back to the not connected state
+          const backendLogsToggle = this.sidebar?.querySelector('#sidebar-backend-logs-toggle');
+          const backendLogsStatus = this.sidebar?.querySelector('#sidebar-backend-logs-status');
+          if (backendLogsStatus) {
+            this.checkBackendLogStatus(backendLogsToggle, backendLogsStatus);
+          }
+        });
+      }
+      
+      // Focus the input
+      if (portInput) portInput.focus();
+    }, 0);
   },
   
   /**
