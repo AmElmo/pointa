@@ -7,18 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2025-12-10
+## [0.2.1] - 2025-12-10
 
 ### Added
-- **Server port identification for smart detection**
-  - New `serverPort` option to specify which port the backend server runs on
-  - Auto-detects from `process.env.PORT` if not explicitly provided
-  - Sends `register` message with port when connecting to Pointa server
-  - Enables extension to match SDK to correct frontend port
-
-### Changed
-- SDK now sends registration message on WebSocket open
-- Improved compatibility with multi-port development setups
+- TypeScript type declarations (`index.d.ts`) for better IDE support
+- Added `types` field to package.json
 
 ## [0.1.0] - 2025-12-05
 

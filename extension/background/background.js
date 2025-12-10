@@ -283,10 +283,9 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
-        // Backend Logs: Get SDK connection status
-        // Optionally pass { port: "3000" } to check for SDK on specific port
+        // Backend Logs: Get SDK connection status (optionally for a specific port)
         case 'getBackendLogStatus':
-          this.getBackendLogStatus(message.port).
+          this.getBackendLogStatus(message.port || null).
           then((status) => sendResponse({ success: true, status })).
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
@@ -1691,16 +1690,13 @@ class PointaBackground {
 
   /**
    * Get backend log SDK connection status from Pointa server
-   * @param {string} [port] - Optional port to filter by (e.g., "3000")
    */
   async getBackendLogStatus(port = null) {
     try {
-      // Build URL with optional port query parameter
       let url = `${this.apiServerUrl}/api/backend-logs/status`;
       if (port) {
         url += `?port=${encodeURIComponent(port)}`;
       }
-      
       const response = await fetch(url, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
@@ -1718,7 +1714,6 @@ class PointaBackground {
         clientCount: 0,
         isRecording: false,
         logCount: 0,
-        connectedPorts: [],
         error: error.message
       };
     }
@@ -1726,7 +1721,7 @@ class PointaBackground {
 
   /**
    * Start backend log recording via Pointa server
-   * This signals the pointa-server-logger SDK to start sending logs
+   * This signals the @pointa/server-logger SDK to start sending logs
    */
   async startBackendLogRecording() {
     try {
