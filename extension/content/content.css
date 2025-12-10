@@ -3958,6 +3958,30 @@ body.sidebar-resizing * {
   transform: translateX(20px);
 }
 
+/* Backend logs help button */
+.sidebar-backend-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar-backend-help-btn:hover {
+  background: var(--theme-primary) !important;
+  color: white !important;
+  border-color: var(--theme-primary) !important;
+  transform: scale(1.1);
+}
+
+/* Framework tabs */
+.sidebar-framework-tab {
+  transition: all 0.15s ease;
+}
+
+.sidebar-framework-tab:hover {
+  opacity: 0.85;
+}
+
 .sidebar-setting-note {
   font-size: 12px;
   color: var(--theme-text-secondary);

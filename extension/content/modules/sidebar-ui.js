@@ -2114,6 +2114,7 @@ ${taskDescription}`;
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 16px;">🔧</span>
                 <span style="font-size: 13px; font-weight: 500; color: var(--theme-text-primary);">Include backend logs</span>
+                <button id="sidebar-backend-logs-help-btn" class="sidebar-backend-help-btn" style="display: none; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--theme-outline); background: var(--theme-surface-hover); color: var(--theme-text-secondary); font-size: 11px; font-weight: 600; cursor: pointer; padding: 0; line-height: 16px;" title="How to set up">?</button>
               </div>
               <label class="sidebar-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; cursor: pointer;">
                 <input type="checkbox" id="sidebar-backend-logs-toggle" style="position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; margin: 0;">
@@ -2122,6 +2123,80 @@ ${taskDescription}`;
             </div>
             <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--theme-text-secondary);">
               Checking SDK connection...
+            </div>
+            
+            <!-- Collapsible Help Section -->
+            <div id="sidebar-backend-logs-help" class="sidebar-backend-help-panel" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--theme-outline);">
+              <div style="font-size: 12px; font-weight: 500; color: var(--theme-text-primary); margin-bottom: 10px;">
+                📦 Setup Instructions
+              </div>
+              
+              <!-- Step 1: Install -->
+              <div style="margin-bottom: 12px;">
+                <div style="font-size: 11px; color: var(--theme-text-secondary); margin-bottom: 6px;">1. Install the package:</div>
+                <code style="display: block; background: var(--theme-surface-hover); padding: 8px 10px; border-radius: 6px; font-size: 11px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace;">npm install pointa-server-logger</code>
+              </div>
+              
+              <!-- Step 2: Framework Tabs -->
+              <div style="font-size: 11px; color: var(--theme-text-secondary); margin-bottom: 6px;">2. Add to your server entry file:</div>
+              
+              <div class="sidebar-framework-tabs" style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
+                <button class="sidebar-framework-tab active" data-framework="express" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-primary); color: white; cursor: pointer;">Express</button>
+                <button class="sidebar-framework-tab" data-framework="nextjs" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Next.js</button>
+                <button class="sidebar-framework-tab" data-framework="fastify" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Fastify</button>
+                <button class="sidebar-framework-tab" data-framework="hono" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Hono</button>
+                <button class="sidebar-framework-tab" data-framework="other" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Other</button>
+              </div>
+              
+              <!-- Framework Code Snippets -->
+              <div class="sidebar-framework-content" data-framework="express" style="display: block;">
+                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// server.js or app.js</span>
+<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
+<span style="color: #c084fc;">import</span> express <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'express'</span>;
+
+<span style="color: #60a5fa;">const</span> app = <span style="color: #4ade80;">express</span>();
+<span style="color: #9ca3af;">// ... your routes</span></pre>
+              </div>
+              
+              <div class="sidebar-framework-content" data-framework="nextjs" style="display: none;">
+                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// instrumentation.ts (project root)</span>
+<span style="color: #c084fc;">export async function</span> <span style="color: #4ade80;">register</span>() {
+  <span style="color: #c084fc;">if</span> (process.env.NODE_ENV === <span style="color: #fbbf24;">'development'</span>) {
+    <span style="color: #c084fc;">await import</span>(<span style="color: #fbbf24;">'pointa-server-logger'</span>);
+  }
+}</pre>
+              </div>
+              
+              <div class="sidebar-framework-content" data-framework="fastify" style="display: none;">
+                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// server.js</span>
+<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
+<span style="color: #c084fc;">import</span> Fastify <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'fastify'</span>;
+
+<span style="color: #60a5fa;">const</span> fastify = <span style="color: #4ade80;">Fastify</span>();
+<span style="color: #9ca3af;">// ... your routes</span></pre>
+              </div>
+              
+              <div class="sidebar-framework-content" data-framework="hono" style="display: none;">
+                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// server.js</span>
+<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
+<span style="color: #c084fc;">import</span> { Hono } <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'hono'</span>;
+<span style="color: #c084fc;">import</span> { serve } <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'@hono/node-server'</span>;
+
+<span style="color: #60a5fa;">const</span> app = <span style="color: #c084fc;">new</span> <span style="color: #4ade80;">Hono</span>();
+<span style="color: #9ca3af;">// ... your routes</span></pre>
+              </div>
+              
+              <div class="sidebar-framework-content" data-framework="other" style="display: none;">
+                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// Add at the TOP of your entry file</span>
+<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
+
+<span style="color: #9ca3af;">// Or with CommonJS:</span>
+<span style="color: #4ade80;">require</span>(<span style="color: #fbbf24;">'pointa-server-logger'</span>);</pre>
+              </div>
+              
+              <div style="margin-top: 10px; font-size: 10px; color: var(--theme-text-secondary);">
+                3. Restart your server and this status will turn green ✓
+              </div>
             </div>
           </div>
           
@@ -5039,6 +5114,9 @@ IMPORTANT - Git Workflow:
    * @param {HTMLElement} statusEl - The status text element
    */
   async checkBackendLogStatus(toggle, statusEl) {
+    const helpBtn = this.sidebar?.querySelector('#sidebar-backend-logs-help-btn');
+    const helpPanel = this.sidebar?.querySelector('#sidebar-backend-logs-help');
+    
     try {
       const response = await chrome.runtime.sendMessage({ action: 'getBackendLogStatus' });
       
@@ -5046,7 +5124,7 @@ IMPORTANT - Git Workflow:
         const { connected, clientCount } = response.status;
         
         if (connected && clientCount > 0) {
-          // SDK is connected
+          // SDK is connected - hide help button
           statusEl.innerHTML = `
             <span style="color: #10b981;">✓ SDK connected</span>
             <span style="margin-left: 4px; color: var(--theme-text-secondary);">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
@@ -5056,13 +5134,13 @@ IMPORTANT - Git Workflow:
             toggle.parentElement.style.opacity = '1';
             toggle.parentElement.style.cursor = 'pointer';
           }
+          if (helpBtn) helpBtn.style.display = 'none';
+          if (helpPanel) helpPanel.style.display = 'none';
         } else {
-          // SDK not connected - show install instructions
+          // SDK not connected - show help button
           statusEl.innerHTML = `
             <span style="color: var(--theme-text-secondary);">SDK not connected</span>
-            <div style="margin-top: 6px; font-size: 10px; color: var(--theme-text-secondary);">
-              Install <code style="background: var(--theme-surface-hover); padding: 2px 4px; border-radius: 3px; color: var(--theme-text-primary);">@pointa/server-logger</code> in your server
-            </div>
+            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— click <strong>?</strong> for setup</span>
           `;
           if (toggle) {
             toggle.disabled = true;
@@ -5070,6 +5148,7 @@ IMPORTANT - Git Workflow:
             toggle.parentElement.style.opacity = '0.5';
             toggle.parentElement.style.cursor = 'not-allowed';
           }
+          if (helpBtn) helpBtn.style.display = 'inline-flex';
           // Ensure BugRecorder doesn't try to use backend logs
           if (window.BugRecorder) {
             window.BugRecorder.setIncludeBackendLogs(false);
@@ -5077,12 +5156,13 @@ IMPORTANT - Git Workflow:
         }
       } else {
         // Server not reachable
-        statusEl.innerHTML = `<span style="color: var(--theme-text-secondary);">Server not connected</span>`;
+        statusEl.innerHTML = `<span style="color: var(--theme-text-secondary);">Pointa server not running</span>`;
         if (toggle) {
           toggle.disabled = true;
           toggle.checked = false;
           toggle.parentElement.style.opacity = '0.5';
         }
+        if (helpBtn) helpBtn.style.display = 'none';
       }
     } catch (error) {
       console.warn('[Sidebar] Error checking backend log status:', error);
@@ -5092,6 +5172,59 @@ IMPORTANT - Git Workflow:
         toggle.checked = false;
         toggle.parentElement.style.opacity = '0.5';
       }
+      if (helpBtn) helpBtn.style.display = 'none';
+    }
+    
+    // Setup help button and framework tabs event listeners
+    this.setupBackendLogsHelpListeners();
+  },
+  
+  /**
+   * Setup event listeners for backend logs help panel
+   */
+  setupBackendLogsHelpListeners() {
+    const helpBtn = this.sidebar?.querySelector('#sidebar-backend-logs-help-btn');
+    const helpPanel = this.sidebar?.querySelector('#sidebar-backend-logs-help');
+    const frameworkTabs = this.sidebar?.querySelectorAll('.sidebar-framework-tab');
+    const frameworkContents = this.sidebar?.querySelectorAll('.sidebar-framework-content');
+    
+    // Help button toggle
+    if (helpBtn && helpPanel && !helpBtn._listenerAdded) {
+      helpBtn._listenerAdded = true;
+      helpBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isHidden = helpPanel.style.display === 'none';
+        helpPanel.style.display = isHidden ? 'block' : 'none';
+        helpBtn.textContent = isHidden ? '×' : '?';
+        helpBtn.title = isHidden ? 'Close setup guide' : 'How to set up';
+      });
+    }
+    
+    // Framework tabs
+    if (frameworkTabs && frameworkContents) {
+      frameworkTabs.forEach(tab => {
+        if (tab._listenerAdded) return;
+        tab._listenerAdded = true;
+        
+        tab.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const framework = tab.getAttribute('data-framework');
+          
+          // Update tab styles
+          frameworkTabs.forEach(t => {
+            t.style.background = 'var(--theme-surface-hover)';
+            t.style.color = 'var(--theme-text-primary)';
+          });
+          tab.style.background = 'var(--theme-primary)';
+          tab.style.color = 'white';
+          
+          // Show corresponding content
+          frameworkContents.forEach(content => {
+            const contentFramework = content.getAttribute('data-framework');
+            content.style.display = contentFramework === framework ? 'block' : 'none';
+          });
+        });
+      });
     }
   },
 
