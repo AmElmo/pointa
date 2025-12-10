@@ -1,5 +1,5 @@
 {
-  "name": "@pointa/server-logger",
+  "name": "pointa-server-logger",
   "version": "0.1.0",
   "description": "Capture backend server logs for Pointa bug reports",
   "main": "src/index.js",
@@ -17,7 +17,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-org/pointa"
+    "url": "https://github.com/AmElmo/pointa.git"
+  },
+  "homepage": "https://github.com/AmElmo/pointa/tree/main/server-logger",
+  "bugs": {
+    "url": "https://github.com/AmElmo/pointa/issues"
   },
   "engines": {
     "node": ">=16.0.0"

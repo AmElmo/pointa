@@ -1,13 +1,13 @@
 /**
- * @pointa/server-logger
+ * pointa-server-logger
  * 
  * Capture backend server logs for Pointa bug reports.
  * 
  * Usage (side-effect import - simplest):
- *   import '@pointa/server-logger';
+ *   import 'pointa-server-logger';
  * 
  * Usage (with options):
- *   import { initPointaLogger } from '@pointa/server-logger';
+ *   import { initPointaLogger } from 'pointa-server-logger';
  *   initPointaLogger({ port: 4242 });
  * 
  * The logger connects to the Pointa server via WebSocket and streams
@@ -59,7 +59,7 @@ export function disconnectLogger() {
 }
 
 // Auto-initialize with defaults when imported as side-effect
-// This allows: import '@pointa/server-logger';
+// This allows: import 'pointa-server-logger';
 initPointaLogger();
 
 export { PointaServerLogger };
