@@ -13,13 +13,14 @@ export class PointaServerLogger {
     this.host = options.host || '127.0.0.1';
     this.captureErrors = options.captureErrors !== false;
     this.captureRejections = options.captureRejections !== false;
+    this.verbose = options.verbose || false;  // Set to true for debug logging
     
     this.ws = null;
     this.isConnected = false;
     this.isRecording = false;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 2000;
+    this.maxReconnectAttempts = 10;  // More attempts, but silent
+    this.reconnectDelay = 3000;      // Slower retry (3 seconds)
     this.reconnectTimer = null;
     
     // Store original console methods
@@ -56,7 +57,10 @@ export class PointaServerLogger {
       this.ws.on('open', () => {
         this.isConnected = true;
         this.reconnectAttempts = 0;
-        this.originalConsole.log('[Pointa] Connected to server for backend logging');
+        // Silent connection - only log in verbose mode
+        if (this.verbose) {
+          this.originalConsole.log('[Pointa] Connected to server for backend logging');
+        }
         
         // Send any buffered logs
         this.flushBuffer();
@@ -85,7 +89,7 @@ export class PointaServerLogger {
       this.ws.on('close', () => {
         this.isConnected = false;
         this.isRecording = false;
-        this.originalConsole.log('[Pointa] Disconnected from server');
+        // Silent disconnect - don't spam console
         this.restoreConsole();
         this.scheduleReconnect();
       });
@@ -93,9 +97,9 @@ export class PointaServerLogger {
       this.ws.on('error', (error) => {
         // Silent fail - don't spam console if Pointa server isn't running
         if (error.code === 'ECONNREFUSED') {
-          // Server not running, will retry
-          this.scheduleReconnect();
+          // Server not running, will retry silently
         }
+        this.scheduleReconnect();
       });
       
     } catch (error) {
@@ -106,6 +110,7 @@ export class PointaServerLogger {
   
   /**
    * Schedule a reconnection attempt
+   * Silently retries in background - no console spam
    */
   scheduleReconnect() {
     if (this.reconnectTimer) {
@@ -113,7 +118,8 @@ export class PointaServerLogger {
     }
     
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      this.originalConsole.warn('[Pointa] Max reconnection attempts reached. Backend logging disabled.');
+      // Silently give up - server probably not running
+      // Will reconnect if connect() is called again
       return;
     }
     
@@ -122,7 +128,7 @@ export class PointaServerLogger {
     
     this.reconnectTimer = setTimeout(() => {
       this.connect();
-    }, delay);
+    }, Math.min(delay, 30000));  // Cap at 30 seconds
   }
   
   /**
@@ -132,12 +138,18 @@ export class PointaServerLogger {
     switch (message.type) {
       case 'start_recording':
         this.isRecording = true;
-        this.originalConsole.log('[Pointa] Backend log recording started');
+        // Silent start - only log in verbose mode
+        if (this.verbose) {
+          this.originalConsole.log('[Pointa] Backend log recording started');
+        }
         break;
         
       case 'stop_recording':
         this.isRecording = false;
-        this.originalConsole.log('[Pointa] Backend log recording stopped');
+        // Silent stop
+        if (this.verbose) {
+          this.originalConsole.log('[Pointa] Backend log recording stopped');
+        }
         break;
         
       case 'ping':
