@@ -4951,10 +4951,22 @@ IMPORTANT - Git Workflow:
 
     // Handle backend logs toggle
     if (backendLogsToggle) {
+      const backendLogsSection = this.sidebar.querySelector('#sidebar-backend-logs-section');
+      
       backendLogsToggle.addEventListener('change', (e) => {
         if (window.BugRecorder) {
           window.BugRecorder.setIncludeBackendLogs(e.target.checked);
-          console.log('[Sidebar] Backend logs:', e.target.checked ? 'enabled' : 'disabled');
+        }
+        
+        // Visual feedback: light up the container when active
+        if (backendLogsSection) {
+          if (e.target.checked) {
+            backendLogsSection.style.background = 'rgba(16, 185, 129, 0.1)';  // Green tint
+            backendLogsSection.style.borderColor = '#10b981';  // Green border
+          } else {
+            backendLogsSection.style.background = 'var(--theme-surface)';
+            backendLogsSection.style.borderColor = 'var(--theme-outline)';
+          }
         }
       });
     }
