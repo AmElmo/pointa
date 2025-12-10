@@ -3289,7 +3289,30 @@ ${taskDescription}`;
       return '<p class="bug-no-timeline">No timeline events recorded.</p>';
     }
 
-    return timeline.events.map((event) => {
+    // Filter out noisy events when displaying (for backward compatibility with old data)
+    const filteredEvents = timeline.events.filter((event) => {
+      // Filter chrome extension errors
+      if (event.type === 'console-error') {
+        const source = event.data?.source || '';
+        if (source.startsWith('chrome-extension://')) return false;
+      }
+      // Filter Pointa health checks and OPTIONS requests
+      if (event.type === 'network') {
+        const url = event.data?.url || '';
+        const method = event.data?.method || '';
+        if (url.includes('127.0.0.1:4242/health')) return false;
+        if (url.includes('localhost:4242/health')) return false;
+        if (url.includes('127.0.0.1:4242/api/backend')) return false;
+        if (method === 'OPTIONS') return false;
+      }
+      return true;
+    });
+
+    if (filteredEvents.length === 0) {
+      return '<p class="bug-no-timeline">No relevant timeline events.</p>';
+    }
+
+    return filteredEvents.map((event) => {
       const timeStr = BugRecorder.formatRelativeTime(event.relativeTime);
       const icon = this.getBugEventIcon(event);
       const description = this.getBugEventDescription(event);
@@ -3325,6 +3348,9 @@ ${taskDescription}`;
       case 'console-error':return '🔴';
       case 'console-warning':return '⚠️';
       case 'console-log':return '💬';
+      case 'backend-log':return '🖥️';
+      case 'backend-warn':return '🖥️';
+      case 'backend-error':return '🖥️';
       default:return '•';
     }
   },
@@ -3366,6 +3392,12 @@ ${taskDescription}`;
         return PointaUtils.escapeHtml(this.truncateText(event.data.message, 100));
       case 'console-log':
         return PointaUtils.escapeHtml(this.truncateText(event.data.message, 100));
+      case 'backend-log':
+        return `[Server] ${PointaUtils.escapeHtml(this.truncateText(event.data.message, 100))}`;
+      case 'backend-warn':
+        return `[Server ⚠️] ${PointaUtils.escapeHtml(this.truncateText(event.data.message, 100))}`;
+      case 'backend-error':
+        return `[Server ❌] ${PointaUtils.escapeHtml(this.truncateText(event.data.message, 100))}`;
       default:
         return 'Event';
     }
@@ -3380,6 +3412,7 @@ ${taskDescription}`;
     switch (type) {
       case 'console-error':return '🔴';
       case 'network-failure':return '🌐';
+      case 'backend-error':return '🖥️';
       default:return '⚠️';
     }
   },
