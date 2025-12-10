@@ -2163,7 +2163,7 @@ class Pointa {
 
   async saveBugReport(reportData) {
     try {
-      const { whatHappened, expectedBehavior, recordingData } = reportData;
+      const { expectedBehavior, recordingData } = reportData;
 
       // Generate bug report ID (timestamp-based for uniqueness and readability)
       const bugReportId = `BUG-${Date.now()}`;
@@ -2183,8 +2183,7 @@ class Pointa {
         updated: new Date().toISOString(),
         status: 'active',
         report: {
-          userDescription: whatHappened,
-          expectedBehavior: expectedBehavior
+          expectedBehavior: expectedBehavior || null
         },
         recordings: [
         {

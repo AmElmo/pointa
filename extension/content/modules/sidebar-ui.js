@@ -2708,8 +2708,11 @@ ${taskDescription}`;
     const bugReportItems = activeBugReports.map((report, index) => {
       const created = new Date(report.created);
       const timeAgo = this.formatTimeAgo(created);
-      const description = report.report?.userDescription || report.report?.description || 'No description';
       const isPerformance = report.type === 'performance-investigation';
+      // For performance reports use userDescription, for bug reports use expectedBehavior
+      const description = isPerformance 
+        ? (report.report?.userDescription || report.report?.description || 'No description')
+        : (report.report?.expectedBehavior || 'Bug captured with timeline');
       const errorCount = isPerformance ? report.insights?.issues?.length || 0 : report.keyIssues?.length || 0;
       const statusBadge = this.getBugStatusBadge(report.status, report.needs_more_logging);
       const iterationCount = report.recordings?.length || 1;
@@ -2936,7 +2939,6 @@ ${taskDescription}`;
       const dateStr = created.toLocaleString();
 
       // Get key data
-      const description = bugReport.report?.userDescription || 'No description';
       const expectedBehavior = bugReport.report?.expectedBehavior || 'Not specified';
       // Get timeline from first recording (or legacy timeline)
       const timeline = bugReport.recordings?.[0]?.timeline || bugReport.timeline;
@@ -2982,11 +2984,6 @@ ${taskDescription}`;
                 </div>
               </div>
             ` : ''}
-            
-            <div class="bug-detail-section">
-              <h4 class="bug-detail-label">What Happened</h4>
-              <p class="bug-detail-text">${PointaUtils.escapeHtml(description)}</p>
-            </div>
             
             <div class="bug-detail-section">
               <h4 class="bug-detail-label">Expected Behavior</h4>
