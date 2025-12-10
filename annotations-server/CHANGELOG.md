@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-12-10
+
+### Added
+- **Smart SDK port detection for backend logs**
+  - Server now tracks SDK clients by port in `backendLogClientPorts` Map
+  - Handles `register` message from SDK to associate client with its server port
+  - `GET /api/backend-logs/status` now accepts optional `?port=` query parameter
+  - Returns `connectedPorts` array showing all ports with connected SDKs
+  - Returns `matched`, `matchedClientCount` when querying specific port
+  - Enables extension to detect SDK on same port, suggest different ports, or show manual entry
+
+### Changed
+- `getBackendLogStatus()` now returns enhanced response with port information
+- WebSocket close/error handlers clean up port mappings
+
+## [0.4.0] - 2025-12-08
+
+### Added
+- Backend logs SDK integration for capturing server-side logs
+- WebSocket endpoint at `/backend-logs` for SDK connections
+- Recording state management (start/stop) for log capture
+- Log buffering during active recording sessions
+
 ## [0.3.0] - 2025-12-03
 
 ### BREAKING CHANGES
