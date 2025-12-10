@@ -9,11 +9,15 @@ import WebSocket from 'ws';
 
 export class PointaServerLogger {
   constructor(options = {}) {
-    this.port = options.port || 4242;
+    this.port = options.port || 4242;  // Pointa server port
     this.host = options.host || '127.0.0.1';
     this.captureErrors = options.captureErrors !== false;
     this.captureRejections = options.captureRejections !== false;
     this.verbose = options.verbose || false;  // Set to true for debug logging
+    
+    // Server port identification - used by Pointa extension to match SDK to frontend
+    // If not provided, will try to auto-detect from process.env.PORT or default to null
+    this.serverPort = options.serverPort || process.env.PORT || null;
     
     this.ws = null;
     this.isConnected = false;
@@ -61,6 +65,13 @@ export class PointaServerLogger {
         if (this.verbose) {
           this.originalConsole.log('[Pointa] Connected to server for backend logging');
         }
+        
+        // Register with the Pointa server, sending our server port for identification
+        // This allows the extension to match this SDK instance to the correct frontend
+        this.ws.send(JSON.stringify({
+          type: 'register',
+          serverPort: this.serverPort
+        }));
         
         // Send any buffered logs
         this.flushBuffer();
