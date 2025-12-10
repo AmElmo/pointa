@@ -1726,7 +1726,7 @@ class PointaBackground {
 
   /**
    * Start backend log recording via Pointa server
-   * This signals the @pointa/server-logger SDK to start sending logs
+   * This signals the pointa-server-logger SDK to start sending logs
    */
   async startBackendLogRecording() {
     try {

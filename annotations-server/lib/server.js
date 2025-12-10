@@ -813,7 +813,7 @@ class LocalAnnotationsServer {
       }
     });
 
-    // Backend Logs API endpoints (for @pointa/server-logger SDK integration)
+    // Backend Logs API endpoints (for pointa-server-logger SDK integration)
     
     // Get backend log connection status
     // Optional query param: ?port=3000 to check for SDK on specific port
@@ -1131,7 +1131,7 @@ class LocalAnnotationsServer {
         },
         {
           name: 'read_issue_reports',
-          description: 'Retrieves issue reports (bugs and performance investigations) with full timeline data including console errors, network failures, user interactions, and backend server logs (when @pointa/server-logger SDK is installed). Use this tool when users mention: bugs, errors, crashes, issues, failures, performance problems, or when you need to debug problems. Each report includes a detailed timeline showing the sequence of events that led to the issue, making it easier to identify root causes. Backend logs (marked with source: "backend" and type: "backend-log", "backend-warn", or "backend-error") provide server-side context. Issue reports have statuses: "active" (needs attention - default), "debugging" (awaiting re-run with new logs), or "in-review" (fix ready for testing). CRITICAL: If an issue has needs_more_logging=true, do NOT attempt another fix. Instead, use mark_issue_needs_rerun to add console.log statements, debugging output, or instrumentation to gather more information about why the previous fix failed. The failed_fix_attempts counter shows how many fixes have been tried.',
+          description: 'Retrieves issue reports (bugs and performance investigations) with full timeline data including console errors, network failures, user interactions, and backend server logs (when pointa-server-logger SDK is installed). Use this tool when users mention: bugs, errors, crashes, issues, failures, performance problems, or when you need to debug problems. Each report includes a detailed timeline showing the sequence of events that led to the issue, making it easier to identify root causes. Backend logs (marked with source: "backend" and type: "backend-log", "backend-warn", or "backend-error") provide server-side context. Issue reports have statuses: "active" (needs attention - default), "debugging" (awaiting re-run with new logs), or "in-review" (fix ready for testing). CRITICAL: If an issue has needs_more_logging=true, do NOT attempt another fix. Instead, use mark_issue_needs_rerun to add console.log statements, debugging output, or instrumentation to gather more information about why the previous fix failed. The failed_fix_attempts counter shows how many fixes have been tried.',
           inputSchema: {
             type: 'object',
             properties: {
@@ -2492,7 +2492,7 @@ class LocalAnnotationsServer {
 
   /**
    * Setup WebSocket server for backend log streaming
-   * This allows the @pointa/server-logger SDK to connect and stream logs
+   * This allows the pointa-server-logger SDK to connect and stream logs
    */
   setupBackendLogWebSocket(httpServer) {
     this.wss = new WebSocketServer({ 
