@@ -2109,19 +2109,18 @@ ${taskDescription}`;
           </ul>
 
           <!-- Backend Logs Toggle -->
-          <div class="sidebar-backend-logs-section" id="sidebar-backend-logs-section" style="margin: 16px 0; padding: 12px; border-radius: 8px; background: var(--bg-secondary);">
+          <div class="sidebar-backend-logs-section" id="sidebar-backend-logs-section" style="margin: 16px 0; padding: 12px; border-radius: 8px; background: var(--theme-surface); border: 1px solid var(--theme-outline);">
             <div style="display: flex; align-items: center; justify-content: space-between;">
               <div style="display: flex; align-items: center; gap: 8px;">
                 <span style="font-size: 16px;">🔧</span>
-                <span style="font-size: 13px; font-weight: 500;">Include backend logs</span>
+                <span style="font-size: 13px; font-weight: 500; color: var(--theme-text-primary);">Include backend logs</span>
               </div>
-              <label class="sidebar-toggle-switch" style="position: relative; display: inline-block; width: 40px; height: 22px;">
-                <input type="checkbox" id="sidebar-backend-logs-toggle" style="opacity: 0; width: 0; height: 0;">
-                <span class="sidebar-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-tertiary); transition: .3s; border-radius: 22px;">
-                </span>
+              <label class="sidebar-toggle" style="position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;">
+                <input type="checkbox" id="sidebar-backend-logs-toggle" style="opacity: 0; width: 0; height: 0; position: absolute;">
+                <span class="sidebar-toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--theme-surface-hover); border: 1px solid var(--theme-outline); transition: .3s; border-radius: 24px;"></span>
               </label>
             </div>
-            <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--text-muted);">
+            <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--theme-text-secondary);">
               Checking SDK connection...
             </div>
           </div>
@@ -5007,8 +5006,8 @@ IMPORTANT - Git Workflow:
         if (connected && clientCount > 0) {
           // SDK is connected
           statusEl.innerHTML = `
-            <span style="color: var(--color-success);">✓ SDK connected</span>
-            <span style="margin-left: 4px;">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
+            <span style="color: #10b981;">✓ SDK connected</span>
+            <span style="margin-left: 4px; color: var(--theme-text-secondary);">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
           `;
           if (toggle) {
             toggle.disabled = false;
@@ -5018,9 +5017,9 @@ IMPORTANT - Git Workflow:
         } else {
           // SDK not connected - show install instructions
           statusEl.innerHTML = `
-            <span style="color: var(--text-muted);">SDK not connected</span>
-            <div style="margin-top: 6px; font-size: 10px;">
-              Install <code style="background: var(--bg-tertiary); padding: 2px 4px; border-radius: 3px;">@pointa/server-logger</code> in your server
+            <span style="color: var(--theme-text-secondary);">SDK not connected</span>
+            <div style="margin-top: 6px; font-size: 10px; color: var(--theme-text-secondary);">
+              Install <code style="background: var(--theme-surface-hover); padding: 2px 4px; border-radius: 3px; color: var(--theme-text-primary);">@pointa/server-logger</code> in your server
             </div>
           `;
           if (toggle) {
@@ -5036,7 +5035,7 @@ IMPORTANT - Git Workflow:
         }
       } else {
         // Server not reachable
-        statusEl.innerHTML = `<span style="color: var(--text-muted);">Server not connected</span>`;
+        statusEl.innerHTML = `<span style="color: var(--theme-text-secondary);">Server not connected</span>`;
         if (toggle) {
           toggle.disabled = true;
           toggle.checked = false;
@@ -5045,7 +5044,7 @@ IMPORTANT - Git Workflow:
       }
     } catch (error) {
       console.warn('[Sidebar] Error checking backend log status:', error);
-      statusEl.innerHTML = `<span style="color: var(--text-muted);">Could not check status</span>`;
+      statusEl.innerHTML = `<span style="color: var(--theme-text-secondary);">Could not check status</span>`;
       if (toggle) {
         toggle.disabled = true;
         toggle.checked = false;
