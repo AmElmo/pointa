@@ -115,7 +115,7 @@ pointa-server start
 **2. Install the browser extension**
 
 Option A: From Chrome Web Store (recommended)
-- Install from [Chrome Web Store](https://chromewebstore.google.com/detail/gkofobaeeepjopdpahbicefmljcmpeof)
+- Install from [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane)
 
 Option B: Load unpacked (for development)
 - Clone this repository
