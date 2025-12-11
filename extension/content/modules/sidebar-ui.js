@@ -2124,78 +2124,6 @@ ${taskDescription}`;
             <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--theme-text-secondary);">
               Checking SDK connection...
             </div>
-            
-            <!-- Collapsible Help Section -->
-            <div id="sidebar-backend-logs-help" class="sidebar-backend-help-panel" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--theme-outline);">
-              <div style="font-size: 12px; font-weight: 500; color: var(--theme-text-primary); margin-bottom: 10px;">
-                📦 Setup Instructions
-              </div>
-              
-              <!-- Step 1: Install -->
-              <div style="margin-bottom: 12px;">
-                <div style="font-size: 11px; color: var(--theme-text-secondary); margin-bottom: 6px;">1. Install the package:</div>
-                <code style="display: block; background: var(--theme-surface-hover); padding: 8px 10px; border-radius: 6px; font-size: 11px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace;">npm install pointa-server-logger</code>
-              </div>
-              
-              <!-- Step 2: Framework Tabs -->
-              <div style="font-size: 11px; color: var(--theme-text-secondary); margin-bottom: 6px;">2. Add to your server entry file:</div>
-              
-              <div class="sidebar-framework-tabs" style="display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap;">
-                <button class="sidebar-framework-tab active" data-framework="express" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-primary); color: white; cursor: pointer;">Express</button>
-                <button class="sidebar-framework-tab" data-framework="nextjs" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Next.js</button>
-                <button class="sidebar-framework-tab" data-framework="fastify" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Fastify</button>
-                <button class="sidebar-framework-tab" data-framework="hono" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Hono</button>
-                <button class="sidebar-framework-tab" data-framework="other" style="padding: 4px 8px; font-size: 10px; border: 1px solid var(--theme-outline); border-radius: 4px; background: var(--theme-surface-hover); color: var(--theme-text-primary); cursor: pointer;">Other</button>
-              </div>
-              
-              <!-- Framework Code Snippets -->
-              <div class="sidebar-framework-content" data-framework="express" style="display: block;">
-                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// server.js or app.js</span>
-<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
-<span style="color: #c084fc;">import</span> express <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'express'</span>;
-
-<span style="color: #60a5fa;">const</span> app = <span style="color: #4ade80;">express</span>();
-<span style="color: #9ca3af;">// ... your routes</span></pre>
-              </div>
-              
-              <div class="sidebar-framework-content" data-framework="nextjs" style="display: none;">
-                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// next.config.js (at the top)</span>
-<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
-
-<span style="color: #9ca3af;">// ... rest of your config</span></pre>
-              </div>
-              
-              <div class="sidebar-framework-content" data-framework="fastify" style="display: none;">
-                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// server.js</span>
-<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
-<span style="color: #c084fc;">import</span> Fastify <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'fastify'</span>;
-
-<span style="color: #60a5fa;">const</span> fastify = <span style="color: #4ade80;">Fastify</span>();
-<span style="color: #9ca3af;">// ... your routes</span></pre>
-              </div>
-              
-              <div class="sidebar-framework-content" data-framework="hono" style="display: none;">
-                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// server.js</span>
-<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
-<span style="color: #c084fc;">import</span> { Hono } <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'hono'</span>;
-<span style="color: #c084fc;">import</span> { serve } <span style="color: #c084fc;">from</span> <span style="color: #fbbf24;">'@hono/node-server'</span>;
-
-<span style="color: #60a5fa;">const</span> app = <span style="color: #c084fc;">new</span> <span style="color: #4ade80;">Hono</span>();
-<span style="color: #9ca3af;">// ... your routes</span></pre>
-              </div>
-              
-              <div class="sidebar-framework-content" data-framework="other" style="display: none;">
-                <pre style="background: var(--theme-surface-hover); padding: 10px; border-radius: 6px; font-size: 10px; color: var(--theme-text-primary); font-family: 'SF Mono', Monaco, monospace; margin: 0; overflow-x: auto; white-space: pre-wrap;"><span style="color: #9ca3af;">// Add at the TOP of your entry file</span>
-<span style="color: #c084fc;">import</span> <span style="color: #fbbf24;">'pointa-server-logger'</span>;
-
-<span style="color: #9ca3af;">// Or with CommonJS:</span>
-<span style="color: #4ade80;">require</span>(<span style="color: #fbbf24;">'pointa-server-logger'</span>);</pre>
-              </div>
-              
-              <div style="margin-top: 10px; font-size: 10px; color: var(--theme-text-secondary);">
-                3. Restart your server and this status will turn green ✓
-              </div>
-            </div>
           </div>
           
           <div class="sidebar-bug-instructions-compact">
@@ -5190,48 +5118,396 @@ IMPORTANT - Git Workflow:
    */
   setupBackendLogsHelpListeners() {
     const helpBtn = this.sidebar?.querySelector('#sidebar-backend-logs-help-btn');
-    const helpPanel = this.sidebar?.querySelector('#sidebar-backend-logs-help');
-    const frameworkTabs = this.sidebar?.querySelectorAll('.sidebar-framework-tab');
-    const frameworkContents = this.sidebar?.querySelectorAll('.sidebar-framework-content');
     
-    // Help button toggle
-    if (helpBtn && helpPanel && !helpBtn._listenerAdded) {
+    // Help button opens modal
+    if (helpBtn && !helpBtn._listenerAdded) {
       helpBtn._listenerAdded = true;
       helpBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const isHidden = helpPanel.style.display === 'none';
-        helpPanel.style.display = isHidden ? 'block' : 'none';
-        helpBtn.textContent = isHidden ? '×' : '?';
-        helpBtn.title = isHidden ? 'Close setup guide' : 'How to set up';
+        this.showBackendLogsSetupModal();
       });
     }
-    
-    // Framework tabs
-    if (frameworkTabs && frameworkContents) {
-      frameworkTabs.forEach(tab => {
-        if (tab._listenerAdded) return;
-        tab._listenerAdded = true;
+  },
+
+  /**
+   * Show backend logs setup modal
+   */
+  async showBackendLogsSetupModal() {
+    // Close any existing overlay
+    const existingOverlay = document.querySelector('.pointa-backend-logs-overlay');
+    if (existingOverlay) {
+      if (window.PointaModalManager) {
+        window.PointaModalManager.unregisterModal('backend-logs-setup');
+      }
+      existingOverlay.remove();
+    }
+
+    // Register modal with central manager
+    if (window.PointaModalManager) {
+      window.PointaModalManager.registerModal('backend-logs-setup');
+    }
+
+    // Get current port for status checking
+    const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'pointa-backend-logs-overlay';
+    overlay.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
+
+    overlay.innerHTML = `
+      <div class="pointa-backend-logs-modal">
+        <div class="pointa-backend-logs-header">
+          <div class="pointa-backend-logs-header-content">
+            <div class="pointa-backend-logs-icon">🔧</div>
+            <div>
+              <h2>Include Backend Logs in Bug Reports</h2>
+              <p class="pointa-backend-logs-subtitle">Capture server-side console.log, errors, and warnings alongside your frontend logs</p>
+            </div>
+          </div>
+          <button class="pointa-backend-logs-close" data-close-modal>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
         
-        tab.addEventListener('click', (e) => {
-          e.stopPropagation();
+        <div class="pointa-backend-logs-body">
+          <!-- Status indicator -->
+          <div class="pointa-backend-logs-status" id="backend-modal-status">
+            <div class="pointa-backend-logs-status-indicator">
+              <div class="pointa-status-dot offline"></div>
+              <span class="pointa-status-text">Checking SDK connection...</span>
+            </div>
+          </div>
+
+          <!-- What it does section -->
+          <div class="pointa-backend-logs-section">
+            <h3>🎯 What this enables</h3>
+            <p>When you record a bug, Pointa will automatically capture:</p>
+            <ul class="pointa-backend-logs-features">
+              <li><span class="pointa-feature-icon">📋</span> All <code>console.log()</code> statements from your server</li>
+              <li><span class="pointa-feature-icon">⚠️</span> Warnings via <code>console.warn()</code></li>
+              <li><span class="pointa-feature-icon">🚨</span> Errors via <code>console.error()</code></li>
+              <li><span class="pointa-feature-icon">⏱️</span> Timestamps and correlation with frontend events</li>
+            </ul>
+          </div>
+
+          <!-- Setup Steps -->
+          <div class="pointa-backend-logs-section">
+            <h3>📦 Quick Setup (2 minutes)</h3>
+            
+            <div class="pointa-setup-step-card">
+              <div class="pointa-step-number">1</div>
+              <div class="pointa-step-content">
+                <h4>Install the package</h4>
+                <div class="pointa-command-code">
+                  <code>npm install pointa-server-logger</code>
+                  <button class="pointa-copy-btn" data-command="npm install pointa-server-logger" title="Copy command">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="pointa-setup-step-card">
+              <div class="pointa-step-number">2</div>
+              <div class="pointa-step-content">
+                <h4>Add to your server entry file</h4>
+                <p class="pointa-step-hint">Add this import at the very top of your main server file (before other imports)</p>
+                
+                <!-- Framework Tabs -->
+                <div class="pointa-framework-tabs">
+                  <button class="pointa-framework-tab active" data-framework="express">Express</button>
+                  <button class="pointa-framework-tab" data-framework="nextjs">Next.js</button>
+                  <button class="pointa-framework-tab" data-framework="fastify">Fastify</button>
+                  <button class="pointa-framework-tab" data-framework="hono">Hono</button>
+                  <button class="pointa-framework-tab" data-framework="other">Other</button>
+                </div>
+                
+                <!-- Framework Content -->
+                <div class="pointa-framework-content active" data-framework="express">
+                  <div class="pointa-code-block">
+                    <pre><span class="pointa-code-comment">// server.js or app.js</span>
+<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
+<span class="pointa-code-keyword">import</span> express <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'express'</span>;
+
+<span class="pointa-code-keyword">const</span> app = <span class="pointa-code-function">express</span>();
+<span class="pointa-code-comment">// ... your routes</span></pre>
+                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="pointa-framework-content" data-framework="nextjs">
+                  <div class="pointa-code-block">
+                    <pre><span class="pointa-code-comment">// next.config.js (at the very top)</span>
+<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
+
+<span class="pointa-code-comment">/** @type {import('next').NextConfig} */</span>
+<span class="pointa-code-keyword">const</span> nextConfig = {
+  <span class="pointa-code-comment">// ... your config</span>
+};</pre>
+                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="pointa-framework-content" data-framework="fastify">
+                  <div class="pointa-code-block">
+                    <pre><span class="pointa-code-comment">// server.js</span>
+<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
+<span class="pointa-code-keyword">import</span> Fastify <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'fastify'</span>;
+
+<span class="pointa-code-keyword">const</span> fastify = <span class="pointa-code-function">Fastify</span>();
+<span class="pointa-code-comment">// ... your routes</span></pre>
+                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="pointa-framework-content" data-framework="hono">
+                  <div class="pointa-code-block">
+                    <pre><span class="pointa-code-comment">// server.js</span>
+<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
+<span class="pointa-code-keyword">import</span> { Hono } <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'hono'</span>;
+<span class="pointa-code-keyword">import</span> { serve } <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'@hono/node-server'</span>;
+
+<span class="pointa-code-keyword">const</span> app = <span class="pointa-code-keyword">new</span> <span class="pointa-code-function">Hono</span>();
+<span class="pointa-code-comment">// ... your routes</span></pre>
+                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="pointa-framework-content" data-framework="other">
+                  <div class="pointa-code-block">
+                    <pre><span class="pointa-code-comment">// Add at the TOP of your entry file</span>
+<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
+
+<span class="pointa-code-comment">// Or with CommonJS:</span>
+<span class="pointa-code-function">require</span>(<span class="pointa-code-string">'pointa-server-logger'</span>);</pre>
+                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pointa-setup-step-card">
+              <div class="pointa-step-number">3</div>
+              <div class="pointa-step-content">
+                <h4>Restart your server</h4>
+                <p>Restart your dev server and the status above will turn green ✓</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Safety & Trust section -->
+          <div class="pointa-backend-logs-section pointa-trust-section">
+            <h3>🔒 Safe & Open Source</h3>
+            <div class="pointa-trust-badges">
+              <div class="pointa-trust-badge">
+                <span class="pointa-trust-icon">🔐</span>
+                <div>
+                  <strong>100% Local</strong>
+                  <p>Logs never leave your machine. Only sent to localhost.</p>
+                </div>
+              </div>
+              <div class="pointa-trust-badge">
+                <span class="pointa-trust-icon">📖</span>
+                <div>
+                  <strong>Open Source</strong>
+                  <p>Review the code yourself — it's all transparent.</p>
+                </div>
+              </div>
+              <div class="pointa-trust-badge">
+                <span class="pointa-trust-icon">🛡️</span>
+                <div>
+                  <strong>Dev-only</strong>
+                  <p>Only works on localhost. Zero impact in production.</p>
+                </div>
+              </div>
+            </div>
+            <a href="https://github.com/AmElmo/pointa" target="_blank" rel="noopener noreferrer" class="pointa-github-link">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385c.6.105.825-.255.825-.57c0-.285-.015-1.23-.015-2.235c-3.015.555-3.795-.735-4.035-1.41c-.135-.345-.72-1.41-1.23-1.695c-.42-.225-1.02-.78-.015-.795c.945-.015 1.62.87 1.845 1.23c1.08 1.815 2.805 1.305 3.495.99c.105-.78.42-1.305.765-1.605c-2.67-.3-5.46-1.335-5.46-5.925c0-1.305.465-2.385 1.23-3.225c-.12-.3-.54-1.53.12-3.18c0 0 1.005-.315 3.3 1.23c.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23c.66 1.65.24 2.88.12 3.18c.765.84 1.23 1.905 1.23 3.225c0 4.605-2.805 5.625-5.475 5.925c.435.375.81 1.095.81 2.22c0 1.605-.015 2.895-.015 3.3c0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+              View on GitHub
+            </a>
+          </div>
+        </div>
+        
+        <div class="pointa-backend-logs-footer">
+          <button class="pointa-backend-logs-done-btn" data-close-modal>Got it</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Setup framework tabs
+    const frameworkTabs = overlay.querySelectorAll('.pointa-framework-tab');
+    const frameworkContents = overlay.querySelectorAll('.pointa-framework-content');
+    
+    frameworkTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
           const framework = tab.getAttribute('data-framework');
           
-          // Update tab styles
-          frameworkTabs.forEach(t => {
-            t.style.background = 'var(--theme-surface-hover)';
-            t.style.color = 'var(--theme-text-primary)';
-          });
-          tab.style.background = 'var(--theme-primary)';
-          tab.style.color = 'white';
+        // Update tab active states
+        frameworkTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
           
           // Show corresponding content
           frameworkContents.forEach(content => {
             const contentFramework = content.getAttribute('data-framework');
-            content.style.display = contentFramework === framework ? 'block' : 'none';
+          content.classList.toggle('active', contentFramework === framework);
           });
         });
       });
-    }
+
+    // Setup copy buttons
+    const copyButtons = overlay.querySelectorAll('.pointa-copy-btn[data-command]');
+    copyButtons.forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const command = btn.getAttribute('data-command');
+        try {
+          await navigator.clipboard.writeText(command);
+
+          // Show feedback
+          const originalHTML = btn.innerHTML;
+          btn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          `;
+          btn.style.color = '#10b981';
+
+          setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.color = '';
+          }, 1500);
+        } catch (error) {
+          console.error('Failed to copy command:', error);
+        }
+      });
+    });
+
+    // Setup close handlers
+    const closeModal = () => {
+      if (window.PointaModalManager) {
+        window.PointaModalManager.unregisterModal('backend-logs-setup');
+      }
+      if (overlay._statusCheckInterval) {
+        clearInterval(overlay._statusCheckInterval);
+      }
+      if (overlay._escHandler) {
+        document.removeEventListener('keydown', overlay._escHandler);
+      }
+      overlay.remove();
+    };
+
+    const closeButtons = overlay.querySelectorAll('[data-close-modal]');
+    closeButtons.forEach((btn) => {
+      btn.addEventListener('click', closeModal);
+    });
+
+    // Click outside to close
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        closeModal();
+      }
+    });
+
+    // ESC key to close
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    };
+    overlay._escHandler = escHandler;
+    document.addEventListener('keydown', escHandler);
+
+    // Check and update status
+    const updateStatus = async () => {
+      const statusEl = overlay.querySelector('#backend-modal-status');
+      if (!statusEl) return;
+
+      try {
+        const response = await chrome.runtime.sendMessage({ 
+          action: 'getBackendLogStatus',
+          port: currentPort
+        });
+        
+        if (response && response.success && response.status) {
+          const { connected, clientCount } = response.status;
+          
+          if (connected && clientCount > 0) {
+            statusEl.innerHTML = `
+              <div class="pointa-backend-logs-status-indicator pointa-status-connected">
+                <div class="pointa-status-dot online"></div>
+                <span class="pointa-status-text">SDK connected <span class="pointa-status-count">(${clientCount} client${clientCount > 1 ? 's' : ''})</span></span>
+              </div>
+              <p class="pointa-status-success">You're all set! Backend logs will be included in bug reports.</p>
+            `;
+          } else {
+            statusEl.innerHTML = `
+              <div class="pointa-backend-logs-status-indicator">
+                <div class="pointa-status-dot offline"></div>
+                <span class="pointa-status-text">SDK not connected</span>
+              </div>
+              <p class="pointa-status-hint">Follow the steps below to enable backend log capture</p>
+            `;
+          }
+        } else {
+          statusEl.innerHTML = `
+            <div class="pointa-backend-logs-status-indicator">
+              <div class="pointa-status-dot offline"></div>
+              <span class="pointa-status-text">Pointa server not running</span>
+            </div>
+            <p class="pointa-status-hint">Make sure your Pointa server is running</p>
+          `;
+        }
+      } catch (error) {
+        console.warn('[Modal] Error checking backend log status:', error);
+        statusEl.innerHTML = `
+          <div class="pointa-backend-logs-status-indicator">
+            <div class="pointa-status-dot offline"></div>
+            <span class="pointa-status-text">Could not check status</span>
+          </div>
+        `;
+      }
+    };
+
+    // Initial status check
+    updateStatus();
+
+    // Poll for status changes
+    overlay._statusCheckInterval = setInterval(updateStatus, 3000);
   },
 
   /**

@@ -4826,6 +4826,582 @@ body.sidebar-resizing * {
 }
 
 /* ============================================
+   BACKEND LOGS SETUP MODAL STYLES
+   ============================================ */
+
+.pointa-backend-logs-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483647;
+  animation: pointa-fade-in 0.2s ease;
+}
+
+.pointa-backend-logs-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 640px;
+  width: 90%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  animation: pointa-scale-in 0.3s ease;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-modal {
+  background: #1e1e1e;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.pointa-backend-logs-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 28px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  gap: 16px;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pointa-backend-logs-header-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.pointa-backend-logs-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.pointa-backend-logs-header h2 {
+  margin: 0 0 4px 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-header h2 {
+  color: #ffffff;
+}
+
+.pointa-backend-logs-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.4;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-subtitle {
+  color: #999999;
+}
+
+.pointa-backend-logs-close {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  color: #666666;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pointa-backend-logs-close:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1a1a1a;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-close {
+  color: #999999;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.pointa-backend-logs-body {
+  padding: 24px 28px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Status indicator */
+.pointa-backend-logs-status {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-status {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.pointa-backend-logs-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pointa-backend-logs-status-indicator.pointa-status-connected {
+  color: #10b981;
+}
+
+.pointa-backend-logs-status .pointa-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.pointa-backend-logs-status .pointa-status-dot.online {
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+
+.pointa-backend-logs-status .pointa-status-dot.offline {
+  background: #ef4444;
+}
+
+.pointa-backend-logs-status .pointa-status-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-status .pointa-status-text {
+  color: #ffffff;
+}
+
+.pointa-backend-logs-status .pointa-status-count {
+  font-weight: 400;
+  color: #666666;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-status .pointa-status-count {
+  color: #999999;
+}
+
+.pointa-backend-logs-status .pointa-status-hint,
+.pointa-backend-logs-status .pointa-status-success {
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  color: #666666;
+}
+
+.pointa-backend-logs-status .pointa-status-success {
+  color: #10b981;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-status .pointa-status-hint {
+  color: #999999;
+}
+
+/* Sections */
+.pointa-backend-logs-section {
+  margin-bottom: 24px;
+}
+
+.pointa-backend-logs-section:last-child {
+  margin-bottom: 0;
+}
+
+.pointa-backend-logs-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-section h3 {
+  color: #ffffff;
+}
+
+.pointa-backend-logs-section > p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: #666666;
+  line-height: 1.5;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-section > p {
+  color: #999999;
+}
+
+/* Features list */
+.pointa-backend-logs-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pointa-backend-logs-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1a1a1a;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-features li {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #e0e0e0;
+}
+
+.pointa-backend-logs-features .pointa-feature-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.pointa-backend-logs-features code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-features code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Setup step cards */
+.pointa-setup-step-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-setup-step-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pointa-step-number {
+  width: 28px;
+  height: 28px;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.pointa-step-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pointa-step-content h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-step-content h4 {
+  color: #ffffff;
+}
+
+.pointa-step-content > p,
+.pointa-step-hint {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  color: #666666;
+  line-height: 1.4;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-step-content > p,
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-step-hint {
+  color: #999999;
+}
+
+/* Command code block */
+.pointa-backend-logs-modal .pointa-command-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1e1e1e;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pointa-backend-logs-modal .pointa-command-code code {
+  flex: 1;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 13px;
+  color: #e0e0e0;
+  background: none;
+  padding: 0;
+}
+
+.pointa-backend-logs-modal .pointa-copy-btn {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: #888888;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pointa-backend-logs-modal .pointa-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Framework tabs */
+.pointa-framework-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.pointa-framework-tab {
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.02);
+  color: #666666;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-framework-tab {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+  color: #999999;
+}
+
+.pointa-framework-tab:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #1a1a1a;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-framework-tab:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.pointa-framework-tab.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-framework-tab.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.pointa-framework-content {
+  display: none;
+}
+
+.pointa-framework-content.active {
+  display: block;
+}
+
+/* Code block */
+.pointa-code-block {
+  position: relative;
+  background: #1e1e1e;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.pointa-code-block pre {
+  margin: 0;
+  padding: 14px 16px;
+  padding-right: 48px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #e0e0e0;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.pointa-code-block .pointa-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+/* Syntax highlighting */
+.pointa-code-comment {
+  color: #6a9955;
+}
+
+.pointa-code-keyword {
+  color: #c586c0;
+}
+
+.pointa-code-string {
+  color: #ce9178;
+}
+
+.pointa-code-function {
+  color: #dcdcaa;
+}
+
+/* Trust section */
+.pointa-trust-section {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-trust-section {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.pointa-trust-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pointa-trust-badge {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.pointa-trust-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.pointa-trust-badge strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-trust-badge strong {
+  color: #ffffff;
+}
+
+.pointa-trust-badge p {
+  margin: 0;
+  font-size: 12px;
+  color: #666666;
+  line-height: 1.4;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-trust-badge p {
+  color: #999999;
+}
+
+.pointa-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #24292e;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.pointa-github-link:hover {
+  background: #2f363d;
+  transform: translateY(-1px);
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-github-link {
+  background: #3a3f44;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-github-link:hover {
+  background: #4a5056;
+}
+
+/* Footer */
+.pointa-backend-logs-footer {
+  padding: 20px 28px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-backend-logs-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pointa-backend-logs-done-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pointa-backend-logs-done-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* ============================================
    ONBOARDING OVERLAY STYLES
    ============================================ */
 
