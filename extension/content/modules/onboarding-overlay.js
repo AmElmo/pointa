@@ -255,7 +255,7 @@ const VibeOnboarding = {
   }
 }</pre>
           </div>
-          <p class="note">Or use CLI: <code>claude mcp add pointa npx -- -y pointa-server</code></p>
+          <p class="note">Or use CLI: <code>claude mcp add --transport stdio pointa -- npx -y pointa-server</code></p>
           <p class="note"><strong>✨ No manual server start needed!</strong> npx automatically handles installation and startup.</p>
         </div>
       `,

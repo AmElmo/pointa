@@ -3828,7 +3828,7 @@ ${taskDescription}`;
                   </svg>
                 </button>
               </div>
-              <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">Or use CLI: <code>claude mcp add pointa npx -- -y pointa-server</code></p>
+              <p style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">Or use CLI: <code>claude mcp add --transport stdio pointa -- npx -y pointa-server</code></p>
                 </div>
                 
                 <!-- Cursor Tab -->

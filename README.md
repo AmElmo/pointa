@@ -199,7 +199,7 @@ Add to your Claude configuration file (`~/.config/claude/config.json` or similar
 Or use the CLI:
 
 ```bash
-claude mcp add pointa npx -- -y pointa-server
+claude mcp add --transport stdio pointa -- npx -y pointa-server
 ```
 
 **Note:** The npx command automatically handles server installation and startup.
