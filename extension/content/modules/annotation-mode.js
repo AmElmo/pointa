@@ -208,6 +208,7 @@ class PointaAnnotationMode {
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
     e.target.closest('.pointa-inspection-overlay') ||
+    e.target.closest('.pointa-screenshot-overlay') ||
     e.target.classList.contains('pointa-highlight') ||
     e.target.classList.contains('pointa-badge') ||
     e.target.closest('.pointa-badge') ||
@@ -242,6 +243,7 @@ class PointaAnnotationMode {
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
     e.target.closest('.pointa-inspection-overlay') ||
+    e.target.closest('.pointa-screenshot-overlay') ||
     e.target.classList.contains('pointa-badge') ||
     e.target.closest('.pointa-badge') ||
     e.target.closest('.sidebar-page-nav-dropdown')) {
@@ -267,6 +269,7 @@ class PointaAnnotationMode {
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
     e.target.closest('.pointa-inspection-overlay') ||
+    e.target.closest('.pointa-screenshot-overlay') ||
     e.target.closest('.pointa-badge') ||
     e.target.closest('.pointa-btn') ||
     e.target.closest('.sidebar-page-nav-dropdown')) {
@@ -497,6 +500,18 @@ class PointaAnnotationMode {
     `;
     imageBtn.title = 'Add reference image';
 
+    // Create screenshot button (camera icon - macOS style)
+    const screenshotBtn = document.createElement('button');
+    screenshotBtn.className = 'pointa-inline-comment-screenshot-btn';
+    screenshotBtn.type = 'button';
+    screenshotBtn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+        <circle cx="12" cy="13" r="4"/>
+      </svg>
+    `;
+    screenshotBtn.title = 'Take a screenshot';
+
     // Create hidden file input for image upload
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -537,6 +552,7 @@ class PointaAnnotationMode {
 
     // Assemble widget - Figma-style with image button on left, submit on right
     actionsLeft.appendChild(imageBtn);
+    actionsLeft.appendChild(screenshotBtn);
     actionsLeft.appendChild(fileInput);
     actionsLeft.appendChild(charCounter);
     actions.appendChild(actionsLeft);
@@ -637,7 +653,7 @@ class PointaAnnotationMode {
     }, 0);
 
     // Setup event handlers
-    this.setupInlineWidgetListeners(pointa, widget, textarea, enterBtn, imageBtn, fileInput, thumbnailContainer, element, context, annotation);
+    this.setupInlineWidgetListeners(pointa, widget, textarea, enterBtn, imageBtn, screenshotBtn, fileInput, thumbnailContainer, element, context, annotation);
 
     // Setup position update on scroll/resize
     const updatePosition = () => {
@@ -825,13 +841,33 @@ class PointaAnnotationMode {
    * @param {object} context - Element context
    * @param {object} annotation - Existing annotation
    */
-  static setupInlineWidgetListeners(pointa, widget, textarea, enterBtn, imageBtn, fileInput, thumbnailContainer, element, context, annotation) {
+  static setupInlineWidgetListeners(pointa, widget, textarea, enterBtn, imageBtn, screenshotBtn, fileInput, thumbnailContainer, element, context, annotation) {
     // Enter button handler
     enterBtn.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
       await this.handleInlineWidgetSubmit(pointa, widget, textarea, element, context, annotation);
     });
+
+    // Screenshot button handler - enter selection mode
+    if (screenshotBtn) {
+      screenshotBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Check limit (3 images max)
+        if (widget.referenceImages.length >= 3) {
+          screenshotBtn.title = 'Maximum 3 images';
+          setTimeout(() => {
+            screenshotBtn.title = 'Take a screenshot';
+          }, 2000);
+          return;
+        }
+
+        // Enter screenshot selection mode
+        this.enterScreenshotSelectionMode(pointa, widget, thumbnailContainer, element, context, annotation);
+      });
+    }
 
     // Image button handler - trigger file picker
     if (imageBtn && fileInput) {
@@ -909,6 +945,10 @@ class PointaAnnotationMode {
     // ESC key handler - Figma-style
     const escHandler = (e) => {
       if (e.key === 'Escape') {
+        // Don't close if we're in screenshot selection mode (it has its own ESC handler)
+        if (this.screenshotState && this.screenshotState.active) {
+          return;
+        }
         this.closeInlineCommentWidget(pointa);
         document.removeEventListener('keydown', escHandler);
       }
@@ -918,6 +958,16 @@ class PointaAnnotationMode {
 
     // Click outside handler - simplified
     const clickOutsideHandler = (e) => {
+      // Don't close if we're in screenshot selection mode
+      if (this.screenshotState && this.screenshotState.active) {
+        return;
+      }
+      // Don't close if clicking on screenshot overlay elements
+      if (e.target.closest('.pointa-screenshot-overlay') ||
+          e.target.closest('.pointa-screenshot-selection') ||
+          e.target.closest('.pointa-screenshot-attach-btn')) {
+        return;
+      }
       if (!widget.contains(e.target) &&
       !e.target.closest('.pointa-badge') &&
       !e.target.closest('.pointa-highlight')) {
@@ -1008,6 +1058,403 @@ class PointaAnnotationMode {
     thumbnail.appendChild(img);
     thumbnail.appendChild(removeBtn);
     container.appendChild(thumbnail);
+  }
+
+  /**
+   * Enter screenshot selection mode
+   * Hides the widget and allows user to draw a selection rectangle
+   * @param {object} pointa - Reference to Pointa instance
+   * @param {HTMLElement} widget - Widget element
+   * @param {HTMLElement} thumbnailContainer - Thumbnail container
+   * @param {HTMLElement} element - Target element
+   * @param {object} context - Element context
+   * @param {object} annotation - Existing annotation (if editing)
+   */
+  static enterScreenshotSelectionMode(pointa, widget, thumbnailContainer, element, context, annotation) {
+    console.log('[Pointa Screenshot] Entering selection mode');
+
+    // Store the current textarea value to preserve it
+    const textarea = widget.querySelector('textarea');
+    const currentText = textarea ? textarea.value : '';
+
+    // Store state for later use
+    this.screenshotState = {
+      active: true, // Flag to prevent click-outside-to-close behavior
+      pointa,
+      widget,
+      thumbnailContainer,
+      element,
+      context,
+      annotation,
+      selecting: false,
+      hasSelection: false,
+      startX: 0,
+      startY: 0,
+      endX: 0,
+      endY: 0,
+      preservedText: currentText // Preserve the text
+    };
+
+    // Hide the widget temporarily - use setProperty with 'important' to override CSS !important rules
+    widget.style.setProperty('display', 'none', 'important');
+
+    // Hide sidebar if it exists
+    const sidebar = document.querySelector('.pointa-sidebar');
+    if (sidebar) {
+      sidebar.style.setProperty('display', 'none', 'important');
+      this.screenshotState.sidebar = sidebar;
+    }
+
+    // Hide all annotation badges
+    const badges = document.querySelectorAll('.pointa-badge');
+    badges.forEach(badge => {
+      badge.style.setProperty('display', 'none', 'important');
+    });
+    this.screenshotState.badges = badges;
+
+    // Hide any highlight elements
+    const highlights = document.querySelectorAll('.pointa-highlight');
+    highlights.forEach(highlight => {
+      highlight.classList.remove('pointa-highlight');
+    });
+
+    // Also hide the inline comment widget explicitly by class
+    const allWidgets = document.querySelectorAll('.pointa-inline-comment-widget');
+    allWidgets.forEach(w => {
+      w.style.setProperty('display', 'none', 'important');
+    });
+    this.screenshotState.allWidgets = allWidgets;
+
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'pointa-screenshot-overlay';
+    overlay.innerHTML = `
+      <div class="pointa-screenshot-instructions">
+        Click and drag to select an area • Press ESC to cancel
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    this.screenshotState.overlay = overlay;
+
+    // Create selection rectangle (hidden initially)
+    const selection = document.createElement('div');
+    selection.className = 'pointa-screenshot-selection';
+    selection.style.display = 'none';
+    overlay.appendChild(selection);
+    this.screenshotState.selection = selection;
+
+    // Create attach button (hidden initially)
+    const attachBtn = document.createElement('button');
+    attachBtn.className = 'pointa-screenshot-attach-btn';
+    attachBtn.textContent = 'Attach to annotation';
+    attachBtn.style.display = 'none';
+    overlay.appendChild(attachBtn);
+    this.screenshotState.attachBtn = attachBtn;
+
+    // Setup event handlers
+    this.setupScreenshotSelectionHandlers();
+  }
+
+  /**
+   * Setup mouse event handlers for screenshot selection
+   */
+  static setupScreenshotSelectionHandlers() {
+    const state = this.screenshotState;
+    const { overlay, selection, attachBtn } = state;
+
+    // Mouse down - start selection
+    const handleMouseDown = (e) => {
+      // Always stop propagation to prevent triggering annotation mode
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      if (e.target === attachBtn) return;
+
+      state.selecting = true;
+      state.hasSelection = false;
+      state.startX = e.clientX;
+      state.startY = e.clientY;
+      state.endX = e.clientX;
+      state.endY = e.clientY;
+
+      // Show and position selection rectangle
+      selection.style.display = 'block';
+      attachBtn.style.display = 'none';
+      this.updateSelectionRect();
+    };
+
+    // Mouse move - update selection
+    const handleMouseMove = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!state.selecting) return;
+
+      state.endX = e.clientX;
+      state.endY = e.clientY;
+      this.updateSelectionRect();
+    };
+
+    // Mouse up - complete selection
+    const handleMouseUp = (e) => {
+      // Always stop propagation to prevent triggering annotation mode
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      if (!state.selecting) return;
+
+      state.selecting = false;
+      state.endX = e.clientX;
+      state.endY = e.clientY;
+
+      // Check minimum selection size (20x20 pixels)
+      const width = Math.abs(state.endX - state.startX);
+      const height = Math.abs(state.endY - state.startY);
+
+      if (width >= 20 && height >= 20) {
+        state.hasSelection = true;
+        this.updateSelectionRect();
+        this.showAttachButton();
+      } else {
+        // Selection too small, reset
+        selection.style.display = 'none';
+      }
+    };
+
+    // ESC key - cancel selection mode
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        this.exitScreenshotSelectionMode();
+      }
+    };
+
+    // Attach button click
+    const handleAttach = async (e) => {
+      console.log('[Pointa Screenshot] Attach button clicked');
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      await this.captureAndAttachScreenshot();
+    };
+
+    // Store handlers for cleanup
+    state.handlers = {
+      mousedown: handleMouseDown,
+      mousemove: handleMouseMove,
+      mouseup: handleMouseUp,
+      keydown: handleKeyDown,
+      attach: handleAttach
+    };
+
+    // Add event listeners with capture to intercept before other handlers
+    overlay.addEventListener('mousedown', handleMouseDown, true);
+    overlay.addEventListener('mousemove', handleMouseMove, true);
+    overlay.addEventListener('mouseup', handleMouseUp, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+    attachBtn.addEventListener('click', handleAttach, true);
+  }
+
+  /**
+   * Update the selection rectangle position and size
+   */
+  static updateSelectionRect() {
+    const state = this.screenshotState;
+    const { selection, startX, startY, endX, endY } = state;
+
+    const left = Math.min(startX, endX);
+    const top = Math.min(startY, endY);
+    const width = Math.abs(endX - startX);
+    const height = Math.abs(endY - startY);
+
+    selection.style.left = `${left}px`;
+    selection.style.top = `${top}px`;
+    selection.style.width = `${width}px`;
+    selection.style.height = `${height}px`;
+  }
+
+  /**
+   * Show the attach button below the selection
+   */
+  static showAttachButton() {
+    const state = this.screenshotState;
+    const { attachBtn, startX, startY, endX, endY } = state;
+
+    const left = Math.min(startX, endX);
+    const bottom = Math.max(startY, endY);
+    const width = Math.abs(endX - startX);
+
+    // Position button below selection, centered
+    attachBtn.style.display = 'block';
+    attachBtn.style.left = `${left + width / 2}px`;
+    attachBtn.style.top = `${bottom + 10}px`;
+    attachBtn.style.transform = 'translateX(-50%)';
+  }
+
+  /**
+   * Capture screenshot and attach to annotation
+   */
+  static async captureAndAttachScreenshot() {
+    console.log('[Pointa Screenshot] Capturing and attaching screenshot');
+
+    const state = this.screenshotState;
+    const { widget, thumbnailContainer, element, annotation, startX, startY, endX, endY, attachBtn, overlay } = state;
+
+    // Show loading state on button
+    attachBtn.disabled = true;
+    attachBtn.textContent = 'Capturing...';
+
+    try {
+      // Hide the overlay and selection UI so they don't appear in the screenshot
+      overlay.style.visibility = 'hidden';
+
+      // Calculate selection bounds
+      const selectionRect = {
+        left: Math.min(startX, endX),
+        top: Math.min(startY, endY),
+        width: Math.abs(endX - startX),
+        height: Math.abs(endY - startY)
+      };
+
+      // Small delay to ensure overlay is hidden before capture
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Request full page screenshot from background
+      const response = await chrome.runtime.sendMessage({ action: 'captureScreenshot' });
+
+      if (!response.success) {
+        throw new Error('Failed to capture screenshot');
+      }
+
+      // Create canvas to crop selection
+      const dpr = window.devicePixelRatio || 1;
+      const scaleFactor = Math.max(2, dpr * 2);
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', {
+        willReadFrequently: false,
+        desynchronized: false
+      });
+
+      // Set canvas size with high DPI scaling
+      canvas.width = selectionRect.width * scaleFactor;
+      canvas.height = selectionRect.height * scaleFactor;
+
+      // Enable high-quality image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Load full screenshot
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = response.dataUrl;
+      });
+
+      // Draw cropped portion with high DPI scaling
+      ctx.drawImage(
+        img,
+        selectionRect.left * dpr, selectionRect.top * dpr,
+        selectionRect.width * dpr, selectionRect.height * dpr,
+        0, 0, canvas.width, canvas.height
+      );
+
+      // Convert to blob
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob(resolve, 'image/webp', 0.85);
+      });
+
+      // Create File object for upload
+      const file = new File([blob], `screenshot_${Date.now()}.webp`, { type: 'image/webp' });
+
+      // Get or generate annotation ID
+      const annotationId = annotation ? annotation.id : PointaUtils.generateId();
+
+      // Upload via VibeImageUploader
+      const imageData = await VibeImageUploader.uploadImage(file, annotationId);
+
+      // Save references before clearing state
+      const savedWidget = widget;
+      const savedThumbnailContainer = thumbnailContainer;
+      const savedElement = element;
+      const savedReferenceImages = widget.referenceImages;
+
+      // Add to reference images array
+      savedReferenceImages.push(imageData);
+
+      // Exit selection mode (this clears screenshotState)
+      this.exitScreenshotSelectionMode();
+
+      // Add thumbnail to UI using saved references
+      this.addThumbnailToContainer(savedThumbnailContainer, imageData, savedReferenceImages, savedWidget, savedElement);
+
+      // Reposition widget after adding thumbnail
+      this.positionCommentWidget(savedElement, savedWidget, savedWidget.badgeElement);
+
+      console.log('[Pointa Screenshot] Screenshot attached successfully');
+
+    } catch (error) {
+      console.error('[Pointa Screenshot] Error:', error);
+      alert('Failed to capture screenshot. Please try again.');
+      this.exitScreenshotSelectionMode();
+    }
+  }
+
+  /**
+   * Exit screenshot selection mode and restore widget
+   */
+  static exitScreenshotSelectionMode() {
+    const state = this.screenshotState;
+    if (!state) return;
+
+    const { overlay, widget, handlers, sidebar, badges, allWidgets } = state;
+
+    // Remove event listeners (must use same capture flag as when adding)
+    if (handlers) {
+      overlay.removeEventListener('mousedown', handlers.mousedown, true);
+      overlay.removeEventListener('mousemove', handlers.mousemove, true);
+      overlay.removeEventListener('mouseup', handlers.mouseup, true);
+      document.removeEventListener('keydown', handlers.keydown, true);
+      if (state.attachBtn) {
+        state.attachBtn.removeEventListener('click', handlers.attach, true);
+      }
+    }
+
+    // Remove overlay
+    if (overlay && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
+    }
+
+    // Show sidebar again - use removeProperty to clear our !important override
+    if (sidebar) {
+      sidebar.style.removeProperty('display');
+    }
+
+    // Show all badges again
+    if (badges) {
+      badges.forEach(badge => {
+        badge.style.removeProperty('display');
+      });
+    }
+
+    // Show all widgets again (that we hid)
+    if (allWidgets) {
+      allWidgets.forEach(w => {
+        w.style.removeProperty('display');
+      });
+    }
+
+    // Show widget again
+    if (widget) {
+      widget.style.removeProperty('display');
+      // Reset opacity and transform that may have been set by animation or inline styles
+      widget.style.setProperty('opacity', '1', 'important');
+      widget.style.setProperty('transform', 'translateX(0) scale(1)', 'important');
+    }
+
+    // Clear state
+    this.screenshotState = null;
   }
 
   /**

@@ -106,7 +106,7 @@ claude mcp add --transport http pointa http://127.0.0.1:4242/mcp
 
 **Option 2: Auto-start** (experimental):
 ```bash
-claude mcp add --command "npx -y pointa-server"
+claude mcp add --transport stdio pointa -- npx -y pointa-server
 ```
 
 ### Cursor (Auto-start)
