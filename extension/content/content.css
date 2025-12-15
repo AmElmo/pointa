@@ -1647,6 +1647,49 @@
   color: rgba(0, 0, 0, 0.8) !important;
 }
 
+/* Screenshot button - same style as image button */
+.pointa-inline-comment-screenshot-btn {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: rgba(255, 255, 255, 0.6) !important;
+  transition: all 0.15s ease !important;
+  flex-shrink: 0 !important;
+}
+
+.pointa-inline-comment-screenshot-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.pointa-inline-comment-widget[data-pointa-theme="light"] .pointa-inline-comment-screenshot-btn {
+  color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.pointa-inline-comment-widget[data-pointa-theme="light"] .pointa-inline-comment-screenshot-btn:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: rgba(0, 0, 0, 0.8) !important;
+}
+
+.pointa-inline-comment-screenshot-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  pointer-events: none !important;
+}
+
+.pointa-inline-comment-screenshot-btn svg * {
+  pointer-events: none !important;
+}
+
 .pointa-inline-comment-enter {
   width: 36px !important;
   height: 36px !important;
@@ -9909,4 +9952,82 @@ body.sidebar-resizing * {
 
 .bug-replay-overlay[data-pointa-theme="dark"] .bug-replay-status {
   color: rgba(255, 255, 255, 0.7);
+}
+
+/* =====================================================
+   Screenshot Selection Mode
+   ===================================================== */
+
+/* Full-page overlay */
+.pointa-screenshot-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.4) !important;
+  z-index: 2147483646 !important;
+  cursor: crosshair !important;
+  user-select: none !important;
+}
+
+/* Instructions text at top */
+.pointa-screenshot-instructions {
+  position: absolute !important;
+  top: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  background: rgba(0, 0, 0, 0.8) !important;
+  color: #fff !important;
+  padding: 12px 20px !important;
+  border-radius: 8px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  white-space: nowrap !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
+  pointer-events: none !important;
+}
+
+/* Selection rectangle */
+.pointa-screenshot-selection {
+  position: fixed !important;
+  border: 2px dashed #5B5BD6 !important;
+  background: transparent !important;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5) !important;
+  pointer-events: none !important;
+  z-index: 2147483647 !important;
+}
+
+/* Attach button */
+.pointa-screenshot-attach-btn {
+  position: fixed !important;
+  background: #5B5BD6 !important;
+  color: #fff !important;
+  border: none !important;
+  padding: 12px 24px !important;
+  border-radius: 8px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 20px rgba(91, 91, 214, 0.4) !important;
+  transition: all 0.15s ease !important;
+  z-index: 2147483647 !important;
+  white-space: nowrap !important;
+}
+
+.pointa-screenshot-attach-btn:hover {
+  background: #4D4DCC !important;
+  transform: translateX(-50%) scale(1.02) !important;
+  box-shadow: 0 6px 24px rgba(91, 91, 214, 0.5) !important;
+}
+
+.pointa-screenshot-attach-btn:active {
+  transform: translateX(-50%) scale(0.98) !important;
+}
+
+.pointa-screenshot-attach-btn:disabled {
+  opacity: 0.7 !important;
+  cursor: wait !important;
 }
