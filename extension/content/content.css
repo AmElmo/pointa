@@ -1525,6 +1525,42 @@
   color: #000 !important;
 }
 
+/* Mark as Done button in widget tab bar */
+.pointa-widget-mark-done-btn {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin-left: auto !important;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 6px !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.pointa-widget-mark-done-btn:hover {
+  background: rgba(34, 197, 94, 0.2) !important;
+  color: #22c55e !important;
+}
+
+.pointa-widget-mark-done-btn:active {
+  background: rgba(34, 197, 94, 0.3) !important;
+  transform: scale(0.95) !important;
+}
+
+[data-pointa-theme="light"] .pointa-widget-mark-done-btn {
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-pointa-theme="light"] .pointa-widget-mark-done-btn:hover {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #16a34a !important;
+}
+
 .pointa-inline-comment-textarea {
   width: 100% !important;
   min-height: 48px !important;

@@ -407,6 +407,32 @@ class PointaAnnotationMode {
 
     tabBar.appendChild(commentTab);
     tabBar.appendChild(designTab);
+
+    // Add "Mark as Done" button for in-review annotations
+    if (isInReview) {
+      const markDoneBtn = document.createElement('button');
+      markDoneBtn.className = 'pointa-widget-mark-done-btn';
+      markDoneBtn.type = 'button';
+      markDoneBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      `;
+      markDoneBtn.title = 'Mark as Done';
+
+      markDoneBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+
+        // Immediately close the widget for instant feedback
+        this.closeInlineCommentWidget(pointa);
+
+        // Use the sidebar's markAnnotationDone which handles everything
+        await PointaSidebar.markAnnotationDone(pointa, annotation.id);
+      });
+
+      tabBar.appendChild(markDoneBtn);
+    }
+
     widget.appendChild(tabBar);
 
     // Show conversation history if there are multiple messages OR if in-review (show original message)
