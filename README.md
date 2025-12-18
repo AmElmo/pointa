@@ -1,15 +1,38 @@
-# Pointa
+<p align="center">
+  <img src="extension/assets/icons/pointa-logo.svg" alt="Pointa" width="180" />
+</p>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Extension-green)](https://chrome.google.com/webstore)
-[![Server Package](https://img.shields.io/badge/npm-pointa--server-blue)](https://www.npmjs.com/package/pointa-server)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+<h1 align="center">Pointa</h1>
 
-> Visual feedback tool for local web development that integrates with AI coding agents
+<p align="center">
+  <strong>Visual feedback for AI-powered development</strong>
+</p>
 
-🌐 **Website**: [pointa.dev](https://pointa.dev/)
+<p align="center">
+  Point. Annotate. Let AI implement.
+</p>
 
-![Main image](docs/images/annotation_feature.png)
+<p align="center">
+  <a href="https://pointa.dev">Website</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane">Chrome Extension</a> •
+  <a href="https://www.npmjs.com/package/pointa-server">npm</a>
+</p>
+
+<p align="center">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane"><img src="https://img.shields.io/badge/Chrome-Extension-green" alt="Chrome Web Store"></a>
+  <a href="https://www.npmjs.com/package/pointa-server"><img src="https://img.shields.io/badge/npm-pointa--server-blue" alt="npm"></a>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
+</p>
+
+<br />
+
+<p align="center">
+  <img src="docs/images/annotation_feature.png" alt="Pointa in action" width="700" />
+</p>
+
+<br />
 
 ## What is Pointa?
 
