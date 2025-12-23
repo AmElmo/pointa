@@ -1154,13 +1154,15 @@ class PointaAnnotationMode {
     // Create overlay
     const overlay = document.createElement('div');
     overlay.className = 'pointa-screenshot-overlay';
-    overlay.innerHTML = `
-      <div class="pointa-screenshot-instructions">
-        Click and drag to select an area • Press ESC to cancel
-      </div>
-    `;
     document.body.appendChild(overlay);
     this.screenshotState.overlay = overlay;
+
+    // Create instructions element
+    const instructions = document.createElement('div');
+    instructions.className = 'pointa-screenshot-instructions';
+    instructions.textContent = 'Click and drag to select an area • Press ESC to cancel';
+    overlay.appendChild(instructions);
+    this.screenshotState.instructions = instructions;
 
     // Create selection rectangle (hidden initially)
     const selection = document.createElement('div');
@@ -1186,7 +1188,7 @@ class PointaAnnotationMode {
    */
   static setupScreenshotSelectionHandlers() {
     const state = this.screenshotState;
-    const { overlay, selection, attachBtn } = state;
+    const { overlay, selection, attachBtn, instructions } = state;
 
     // Mouse down - start selection
     const handleMouseDown = (e) => {
@@ -1204,7 +1206,8 @@ class PointaAnnotationMode {
       state.endX = e.clientX;
       state.endY = e.clientY;
 
-      // Show and position selection rectangle
+      // Hide instructions and show selection rectangle
+      instructions.style.display = 'none';
       selection.style.display = 'block';
       attachBtn.style.display = 'none';
       this.updateSelectionRect();
@@ -1243,8 +1246,9 @@ class PointaAnnotationMode {
         this.updateSelectionRect();
         this.showAttachButton();
       } else {
-        // Selection too small, reset
+        // Selection too small, reset and show instructions again
         selection.style.display = 'none';
+        instructions.style.display = 'block';
       }
     };
 
