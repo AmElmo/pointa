@@ -432,7 +432,7 @@ MIT - see [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-Built with ❤️ by [Julien Berthomier](https://github.com/julienberthomier) at [Argil.io](https://argil.io)
+Built with ❤️ by [Julien Berthomier](https://github.com/amelmo) at [Argil.io](https://argil.io)
 
 ---
 
