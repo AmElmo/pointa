@@ -4326,16 +4326,20 @@ ${taskDescription}`;
                       Copy
                     </button>
                     <div class="pointa-send-to-dropdown" id="pointa-send-to-dropdown">
-                      <button class="pointa-send-to-btn" id="pointa-send-to-btn">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <line x1="22" y1="2" x2="11" y2="13"></line>
-                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                        </svg>
-                        Send to
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pointa-dropdown-arrow">
-                          <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                      </button>
+                      <div class="pointa-split-button">
+                        <button class="pointa-send-to-main" id="pointa-send-to-main" data-tool="cursor">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"></line>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                          </svg>
+                          <span class="pointa-send-to-label">Send to Cursor</span>
+                        </button>
+                        <button class="pointa-send-to-toggle" id="pointa-send-to-toggle">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
+                      </div>
                       <div class="pointa-send-to-menu" id="pointa-send-to-menu">
                         <button class="pointa-send-to-option" data-tool="cursor">
                           <span class="pointa-tool-icon">🔵</span>
@@ -4624,23 +4628,54 @@ IMPORTANT - Git Workflow:
       });
     }
 
-    // Send to dropdown
-    const sendToBtn = overlay.querySelector('#pointa-send-to-btn');
+    // Send to split button
+    const sendToMain = overlay.querySelector('#pointa-send-to-main');
+    const sendToToggle = overlay.querySelector('#pointa-send-to-toggle');
     const sendToMenu = overlay.querySelector('#pointa-send-to-menu');
     const sendToStatus = overlay.querySelector('#pointa-send-to-status');
     const sendToOptions = overlay.querySelectorAll('.pointa-send-to-option');
+    const sendToLabel = overlay.querySelector('.pointa-send-to-label');
 
-    if (sendToBtn && sendToMenu) {
-      // Toggle dropdown
-      sendToBtn.addEventListener('click', (e) => {
+    // Tool display names mapping
+    const toolDisplayNames = {
+      'cursor': 'Cursor',
+      'claude-code': 'Claude Code'
+    };
+
+    // Load last used tool and update button
+    const updateMainButtonTool = (tool) => {
+      if (sendToMain && sendToLabel) {
+        sendToMain.dataset.tool = tool;
+        sendToLabel.textContent = `Send to ${toolDisplayNames[tool] || tool}`;
+      }
+    };
+
+    // Initialize with last used tool
+    chrome.storage.local.get(['lastUsedAITool'], (result) => {
+      const lastTool = result.lastUsedAITool || 'cursor';
+      updateMainButtonTool(lastTool);
+    });
+
+    if (sendToMain && sendToMenu) {
+      // Main button sends directly
+      sendToMain.addEventListener('click', async (e) => {
         e.stopPropagation();
-        sendToMenu.classList.toggle('show');
-
-        // Check AI tools availability when opening
-        if (sendToMenu.classList.contains('show')) {
-          checkAIToolsAvailability();
-        }
+        const tool = sendToMain.dataset.tool;
+        await sendToTool(tool, sendToMain);
       });
+
+      // Toggle button opens dropdown
+      if (sendToToggle) {
+        sendToToggle.addEventListener('click', (e) => {
+          e.stopPropagation();
+          sendToMenu.classList.toggle('show');
+
+          // Check AI tools availability when opening
+          if (sendToMenu.classList.contains('show')) {
+            checkAIToolsAvailability();
+          }
+        });
+      }
 
       // Close dropdown when clicking outside
       document.addEventListener('click', (e) => {
@@ -4700,6 +4735,75 @@ IMPORTANT - Git Workflow:
         }
       }
 
+      // Helper function to send to AI tool
+      const sendToTool = async (tool, option) => {
+        const promptElement = overlay.querySelector('#pointa-ai-prompt');
+        const prompt = promptElement.textContent;
+
+        // Show sending state
+        const originalHTML = option.innerHTML;
+        option.innerHTML = `
+          <span class="pointa-sending-spinner"></span>
+          Sending...
+        `;
+        option.classList.add('sending');
+
+        try {
+          // Get autoSend setting
+          const settings = await new Promise(resolve => {
+            chrome.storage.local.get(['aiAutoSend'], resolve);
+          });
+          const autoSend = settings.aiAutoSend || false;
+
+          const response = await chrome.runtime.sendMessage({
+            action: 'sendToAITool',
+            tool: tool,
+            prompt: prompt,
+            autoSend: autoSend
+          });
+
+          if (response.success) {
+            // Save last used tool and update main button
+            chrome.storage.local.set({ lastUsedAITool: tool });
+            updateMainButtonTool(tool);
+
+            // Show success
+            option.innerHTML = `
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Sent!
+            `;
+            option.classList.remove('sending');
+            option.classList.add('sent');
+
+            // Close dropdown after a delay
+            setTimeout(() => {
+              sendToMenu.classList.remove('show');
+              option.innerHTML = originalHTML;
+              option.classList.remove('sent');
+            }, 1500);
+          } else {
+            throw new Error(response.error || 'Failed to send');
+          }
+        } catch (error) {
+          console.error('Error sending to AI tool:', error);
+
+          // Show error
+          option.innerHTML = `
+            <span class="pointa-status-error">✗</span>
+            Failed
+          `;
+          option.classList.remove('sending');
+          option.classList.add('error');
+
+          setTimeout(() => {
+            option.innerHTML = originalHTML;
+            option.classList.remove('error');
+          }, 2000);
+        }
+      };
+
       // Handle Send to option clicks
       sendToOptions.forEach((option) => {
         option.addEventListener('click', async (e) => {
@@ -4710,60 +4814,7 @@ IMPORTANT - Git Workflow:
           }
 
           const tool = option.dataset.tool;
-          const promptElement = overlay.querySelector('#pointa-ai-prompt');
-          const prompt = promptElement.textContent;
-
-          // Show sending state
-          const originalHTML = option.innerHTML;
-          option.innerHTML = `
-            <span class="pointa-sending-spinner"></span>
-            Sending...
-          `;
-          option.classList.add('sending');
-
-          try {
-            const response = await chrome.runtime.sendMessage({
-              action: 'sendToAITool',
-              tool: tool,
-              prompt: prompt
-            });
-
-            if (response.success) {
-              // Show success
-              option.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                </svg>
-                Sent!
-              `;
-              option.classList.remove('sending');
-              option.classList.add('sent');
-
-              // Close dropdown after a delay
-              setTimeout(() => {
-                sendToMenu.classList.remove('show');
-                option.innerHTML = originalHTML;
-                option.classList.remove('sent');
-              }, 1500);
-            } else {
-              throw new Error(response.error || 'Failed to send');
-            }
-          } catch (error) {
-            console.error('Error sending to AI tool:', error);
-
-            // Show error
-            option.innerHTML = `
-              <span class="pointa-status-error">✗</span>
-              Failed
-            `;
-            option.classList.remove('sending');
-            option.classList.add('error');
-
-            setTimeout(() => {
-              option.innerHTML = originalHTML;
-              option.classList.remove('error');
-            }, 2000);
-          }
+          await sendToTool(tool, option);
         });
       });
     }
@@ -6641,6 +6692,20 @@ IMPORTANT - Git Workflow:
           </div>
           
           <div class="sidebar-setting-group">
+            <label>AI Tools</label>
+            <div class="sidebar-setting-row">
+              <span class="sidebar-setting-label">Auto-send prompts</span>
+              <label class="sidebar-toggle">
+                <input type="checkbox" id="sidebar-auto-send-toggle">
+                <span class="sidebar-toggle-slider"></span>
+              </label>
+            </div>
+            <p class="sidebar-setting-note">
+              When enabled, prompts will be sent automatically without needing to press Enter in your AI tool
+            </p>
+          </div>
+
+          <div class="sidebar-setting-group">
             <label>Help & Setup</label>
             <button id="sidebar-setup-guide-btn" class="sidebar-secondary-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -6702,6 +6767,20 @@ IMPORTANT - Git Workflow:
         await chrome.storage.local.set({ themePreference: newTheme });
         PointaThemeManager.apply(newTheme);
         this.sidebar.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
+      });
+    }
+
+    // Auto-send toggle
+    const autoSendToggle = this.sidebar.querySelector('#sidebar-auto-send-toggle');
+    if (autoSendToggle) {
+      // Load current setting
+      chrome.storage.local.get(['aiAutoSend'], (result) => {
+        autoSendToggle.checked = result.aiAutoSend || false;
+      });
+
+      // Save on change
+      autoSendToggle.addEventListener('change', () => {
+        chrome.storage.local.set({ aiAutoSend: autoSendToggle.checked });
       });
     }
 

@@ -3976,7 +3976,8 @@ body.sidebar-resizing * {
   border-color: var(--theme-accent);
 }
 
-.sidebar-toggle-setting {
+.sidebar-toggle-setting,
+.sidebar-setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3986,7 +3987,8 @@ body.sidebar-resizing * {
   border-radius: 8px;
 }
 
-.sidebar-toggle-setting span {
+.sidebar-toggle-setting span,
+.sidebar-setting-label {
   font-size: 13px;
   color: var(--theme-text-primary);
 }
@@ -4821,6 +4823,75 @@ body.sidebar-resizing * {
   position: relative;
 }
 
+/* Split button container */
+.pointa-split-button {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Main send button */
+.pointa-send-to-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  border-radius: 8px 0 0 8px;
+}
+
+.pointa-send-to-main:hover {
+  background: #2563eb;
+}
+
+.pointa-send-to-main.sending {
+  opacity: 0.8;
+  cursor: wait;
+}
+
+.pointa-send-to-main.sent {
+  background: #10b981;
+}
+
+.pointa-send-to-main.error {
+  background: #ef4444;
+}
+
+/* Toggle button (chevron) */
+.pointa-send-to-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 12px 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 0 8px 8px 0;
+}
+
+.pointa-send-to-toggle:hover {
+  background: #2563eb;
+}
+
+.pointa-send-to-toggle svg {
+  transition: transform 0.2s;
+}
+
+.pointa-send-to-dropdown:has(.pointa-send-to-menu.show) .pointa-send-to-toggle svg {
+  transform: rotate(180deg);
+}
+
+/* Legacy button styles (kept for compatibility) */
 .pointa-send-to-btn {
   display: flex;
   align-items: center;

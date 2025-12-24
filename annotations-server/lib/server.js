@@ -816,7 +816,7 @@ class LocalAnnotationsServer {
     // Send to AI Tool endpoint (for Chrome extension "Send to" feature)
     this.app.post('/api/send-to-ai', async (req, res) => {
       try {
-        const { tool, prompt, cwd } = req.body;
+        const { tool, prompt, cwd, autoSend } = req.body;
 
         if (!tool || !prompt) {
           return res.status(400).json({
@@ -825,7 +825,7 @@ class LocalAnnotationsServer {
           });
         }
 
-        const result = await this.sendToAITool(tool, prompt, cwd);
+        const result = await this.sendToAITool(tool, prompt, cwd, autoSend);
         res.json(result);
       } catch (error) {
         console.error('[Send to AI] Error:', error);
@@ -2531,7 +2531,7 @@ class LocalAnnotationsServer {
    * Send prompt to an AI tool using clipboard + keyboard automation
    * This approach: 1) Copy to clipboard, 2) Activate app, 3) Open chat, 4) Paste
    */
-  async sendToAITool(tool, prompt, cwd = null) {
+  async sendToAITool(tool, prompt, cwd = null, autoSend = false) {
     const { platform, homedir } = await import('os');
     const os = platform();
 
@@ -2610,18 +2610,29 @@ class LocalAnnotationsServer {
         console.log('[Send to AI] Step 5: Pasting prompt (Cmd+V)...');
         await this.executeCommand('osascript', ['-e', 'tell application "System Events" to keystroke "v" using command down']);
 
-        console.log(`[Send to AI] ✅ Successfully pasted prompt in ${config.name}!`);
+        // Step 6 (optional): Auto-send by pressing Enter
+        if (autoSend) {
+          console.log('[Send to AI] Step 6: Auto-sending (Enter)...');
+          await new Promise(resolve => setTimeout(resolve, 200)); // Small delay before Enter
+          await this.executeCommand('osascript', ['-e', 'tell application "System Events" to key code 36']); // Enter
+        }
+
+        console.log(`[Send to AI] ✅ Successfully ${autoSend ? 'sent' : 'pasted'} prompt in ${config.name}!`);
         return {
           success: true,
-          message: `Prompt pasted in ${config.name}. Review and press Enter to send.`,
-          opened: true
+          message: autoSend
+            ? `Prompt sent to ${config.name}.`
+            : `Prompt pasted in ${config.name}. Review and press Enter to send.`,
+          opened: true,
+          autoSent: autoSend
         };
 
       } else if (os === 'win32') {
         // Windows automation using PowerShell
         console.log(`[Send to AI] Activating ${config.appName} on Windows...`);
 
-        // Activate window and paste
+        // Activate window and paste (and optionally send)
+        const autoSendCommand = autoSend ? '[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")' : '';
         const ps = `
           Add-Type -AssemblyName System.Windows.Forms
           Start-Process ${config.cliCommand}
@@ -2629,14 +2640,18 @@ class LocalAnnotationsServer {
           [System.Windows.Forms.SendKeys]::SendWait("^+i")
           Start-Sleep -Milliseconds ${config.initWaitTime}
           [System.Windows.Forms.SendKeys]::SendWait("^v")
+          ${autoSendCommand}
         `.trim().replace(/\n/g, '; ');
 
         await this.executeCommand('powershell', ['-Command', ps]);
 
         return {
           success: true,
-          message: `Prompt pasted in ${config.name}. Review and press Enter to send.`,
-          opened: true
+          message: autoSend
+            ? `Prompt sent to ${config.name}.`
+            : `Prompt pasted in ${config.name}. Review and press Enter to send.`,
+          opened: true,
+          autoSent: autoSend
         };
 
       } else {

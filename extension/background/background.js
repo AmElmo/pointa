@@ -323,7 +323,7 @@ class PointaBackground {
 
         // Send to AI: Send prompt to AI tool (via pointa-server HTTP)
         case 'sendToAITool':
-          this.sendToAITool(request.tool, request.prompt, request.cwd).
+          this.sendToAITool(request.tool, request.prompt, request.cwd, request.autoSend).
           then((result) => sendResponse({ success: true, ...result })).
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
@@ -2179,10 +2179,11 @@ class PointaBackground {
    * @param {string} tool - 'cursor' or 'claude-code'
    * @param {string} prompt - The prompt to send
    * @param {string} cwd - Optional working directory
+   * @param {boolean} autoSend - Whether to automatically press Enter after pasting
    */
-  async sendToAITool(tool, prompt, cwd = null) {
+  async sendToAITool(tool, prompt, cwd = null, autoSend = false) {
     try {
-      console.log(`[Send to AI] Sending prompt to ${tool}...`);
+      console.log(`[Send to AI] Sending prompt to ${tool}... (autoSend: ${autoSend})`);
 
       const response = await fetch(`${this.apiServerUrl}/api/send-to-ai`, {
         method: 'POST',
@@ -2190,7 +2191,8 @@ class PointaBackground {
         body: JSON.stringify({
           tool: tool,
           prompt: prompt,
-          cwd: cwd
+          cwd: cwd,
+          autoSend: autoSend
         })
       });
 
@@ -2208,7 +2210,8 @@ class PointaBackground {
       return {
         sent: true,
         output: result.output,
-        fallback: result.fallback || false
+        fallback: result.fallback || false,
+        autoSent: result.autoSent || false
       };
     } catch (error) {
       console.error('[Send to AI] Error sending to AI:', error.message);
