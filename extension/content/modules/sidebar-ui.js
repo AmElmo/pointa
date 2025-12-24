@@ -4315,13 +4315,7 @@ ${taskDescription}`;
                 <div class="pointa-prompt-header">
                   <h3>Copy this prompt:</h3>
                   <div class="pointa-help-tooltip-wrapper">
-                    <button class="pointa-help-tooltip-btn" type="button">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <path d="M12 17h.01"></path>
-                      </svg>
-                    </button>
+                    <button class="pointa-help-tooltip-btn" type="button">?</button>
                     <div class="pointa-help-tooltip">
                       <strong>Next steps:</strong>
                       <ol>
