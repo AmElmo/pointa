@@ -4815,7 +4815,65 @@ body.sidebar-resizing * {
 .pointa-prompt-actions {
   display: flex;
   gap: 8px;
-  align-items: stretch;
+  align-items: center;
+}
+
+/* Info tooltip */
+.pointa-info-tooltip-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pointa-info-tooltip-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--theme-text-secondary, #697586);
+  transition: all 0.2s;
+}
+
+.pointa-info-tooltip-btn:hover {
+  background: var(--theme-surface-2, #f0f0f0);
+  color: var(--theme-text-primary, #0c111b);
+}
+
+.pointa-info-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  padding: 10px 12px;
+  background: var(--theme-surface-1, #ffffff);
+  border: 1px solid var(--theme-outline, rgba(0, 0, 0, 0.08));
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--theme-text-secondary, #697586);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: all 0.2s;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.pointa-info-tooltip-wrapper:hover .pointa-info-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-info-tooltip {
+  background: #2a2a2a;
+  border-color: #404040;
 }
 
 /* Send to dropdown */

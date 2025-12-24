@@ -4355,21 +4355,19 @@ ${taskDescription}`;
                         </div>
                       </div>
                     </div>
+                    <div class="pointa-info-tooltip-wrapper">
+                      <button class="pointa-info-tooltip-btn" type="button">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <path d="M12 16v-4"></path>
+                          <path d="M12 8h.01"></path>
+                        </svg>
+                      </button>
+                      <div class="pointa-info-tooltip">
+                        Your AI agent will read the annotations via MCP and implement the changes automatically.
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-              
-              <div class="pointa-ask-ai-section">
-                <h3>Next steps:</h3>
-                <div class="pointa-ask-ai-instructions">
-                  <ol>
-                    <li>Copy the prompt above</li>
-                    <li>Open your AI coding tool (Claude Code, Cursor, etc.)</li>
-                    <li>Paste the prompt and let the AI implement your annotations</li>
-                  </ol>
-                  <p class="pointa-ask-ai-note">
-                    💡 Your AI agent will read the annotations via MCP and implement the changes automatically.
-                  </p>
                 </div>
               </div>
             </div>
