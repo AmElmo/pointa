@@ -8091,12 +8091,32 @@ body.sidebar-resizing * {
   line-height: 1.5;
 }
 
+/* Performance Device Section */
+.perf-device-section {
+  padding: 20px;
+  background: var(--theme-surface-1, #fcfcfd);
+  border: 1px solid var(--theme-outline, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.perf-device-section h4 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--theme-text-primary, #0c111b);
+}
+
 /* Performance Metrics Grid */
 .perf-metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 12px;
   margin-bottom: 20px;
+}
+
+.perf-device-section .perf-metrics-grid {
+  margin-bottom: 0;
 }
 
 .perf-metric-card {
