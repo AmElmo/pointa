@@ -4312,7 +4312,27 @@ ${taskDescription}`;
             <!-- Right Column: Prompt & Instructions -->
             <div class="pointa-ask-ai-column pointa-ask-ai-column-right">
               <div class="pointa-ask-ai-section">
-                <h3>Copy this prompt:</h3>
+                <div class="pointa-prompt-header">
+                  <h3>Copy this prompt:</h3>
+                  <div class="pointa-help-tooltip-wrapper">
+                    <button class="pointa-help-tooltip-btn" type="button">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <path d="M12 17h.01"></path>
+                      </svg>
+                    </button>
+                    <div class="pointa-help-tooltip">
+                      <strong>Next steps:</strong>
+                      <ol>
+                        <li>Copy the prompt above</li>
+                        <li>Open your AI coding tool (Claude Code, Cursor, etc.)</li>
+                        <li>Paste the prompt and let the AI implement your annotations</li>
+                      </ol>
+                      <p>Your AI agent will read the annotations via MCP and implement the changes automatically.</p>
+                    </div>
+                  </div>
+                </div>
                 <div class="pointa-ask-ai-prompt-container">
                   <div class="pointa-ask-ai-prompt" id="pointa-ai-prompt">
                     <!-- Prompt will be generated dynamically -->
@@ -4353,18 +4373,6 @@ ${taskDescription}`;
                         <div class="pointa-send-to-status" id="pointa-send-to-status">
                           Checking availability...
                         </div>
-                      </div>
-                    </div>
-                    <div class="pointa-info-tooltip-wrapper">
-                      <button class="pointa-info-tooltip-btn" type="button">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <circle cx="12" cy="12" r="10"></circle>
-                          <path d="M12 16v-4"></path>
-                          <path d="M12 8h.01"></path>
-                        </svg>
-                      </button>
-                      <div class="pointa-info-tooltip">
-                        Your AI agent will read the annotations via MCP and implement the changes automatically.
                       </div>
                     </div>
                   </div>

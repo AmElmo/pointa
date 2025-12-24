@@ -4818,61 +4818,101 @@ body.sidebar-resizing * {
   align-items: center;
 }
 
-/* Info tooltip */
-.pointa-info-tooltip-wrapper {
+/* Prompt header with help tooltip */
+.pointa-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.pointa-prompt-header h3 {
+  margin: 0;
+}
+
+.pointa-help-tooltip-wrapper {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.pointa-info-tooltip-btn {
+.pointa-help-tooltip-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   background: transparent;
   border: none;
-  border-radius: 6px;
+  border-radius: 50%;
   cursor: pointer;
-  color: var(--theme-text-secondary, #697586);
+  color: var(--theme-text-tertiary, #9ca3af);
   transition: all 0.2s;
 }
 
-.pointa-info-tooltip-btn:hover {
+.pointa-help-tooltip-btn:hover {
+  color: var(--theme-text-secondary, #697586);
   background: var(--theme-surface-2, #f0f0f0);
-  color: var(--theme-text-primary, #0c111b);
 }
 
-.pointa-info-tooltip {
+.pointa-help-tooltip {
   position: absolute;
-  bottom: calc(100% + 8px);
-  right: 0;
-  width: 240px;
-  padding: 10px 12px;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-4px);
+  width: 300px;
+  padding: 14px 16px;
   background: var(--theme-surface-1, #ffffff);
   border: 1px solid var(--theme-outline, rgba(0, 0, 0, 0.08));
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   font-size: 13px;
   line-height: 1.5;
   color: var(--theme-text-secondary, #697586);
   opacity: 0;
   visibility: hidden;
-  transform: translateY(4px);
   transition: all 0.2s;
   z-index: 1000;
   pointer-events: none;
 }
 
-.pointa-info-tooltip-wrapper:hover .pointa-info-tooltip {
+.pointa-help-tooltip-wrapper:hover .pointa-help-tooltip {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0);
+  transform: translateX(-50%) translateY(0);
 }
 
-.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-info-tooltip {
+.pointa-help-tooltip strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text-primary, #0c111b);
+}
+
+.pointa-help-tooltip ol {
+  margin: 0 0 12px 0;
+  padding-left: 18px;
+}
+
+.pointa-help-tooltip li {
+  margin-bottom: 4px;
+}
+
+.pointa-help-tooltip p {
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--theme-outline, rgba(0, 0, 0, 0.08));
+  font-size: 12px;
+  color: var(--theme-text-tertiary, #9ca3af);
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-help-tooltip {
   background: #2a2a2a;
+  border-color: #404040;
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-help-tooltip p {
   border-color: #404040;
 }
 
