@@ -813,8 +813,45 @@ class LocalAnnotationsServer {
       }
     });
 
+    // Send to AI Tool endpoint (for Chrome extension "Send to" feature)
+    this.app.post('/api/send-to-ai', async (req, res) => {
+      try {
+        const { tool, prompt, cwd, autoSend } = req.body;
+
+        if (!tool || !prompt) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing required fields: tool and prompt'
+          });
+        }
+
+        const result = await this.sendToAITool(tool, prompt, cwd, autoSend);
+        res.json(result);
+      } catch (error) {
+        console.error('[Send to AI] Error:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
+    // Get available AI tools endpoint
+    this.app.get('/api/ai-tools', async (req, res) => {
+      try {
+        const tools = await this.getAvailableAITools();
+        res.json({ success: true, tools });
+      } catch (error) {
+        console.error('[AI Tools] Error:', error);
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+
     // Backend Logs API endpoints (for pointa-server-logger SDK integration)
-    
+
     // Get backend log connection status (optionally filtered by port)
     this.app.get('/api/backend-logs/status', (req, res) => {
       const port = req.query.port || null;
@@ -2325,6 +2362,370 @@ class LocalAnnotationsServer {
         resolution: bugReport.resolution
       }
     };
+  }
+
+  /**
+   * Check if a command exists in PATH
+   */
+  async commandExists(command) {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+
+    try {
+      await execAsync(`which ${command}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Execute a command and return the result
+   * Uses exec with proper shell quoting for AppleScript commands
+   */
+  async executeCommand(command, args, options = {}) {
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const { homedir } = await import('os');
+    const execAsync = promisify(exec);
+
+    // Build the full command string with proper quoting
+    // For osascript, we need to wrap the -e argument in single quotes
+    let fullCommand;
+    if (command === 'osascript' && args[0] === '-e') {
+      // Special handling for osascript - wrap script in single quotes
+      const script = args[1];
+      fullCommand = `osascript -e '${script}'`;
+    } else {
+      // General case - quote each argument
+      fullCommand = `${command} ${args.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ')}`;
+    }
+
+    console.log(`[Send to AI] Executing: ${fullCommand}`);
+
+    try {
+      const { stdout, stderr } = await execAsync(fullCommand, {
+        cwd: options.cwd || homedir(),
+        env: { ...process.env, ...options.env },
+        timeout: options.timeout || 300000 // 5 min default
+      });
+
+      console.log(`[Send to AI] Command exited with code 0`);
+      return {
+        success: true,
+        code: 0,
+        stdout: stdout || '',
+        stderr: stderr || ''
+      };
+    } catch (error) {
+      console.log(`[Send to AI] Command exited with code ${error.code || 1}`);
+      if (error.stderr) {
+        console.log(`[Send to AI] stderr: ${error.stderr}`);
+      }
+      return {
+        success: false,
+        code: error.code || 1,
+        stdout: error.stdout || '',
+        stderr: error.stderr || error.message
+      };
+    }
+  }
+
+  /**
+   * Get list of available AI tools
+   */
+  async getAvailableAITools() {
+    const tools = [];
+    const { existsSync } = await import('fs');
+    const { homedir } = await import('os');
+    const { join } = await import('path');
+
+    // Check for Cursor
+    const hasCursorAgent = await this.commandExists('cursor-agent');
+    const hasCursor = await this.commandExists('cursor');
+
+    if (hasCursorAgent || hasCursor) {
+      tools.push({
+        id: 'cursor',
+        name: 'Cursor',
+        available: true,
+        hasAgent: hasCursorAgent
+      });
+    }
+
+    // Check for Windsurf - check both CLI in PATH and common installation locations
+    const windsurfInPath = await this.commandExists('windsurf');
+    const windsurfCLIPath = join(homedir(), '.codeium', 'windsurf', 'bin', 'windsurf');
+    const windsurfAppExists = existsSync('/Applications/Windsurf.app');
+    const windsurfCLIExists = existsSync(windsurfCLIPath);
+
+    if (windsurfInPath || windsurfAppExists || windsurfCLIExists) {
+      tools.push({
+        id: 'windsurf',
+        name: 'Windsurf',
+        available: true
+      });
+    }
+
+    // Check for GitHub Copilot (available in VS Code)
+    // We check for 'code' CLI which is used by VS Code
+    if (await this.commandExists('code')) {
+      tools.push({
+        id: 'github-copilot',
+        name: 'GitHub Copilot',
+        available: true
+      });
+    }
+
+    // Check for Claude Code
+    if (await this.commandExists('claude')) {
+      tools.push({
+        id: 'claude-code',
+        name: 'Claude Code',
+        available: true
+      });
+    }
+
+    return tools;
+  }
+
+  /**
+   * AI Tool configurations for keyboard automation
+   * Based on the approach from specwright - clipboard + keyboard simulation
+   */
+  getAIToolConfigs() {
+    return {
+      'cursor': {
+        name: 'Cursor',
+        appName: 'Cursor',
+        cliCommand: 'cursor',
+        macShortcuts: {
+          openChat: 'keystroke "i" using {command down, shift down}',  // Cmd+Shift+I
+          focusChat: 'keystroke "i" using command down'                 // Cmd+I
+        },
+        windowsShortcuts: {
+          openChat: '^+i',   // Ctrl+Shift+I
+          focusChat: '^i'    // Ctrl+I
+        },
+        initWaitTime: 400,
+        requiresCommandPalette: false
+      },
+      'windsurf': {
+        name: 'Windsurf',
+        appName: 'Windsurf',
+        cliCommand: 'windsurf',
+        macShortcuts: {
+          openChat: 'keystroke "l" using {command down, shift down}',  // Cmd+Shift+L
+        },
+        windowsShortcuts: {
+          openChat: '^+l',   // Ctrl+Shift+L
+        },
+        initWaitTime: 400,
+        requiresCommandPalette: false
+      },
+      'github-copilot': {
+        name: 'GitHub Copilot',
+        appName: 'Code',  // VS Code
+        appNames: ['Cursor', 'Visual Studio Code'],  // Can also run in Cursor
+        cliCommand: 'code',
+        macShortcuts: {
+          openChat: 'keystroke "i" using {command down, shift down}',  // Cmd+Shift+I
+        },
+        windowsShortcuts: {
+          openChat: '^+i',   // Ctrl+Shift+I
+        },
+        initWaitTime: 400,
+        requiresCommandPalette: false
+      },
+      'claude-code': {
+        name: 'Claude Code',
+        // Claude Code can run in VS Code OR Cursor - we'll try both
+        appNames: ['Cursor', 'Visual Studio Code'],  // Try Cursor first, then VS Code
+        cliCommand: 'code',  // 'code' CLI works for VS Code
+        macShortcuts: {
+          openChat: 'keystroke "p" using {command down, shift down}',  // Cmd+Shift+P opens command palette
+        },
+        windowsShortcuts: {
+          openChat: '^+p',   // Ctrl+Shift+P opens command palette
+        },
+        initWaitTime: 1500,  // Claude Code panel takes longer to load
+        requiresCommandPalette: true,
+        commandPaletteCommand: 'Claude Code: Open in New Tab'
+      }
+    };
+  }
+
+  /**
+   * Copy text to system clipboard
+   */
+  async copyToClipboard(text) {
+    const { platform } = await import('os');
+    const os = platform();
+
+    if (os === 'darwin') {
+      // macOS: Use pbcopy
+      await this.executeCommand('bash', ['-c', `echo ${JSON.stringify(text)} | pbcopy`]);
+    } else if (os === 'linux') {
+      // Linux: Try xclip, fallback to wl-copy
+      try {
+        await this.executeCommand('bash', ['-c', `echo ${JSON.stringify(text)} | xclip -selection clipboard`]);
+      } catch {
+        await this.executeCommand('bash', ['-c', `echo ${JSON.stringify(text)} | wl-copy`]);
+      }
+    } else if (os === 'win32') {
+      // Windows: Use clip.exe
+      await this.executeCommand('bash', ['-c', `echo ${JSON.stringify(text)} | clip.exe`]);
+    }
+  }
+
+  /**
+   * Send prompt to an AI tool using clipboard + keyboard automation
+   * This approach: 1) Copy to clipboard, 2) Activate app, 3) Open chat, 4) Paste
+   */
+  async sendToAITool(tool, prompt, cwd = null, autoSend = false) {
+    const { platform, homedir } = await import('os');
+    const os = platform();
+
+    const configs = this.getAIToolConfigs();
+    const config = configs[tool];
+
+    if (!config) {
+      return {
+        success: false,
+        error: `Unknown AI tool: ${tool}. Supported: ${Object.keys(configs).join(', ')}`
+      };
+    }
+
+    console.log(`[Send to AI] Starting automation for ${config.name}...`);
+
+    try {
+      // Step 1: Copy prompt to clipboard
+      console.log('[Send to AI] Step 1: Copying to clipboard...');
+      await this.copyToClipboard(prompt);
+
+      if (os === 'darwin') {
+        // macOS automation using AppleScript
+
+        // Step 2: Activate the AI tool window
+        // For tools with multiple possible app names (like Claude Code which can run in Cursor or VS Code),
+        // try each one until one succeeds
+        const appNames = config.appNames || [config.appName];
+        let activated = false;
+
+        console.log(`[Send to AI] Step 2: Activating app (trying: ${appNames.join(', ')})...`);
+
+        for (const appName of appNames) {
+          try {
+            console.log(`[Send to AI]   Trying to activate "${appName}"...`);
+            const result = await this.executeCommand('osascript', ['-e', `tell application "${appName}" to activate`]);
+            if (result.success) {
+              console.log(`[Send to AI]   ✓ Successfully activated "${appName}"`);
+              activated = true;
+              break;
+            }
+          } catch {
+            console.log(`[Send to AI]   ✗ "${appName}" not available`);
+          }
+        }
+
+        if (!activated) {
+          console.log(`[Send to AI]   ⚠ Could not activate any app, continuing anyway...`);
+        }
+
+        // Wait for app to be ready
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // Step 3: Send Tab to defocus any existing text inputs
+        console.log('[Send to AI] Step 3: Defocusing text inputs...');
+        await this.executeCommand('osascript', ['-e', 'tell application "System Events" to key code 48']); // Tab
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Step 4: Open new chat using keyboard shortcut
+        console.log(`[Send to AI] Step 4: Opening new chat (${config.macShortcuts.openChat})...`);
+        await this.executeCommand('osascript', ['-e', `tell application "System Events" to ${config.macShortcuts.openChat}`]);
+
+        // Handle command palette flow for VS Code extensions (like Claude Code)
+        if (config.requiresCommandPalette && config.commandPaletteCommand) {
+          console.log(`[Send to AI] Step 4b: Typing command palette command: ${config.commandPaletteCommand}...`);
+          await new Promise(resolve => setTimeout(resolve, 300));
+          await this.executeCommand('osascript', ['-e', `tell application "System Events" to keystroke "${config.commandPaletteCommand}"`]);
+          await new Promise(resolve => setTimeout(resolve, 200));
+          console.log('[Send to AI] Step 4c: Pressing Enter...');
+          await this.executeCommand('osascript', ['-e', 'tell application "System Events" to key code 36']); // Enter
+        }
+
+        // Wait for chat panel to open
+        await new Promise(resolve => setTimeout(resolve, config.initWaitTime));
+
+        // Step 5: Paste with Cmd+V
+        console.log('[Send to AI] Step 5: Pasting prompt (Cmd+V)...');
+        await this.executeCommand('osascript', ['-e', 'tell application "System Events" to keystroke "v" using command down']);
+
+        // Step 6 (optional): Auto-send by pressing Enter
+        if (autoSend) {
+          console.log('[Send to AI] Step 6: Auto-sending (Enter)...');
+          await new Promise(resolve => setTimeout(resolve, 200)); // Small delay before Enter
+          await this.executeCommand('osascript', ['-e', 'tell application "System Events" to key code 36']); // Enter
+        }
+
+        console.log(`[Send to AI] ✅ Successfully ${autoSend ? 'sent' : 'pasted'} prompt in ${config.name}!`);
+        return {
+          success: true,
+          message: autoSend
+            ? `Prompt sent to ${config.name}.`
+            : `Prompt pasted in ${config.name}. Review and press Enter to send.`,
+          opened: true,
+          autoSent: autoSend
+        };
+
+      } else if (os === 'win32') {
+        // Windows automation using PowerShell
+        console.log(`[Send to AI] Activating ${config.appName} on Windows...`);
+
+        // Activate window and paste (and optionally send)
+        const autoSendCommand = autoSend ? '[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")' : '';
+        const ps = `
+          Add-Type -AssemblyName System.Windows.Forms
+          Start-Process ${config.cliCommand}
+          Start-Sleep -Milliseconds 500
+          [System.Windows.Forms.SendKeys]::SendWait("^+i")
+          Start-Sleep -Milliseconds ${config.initWaitTime}
+          [System.Windows.Forms.SendKeys]::SendWait("^v")
+          ${autoSendCommand}
+        `.trim().replace(/\n/g, '; ');
+
+        await this.executeCommand('powershell', ['-Command', ps]);
+
+        return {
+          success: true,
+          message: autoSend
+            ? `Prompt sent to ${config.name}.`
+            : `Prompt pasted in ${config.name}. Review and press Enter to send.`,
+          opened: true,
+          autoSent: autoSend
+        };
+
+      } else {
+        // Linux or unsupported platform - clipboard only
+        console.log('[Send to AI] Platform automation not supported, prompt copied to clipboard');
+        return {
+          success: true,
+          message: `Prompt copied to clipboard. Please open ${config.name} and paste (Ctrl+V).`,
+          clipboardOnly: true
+        };
+      }
+
+    } catch (error) {
+      console.error('[Send to AI] Automation error:', error.message);
+      // Even if automation fails, the prompt should be in clipboard
+      return {
+        success: true,
+        message: `Prompt copied to clipboard. Please paste manually in ${config.name}.`,
+        clipboardOnly: true,
+        automationError: error.message
+      };
+    }
   }
 
   setupProcessHandlers() {

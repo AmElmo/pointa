@@ -218,7 +218,7 @@ const PerformanceReportUI = {
 
     return `
       <div class="perf-device-section">
-        <h4 style="margin-bottom: 16px;">📱 Device & Network Context</h4>
+        <h4>📱 Device & Network Context</h4>
         <div class="perf-metrics-grid">
           <div class="perf-metric-card">
             <div class="perf-metric-label">CPU Cores</div>
