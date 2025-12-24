@@ -2258,7 +2258,12 @@ class PointaBackground {
       'Support for https://127.0.0.1 and https://0.0.0.0',
       'HTTP transport now recommended over SSE for better stability',
       'Updated all setup instructions to promote HTTP transport first',
-      'Compatible with mkcert and other local SSL setups']
+      'Compatible with mkcert and other local SSL setups'],
+
+      '1.0.8': [
+      'Fixed bug recording not capturing React console errors',
+      'React DevTools errors are now properly recorded in bug reports',
+      'Improved console error filtering to only exclude Pointa extension logs']
 
     };
 
