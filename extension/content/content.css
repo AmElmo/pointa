@@ -4809,6 +4809,192 @@ body.sidebar-resizing * {
   background: #10b981;
 }
 
+/* Prompt actions container */
+.pointa-prompt-actions {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+/* Send to dropdown */
+.pointa-send-to-dropdown {
+  position: relative;
+}
+
+.pointa-send-to-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.pointa-send-to-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.pointa-dropdown-arrow {
+  transition: transform 0.2s;
+}
+
+.pointa-send-to-menu.show + .pointa-send-to-btn .pointa-dropdown-arrow,
+.pointa-send-to-dropdown:has(.pointa-send-to-menu.show) .pointa-dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.pointa-send-to-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: all 0.2s;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.pointa-send-to-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-send-to-menu {
+  background: #2a2a2a;
+  border-color: #404040;
+}
+
+.pointa-send-to-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.pointa-send-to-option:hover:not(.disabled) {
+  background: #f5f5f5;
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-send-to-option {
+  color: #e5e5e5;
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-send-to-option:hover:not(.disabled) {
+  background: #353535;
+}
+
+.pointa-send-to-option.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pointa-send-to-option.sending {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.pointa-send-to-option.sent {
+  color: #10b981;
+}
+
+.pointa-send-to-option.error {
+  color: #ef4444;
+}
+
+.pointa-tool-icon {
+  font-size: 16px;
+}
+
+.pointa-send-to-divider {
+  height: 1px;
+  background: #e5e5e5;
+  margin: 4px 0;
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-send-to-divider {
+  background: #404040;
+}
+
+.pointa-send-to-status {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: #666666;
+  background: #f9f9f9;
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-send-to-status {
+  color: #999999;
+  background: #1f1f1f;
+}
+
+.pointa-send-to-status.pointa-status-connected {
+  color: #10b981;
+}
+
+.pointa-send-to-status.pointa-status-error {
+  color: #ef4444;
+}
+
+.pointa-send-to-status code {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.pointa-ask-ai-overlay[data-pointa-theme="dark"] .pointa-send-to-status code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pointa-status-ok {
+  color: #10b981;
+}
+
+.pointa-status-error {
+  color: #ef4444;
+}
+
+.pointa-sending-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e5e5e5;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: pointa-spin 0.8s linear infinite;
+}
+
+@keyframes pointa-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .pointa-ask-ai-instructions ol {
   margin: 0 0 16px 0;
   padding-left: 24px;

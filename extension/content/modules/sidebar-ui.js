@@ -4317,13 +4317,41 @@ ${taskDescription}`;
                   <div class="pointa-ask-ai-prompt" id="pointa-ai-prompt">
                     <!-- Prompt will be generated dynamically -->
                   </div>
-                  <button class="pointa-copy-prompt-btn" id="pointa-copy-prompt">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                    Copy to Clipboard
-                  </button>
+                  <div class="pointa-prompt-actions">
+                    <button class="pointa-copy-prompt-btn" id="pointa-copy-prompt">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                      Copy
+                    </button>
+                    <div class="pointa-send-to-dropdown" id="pointa-send-to-dropdown">
+                      <button class="pointa-send-to-btn" id="pointa-send-to-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        Send to
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="pointa-dropdown-arrow">
+                          <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                      </button>
+                      <div class="pointa-send-to-menu" id="pointa-send-to-menu">
+                        <button class="pointa-send-to-option" data-tool="cursor">
+                          <span class="pointa-tool-icon">🔵</span>
+                          Cursor
+                        </button>
+                        <button class="pointa-send-to-option" data-tool="claude-code">
+                          <span class="pointa-tool-icon">🟣</span>
+                          Claude Code
+                        </button>
+                        <div class="pointa-send-to-divider"></div>
+                        <div class="pointa-send-to-status" id="pointa-send-to-status">
+                          Checking availability...
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
               
@@ -4593,6 +4621,150 @@ IMPORTANT - Git Workflow:
         } catch (error) {
           console.error('Failed to copy prompt:', error);
         }
+      });
+    }
+
+    // Send to dropdown
+    const sendToBtn = overlay.querySelector('#pointa-send-to-btn');
+    const sendToMenu = overlay.querySelector('#pointa-send-to-menu');
+    const sendToStatus = overlay.querySelector('#pointa-send-to-status');
+    const sendToOptions = overlay.querySelectorAll('.pointa-send-to-option');
+
+    if (sendToBtn && sendToMenu) {
+      // Toggle dropdown
+      sendToBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        sendToMenu.classList.toggle('show');
+
+        // Check AI tools availability when opening
+        if (sendToMenu.classList.contains('show')) {
+          checkAIToolsAvailability();
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#pointa-send-to-dropdown')) {
+          sendToMenu.classList.remove('show');
+        }
+      });
+
+      // Check AI tools availability via pointa-server
+      async function checkAIToolsAvailability() {
+        if (sendToStatus) {
+          sendToStatus.textContent = 'Checking availability...';
+          sendToStatus.className = 'pointa-send-to-status';
+        }
+
+        try {
+          const response = await chrome.runtime.sendMessage({ action: 'checkNativeHostInstalled' });
+
+          if (response.success && response.installed) {
+            // Get available tools
+            const toolsResponse = await chrome.runtime.sendMessage({ action: 'getAvailableAITools' });
+
+            if (toolsResponse.success && toolsResponse.tools) {
+              const toolNames = toolsResponse.tools.map((t) => t.name).join(', ');
+              if (sendToStatus) {
+                sendToStatus.innerHTML = `<span class="pointa-status-ok">✓</span> Available: ${toolNames || 'None detected'}`;
+                sendToStatus.className = 'pointa-send-to-status pointa-status-connected';
+              }
+
+              // Enable/disable options based on availability
+              sendToOptions.forEach((option) => {
+                const toolId = option.dataset.tool;
+                const isAvailable = toolsResponse.tools.some((t) => t.id === toolId);
+                option.classList.toggle('disabled', !isAvailable);
+              });
+            }
+          } else {
+            if (sendToStatus) {
+              sendToStatus.innerHTML = `
+                <span class="pointa-status-error">⚠</span> Server not running
+                <br><small>Run: <code>pointa-server start</code></small>
+              `;
+              sendToStatus.className = 'pointa-send-to-status pointa-status-error';
+            }
+
+            // Disable all options
+            sendToOptions.forEach((option) => {
+              option.classList.add('disabled');
+            });
+          }
+        } catch (error) {
+          console.error('Error checking AI tools availability:', error);
+          if (sendToStatus) {
+            sendToStatus.innerHTML = `<span class="pointa-status-error">✗</span> Error: ${error.message}`;
+            sendToStatus.className = 'pointa-send-to-status pointa-status-error';
+          }
+        }
+      }
+
+      // Handle Send to option clicks
+      sendToOptions.forEach((option) => {
+        option.addEventListener('click', async (e) => {
+          e.stopPropagation();
+
+          if (option.classList.contains('disabled')) {
+            return;
+          }
+
+          const tool = option.dataset.tool;
+          const promptElement = overlay.querySelector('#pointa-ai-prompt');
+          const prompt = promptElement.textContent;
+
+          // Show sending state
+          const originalHTML = option.innerHTML;
+          option.innerHTML = `
+            <span class="pointa-sending-spinner"></span>
+            Sending...
+          `;
+          option.classList.add('sending');
+
+          try {
+            const response = await chrome.runtime.sendMessage({
+              action: 'sendToAITool',
+              tool: tool,
+              prompt: prompt
+            });
+
+            if (response.success) {
+              // Show success
+              option.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Sent!
+              `;
+              option.classList.remove('sending');
+              option.classList.add('sent');
+
+              // Close dropdown after a delay
+              setTimeout(() => {
+                sendToMenu.classList.remove('show');
+                option.innerHTML = originalHTML;
+                option.classList.remove('sent');
+              }, 1500);
+            } else {
+              throw new Error(response.error || 'Failed to send');
+            }
+          } catch (error) {
+            console.error('Error sending to AI tool:', error);
+
+            // Show error
+            option.innerHTML = `
+              <span class="pointa-status-error">✗</span>
+              Failed
+            `;
+            option.classList.remove('sending');
+            option.classList.add('error');
+
+            setTimeout(() => {
+              option.innerHTML = originalHTML;
+              option.classList.remove('error');
+            }, 2000);
+          }
+        });
       });
     }
 

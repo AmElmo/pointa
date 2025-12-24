@@ -314,6 +314,27 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
+        // Send to AI: Get available AI tools (via pointa-server HTTP)
+        case 'getAvailableAITools':
+          this.getAvailableAITools().
+          then((tools) => sendResponse({ success: true, tools })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Send to AI: Send prompt to AI tool (via pointa-server HTTP)
+        case 'sendToAITool':
+          this.sendToAITool(request.tool, request.prompt, request.cwd).
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Send to AI: Check if pointa-server is running
+        case 'checkNativeHostInstalled':
+          this.checkNativeHostInstalled().
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -2093,6 +2114,106 @@ class PointaBackground {
   // Utility function for generating IDs
   generateId() {
     return 'pointa_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  // ============================================================
+  // Send to AI: HTTP-based integration via pointa-server
+  // ============================================================
+
+  /**
+   * Check if pointa-server is running (replaces native host check)
+   * This uses the existing API connection - no additional setup needed!
+   */
+  async checkNativeHostInstalled() {
+    try {
+      const status = await this.checkAPIConnectionStatus();
+      if (status.connected) {
+        return {
+          installed: true,
+          message: 'Pointa server is running'
+        };
+      } else {
+        return {
+          installed: false,
+          error: status.error || 'Pointa server is not running'
+        };
+      }
+    } catch (error) {
+      return {
+        installed: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Get list of available AI tools from pointa-server
+   */
+  async getAvailableAITools() {
+    try {
+      const response = await fetch(`${this.apiServerUrl}/api/ai-tools`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to get available tools');
+      }
+
+      console.log('[Send to AI] Available tools:', result.tools);
+      return result.tools || [];
+    } catch (error) {
+      console.error('[Send to AI] Error getting tools:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Send prompt to a specific AI tool via pointa-server
+   * @param {string} tool - 'cursor' or 'claude-code'
+   * @param {string} prompt - The prompt to send
+   * @param {string} cwd - Optional working directory
+   */
+  async sendToAITool(tool, prompt, cwd = null) {
+    try {
+      console.log(`[Send to AI] Sending prompt to ${tool}...`);
+
+      const response = await fetch(`${this.apiServerUrl}/api/send-to-ai`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tool: tool,
+          prompt: prompt,
+          cwd: cwd
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || `Failed to send to ${tool}`);
+      }
+
+      console.log(`[Send to AI] Successfully sent to ${tool}`);
+      return {
+        sent: true,
+        output: result.output,
+        fallback: result.fallback || false
+      };
+    } catch (error) {
+      console.error('[Send to AI] Error sending to AI:', error.message);
+      throw error;
+    }
   }
 
   getChangelogForVersion(version) {
