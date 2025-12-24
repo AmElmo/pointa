@@ -2437,6 +2437,9 @@ class LocalAnnotationsServer {
    */
   async getAvailableAITools() {
     const tools = [];
+    const { existsSync } = await import('fs');
+    const { homedir } = await import('os');
+    const { join } = await import('path');
 
     // Check for Cursor
     const hasCursorAgent = await this.commandExists('cursor-agent');
@@ -2448,6 +2451,30 @@ class LocalAnnotationsServer {
         name: 'Cursor',
         available: true,
         hasAgent: hasCursorAgent
+      });
+    }
+
+    // Check for Windsurf - check both CLI in PATH and common installation locations
+    const windsurfInPath = await this.commandExists('windsurf');
+    const windsurfCLIPath = join(homedir(), '.codeium', 'windsurf', 'bin', 'windsurf');
+    const windsurfAppExists = existsSync('/Applications/Windsurf.app');
+    const windsurfCLIExists = existsSync(windsurfCLIPath);
+
+    if (windsurfInPath || windsurfAppExists || windsurfCLIExists) {
+      tools.push({
+        id: 'windsurf',
+        name: 'Windsurf',
+        available: true
+      });
+    }
+
+    // Check for GitHub Copilot (available in VS Code)
+    // We check for 'code' CLI which is used by VS Code
+    if (await this.commandExists('code')) {
+      tools.push({
+        id: 'github-copilot',
+        name: 'GitHub Copilot',
+        available: true
       });
     }
 
@@ -2475,6 +2502,11 @@ class LocalAnnotationsServer {
         cliCommand: 'cursor',
         macShortcuts: {
           openChat: 'keystroke "i" using {command down, shift down}',  // Cmd+Shift+I
+          focusChat: 'keystroke "i" using command down'                 // Cmd+I
+        },
+        windowsShortcuts: {
+          openChat: '^+i',   // Ctrl+Shift+I
+          focusChat: '^i'    // Ctrl+I
         },
         initWaitTime: 400,
         requiresCommandPalette: false
@@ -2486,6 +2518,23 @@ class LocalAnnotationsServer {
         macShortcuts: {
           openChat: 'keystroke "l" using {command down, shift down}',  // Cmd+Shift+L
         },
+        windowsShortcuts: {
+          openChat: '^+l',   // Ctrl+Shift+L
+        },
+        initWaitTime: 400,
+        requiresCommandPalette: false
+      },
+      'github-copilot': {
+        name: 'GitHub Copilot',
+        appName: 'Code',  // VS Code
+        appNames: ['Cursor', 'Visual Studio Code'],  // Can also run in Cursor
+        cliCommand: 'code',
+        macShortcuts: {
+          openChat: 'keystroke "i" using {command down, shift down}',  // Cmd+Shift+I
+        },
+        windowsShortcuts: {
+          openChat: '^+i',   // Ctrl+Shift+I
+        },
         initWaitTime: 400,
         requiresCommandPalette: false
       },
@@ -2496,6 +2545,9 @@ class LocalAnnotationsServer {
         cliCommand: 'code',  // 'code' CLI works for VS Code
         macShortcuts: {
           openChat: 'keystroke "p" using {command down, shift down}',  // Cmd+Shift+P opens command palette
+        },
+        windowsShortcuts: {
+          openChat: '^+p',   // Ctrl+Shift+P opens command palette
         },
         initWaitTime: 1500,  // Claude Code panel takes longer to load
         requiresCommandPalette: true,

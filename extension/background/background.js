@@ -1898,9 +1898,12 @@ class PointaBackground {
       // Handle Console messages (Log.entryAdded captures browser console messages)
       if (method === 'Log.entryAdded') {
         const entry = params.entry;
-        
-        // Filter out extension's own messages
-        if (entry.url && entry.url.includes('chrome-extension://')) return;
+
+        // Filter out ONLY our extension's messages, not other extensions like React DevTools
+        const isFromPointaExtension = entry.url &&
+          entry.url.includes('chrome-extension://') &&
+          (entry.url.includes('/content/') || entry.url.includes('/background/') || entry.url.includes('/popup/'));
+        if (isFromPointaExtension) return;
         
         // Map CDP log levels to our event types
         let eventType = 'console-log';
@@ -1931,8 +1934,15 @@ class PointaBackground {
       
       // Handle Runtime console API calls (captures console.log, console.error, etc.)
       if (method === 'Runtime.consoleAPICalled') {
-        // Filter out extension's own messages
-        if (params.stackTrace?.callFrames?.[0]?.url?.includes('chrome-extension://')) return;
+        // Filter out ONLY our own extension's messages, not other extensions like React DevTools
+        // React DevTools intercepts console.error calls, so the first frame may be installHook.js
+        // We need to check if the actual error source (deeper in stack) is from our extension
+        const callFrames = params.stackTrace?.callFrames || [];
+        const isFromPointaExtension = callFrames.some(frame =>
+          frame.url?.includes('chrome-extension://') &&
+          (frame.url?.includes('/content/') || frame.url?.includes('/background/') || frame.url?.includes('/popup/'))
+        );
+        if (isFromPointaExtension) return;
         
         let eventType = 'console-log';
         let severity = 'info';
