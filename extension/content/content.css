@@ -10010,6 +10010,13 @@ body.sidebar-resizing * {
   gap: 8px;
 }
 
+.bug-ai-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
 .bug-ai-copy-btn {
   flex-shrink: 0;
   width: 32px;
