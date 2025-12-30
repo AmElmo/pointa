@@ -19,6 +19,7 @@ const PointaSidebar = {
   currentView: null, // Track current view: null, 'bug-report', etc.
   inspirationSavedListener: null, // Keep reference to inspiration saved listener for cleanup
   sidebarWasOpenBeforeInspiration: false, // Track if sidebar was open before entering inspiration mode
+  shiftedFixedElements: [], // Track fixed elements we've shifted to avoid overlap
 
   /**
    * Toggle sidebar open/closed
@@ -107,6 +108,9 @@ const PointaSidebar = {
     // Animate body margin and sidebar together with same timing
     document.body.style.transition = 'margin-right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
     document.body.style.marginRight = `${this.sidebarWidth}px`;
+
+    // Shift any fixed right-positioned elements on the page to avoid overlap
+    this.shiftFixedRightElements();
 
     // Trigger slide-in animation
     requestAnimationFrame(() => {
@@ -205,6 +209,9 @@ const PointaSidebar = {
     document.body.style.transition = 'margin-right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
     document.body.style.marginRight = '0';
 
+    // Restore any fixed right-positioned elements we shifted
+    this.restoreFixedRightElements();
+
     // Reposition badges during transition
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
@@ -238,6 +245,103 @@ const PointaSidebar = {
 
 
     }, 850);
+  },
+
+  /**
+   * Find and shift fixed right-positioned elements on the page to avoid overlap with sidebar.
+   * Elements with position:fixed and right:0 (or close to 0) will be shifted left.
+   */
+  shiftFixedRightElements() {
+    // Clear any previously tracked elements
+    this.shiftedFixedElements = [];
+
+    // Find all elements on the page (excluding our own sidebar)
+    const allElements = document.querySelectorAll('*:not(#pointa-sidebar):not(#pointa-sidebar *)');
+
+    allElements.forEach(el => {
+      // Skip if it's a Pointa element
+      if (el.id && el.id.startsWith('pointa-')) return;
+      if (el.className && typeof el.className === 'string' && el.className.includes('pointa-')) return;
+
+      const style = window.getComputedStyle(el);
+
+      // Check if element is fixed positioned
+      if (style.position !== 'fixed') return;
+
+      // Parse the right value
+      const rightValue = parseFloat(style.right);
+
+      // Only shift elements that are positioned at or near the right edge (within 50px)
+      // and have a meaningful width (not just tiny icons)
+      if (isNaN(rightValue) || rightValue > 50) return;
+
+      const width = parseFloat(style.width);
+      if (isNaN(width) || width < 50) return; // Skip very small elements
+
+      // Store original right value and apply shift
+      const originalRight = el.style.right || '';
+      const originalTransition = el.style.transition || '';
+
+      this.shiftedFixedElements.push({
+        element: el,
+        originalRight: originalRight,
+        originalTransition: originalTransition,
+        computedRight: rightValue
+      });
+
+      // Apply the shift with matching transition
+      el.style.transition = 'right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+      el.style.right = `${rightValue + this.sidebarWidth}px`;
+    });
+  },
+
+  /**
+   * Restore shifted fixed elements to their original positions
+   */
+  restoreFixedRightElements() {
+    this.shiftedFixedElements.forEach(({ element, originalRight, originalTransition, computedRight }) => {
+      // Check if element is still in the DOM
+      if (!document.contains(element)) return;
+
+      // Apply reverse transition
+      element.style.transition = 'right 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+      // Restore to original right value
+      if (originalRight) {
+        element.style.right = originalRight;
+      } else {
+        // If there was no inline style, set it to the computed value
+        element.style.right = `${computedRight}px`;
+      }
+
+      // Clean up transition after animation
+      setTimeout(() => {
+        if (document.contains(element)) {
+          element.style.transition = originalTransition;
+          // If original had no inline right, remove our inline style
+          if (!originalRight) {
+            element.style.removeProperty('right');
+          }
+        }
+      }, 850);
+    });
+
+    // Clear the tracking array
+    this.shiftedFixedElements = [];
+  },
+
+  /**
+   * Update the shift amount for fixed elements during resize.
+   * Called when sidebar width changes.
+   * @param {number} newWidth - The new sidebar width
+   */
+  updateFixedElementsShift(newWidth) {
+    this.shiftedFixedElements.forEach(({ element, computedRight }) => {
+      if (!document.contains(element)) return;
+      // No transition during resize for smoother movement
+      element.style.transition = 'none';
+      element.style.right = `${computedRight + newWidth}px`;
+    });
   },
 
   /**
@@ -7104,6 +7208,9 @@ IMPORTANT - Git Workflow:
       this.sidebarWidth = newWidth;
       this.sidebar.style.width = `${newWidth}px`;
       document.body.style.marginRight = `${newWidth}px`;
+
+      // Update shifted fixed elements to match new width
+      this.updateFixedElementsShift(newWidth);
     };
 
     const onMouseUp = () => {
