@@ -2368,6 +2368,69 @@ class Pointa {
     }
   }
 
+  // ============================================================
+  // Video Recording methods
+  // ============================================================
+
+  /**
+   * Start video recording
+   */
+  async startVideoRecording() {
+    try {
+      // Show recording overlay UI
+      if (window.VideoRecordingUI) {
+        VideoRecordingUI.show();
+      }
+
+      // Start recording
+      const success = await VideoRecorder.startRecording();
+      if (!success) {
+        throw new Error('Failed to start video recording');
+      }
+
+      console.log('[Pointa] Video recording started');
+    } catch (error) {
+      console.error('[Pointa] Error starting video recording:', error);
+      if (window.VideoRecordingUI) {
+        VideoRecordingUI.hide();
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Stop video recording and show review modal
+   */
+  async stopVideoRecording() {
+    try {
+      // Hide recording overlay
+      if (window.VideoRecordingUI) {
+        VideoRecordingUI.hide();
+      }
+
+      // Stop recording and get data
+      const recordingData = await VideoRecorder.stopRecording();
+
+      if (!recordingData) {
+        console.warn('[Pointa] No video recording data');
+        return;
+      }
+
+      // Show review modal
+      if (window.VideoFeedbackUI) {
+        VideoFeedbackUI.show(recordingData);
+      }
+
+      console.log('[Pointa] Video recording stopped, duration:', recordingData.durationFormatted);
+    } catch (error) {
+      console.error('[Pointa] Error stopping video recording:', error);
+      if (window.VideoRecordingUI) {
+        VideoRecordingUI.hide();
+      }
+      throw error;
+    }
+  }
+
 }
 
 // Initialize when DOM is ready

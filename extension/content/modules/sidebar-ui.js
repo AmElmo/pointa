@@ -2294,6 +2294,17 @@ ${taskDescription}`;
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
             </button>
+
+            <button id="sidebar-issue-type-video" class="sidebar-issue-type-option">
+              <div class="sidebar-issue-type-icon">🎬</div>
+              <div class="sidebar-issue-type-content">
+                <h3>Record Video</h3>
+                <p>Record your screen with click tracking</p>
+              </div>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -5239,6 +5250,264 @@ IMPORTANT - Git Workflow:
     }
   },
 
+  // ============================================================
+  // Video Recording Screen
+  // ============================================================
+
+  /**
+   * Show video recording screen in sidebar
+   */
+  showVideoRecordScreen() {
+    this.currentView = 'video-recording';
+    this.isRecordingVideo = false;
+
+    // Hide annotation badges
+    if (window.pointa && window.pointa.badgeManager) {
+      window.pointa.badgeManager.hideBadges = true;
+      window.pointa.badgeManager.clearAllBadges();
+    }
+
+    const content = this.sidebar.querySelector('#sidebar-main');
+    if (content) {
+      content.innerHTML = this.buildVideoRecordScreen(false);
+      this.setupVideoRecordListeners(window.pointa);
+    } else {
+      console.error('[Sidebar] Could not find #sidebar-main element');
+    }
+  },
+
+  /**
+   * Build video recording screen HTML
+   * @param {boolean} isRecording - Whether recording is currently active
+   * @returns {string} HTML string
+   */
+  buildVideoRecordScreen(isRecording) {
+    if (isRecording) {
+      return `
+        <div class="sidebar-bug-report-container sidebar-bug-recording">
+          <!-- Back button disabled during recording -->
+          <button id="sidebar-video-back-btn" class="sidebar-back-btn" disabled style="opacity: 0.5; cursor: not-allowed;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            Back
+          </button>
+
+          <div class="sidebar-bug-report-intro" style="padding: 20px 24px;">
+            <div class="sidebar-bug-recording-indicator" style="margin-bottom: 12px;">
+              <div class="sidebar-bug-recording-pulse"></div>
+              <div class="sidebar-bug-icon">🎬</div>
+            </div>
+            <h2 class="sidebar-section-title" style="margin-bottom: 8px;">Recording Video...</h2>
+            <p class="sidebar-bug-description" style="margin-bottom: 16px; font-size: 14px;">
+              <strong>Perform the actions you want to capture.</strong>
+            </p>
+
+            <div class="sidebar-bug-recording-status" style="padding: 16px; margin: 16px 0;">
+              <div class="sidebar-bug-recording-timer" id="sidebar-video-timer" style="font-size: 36px; margin-bottom: 4px;">00:00</div>
+              <p class="sidebar-bug-recording-hint" style="font-size: 12px;">Max 5 minutes</p>
+            </div>
+
+            <div class="sidebar-bug-capturing" style="margin-bottom: 16px;">
+              <h3 style="font-size: 13px; margin-bottom: 8px;">Capturing:</h3>
+              <ul class="sidebar-bug-capture-list" style="font-size: 12px;">
+                <li style="margin-bottom: 4px;">✓ Screen recording</li>
+                <li style="margin-bottom: 4px;">✓ Click interactions</li>
+                <li style="margin-bottom: 4px;">✓ Page navigations</li>
+              </ul>
+            </div>
+
+            <div class="sidebar-video-controls" style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button id="sidebar-video-pause-btn" class="sidebar-secondary-btn sidebar-bug-record-btn" style="flex: 1;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1"/>
+                  <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+                Pause
+              </button>
+              <button id="sidebar-video-stop-btn" class="sidebar-danger-btn sidebar-bug-record-btn" style="flex: 1;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2"/>
+                </svg>
+                Stop Recording
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="sidebar-bug-report-container">
+        <!-- Back button -->
+        <button id="sidebar-video-back-btn" class="sidebar-back-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          Back
+        </button>
+
+        <div class="sidebar-bug-report-intro" style="padding: 16px 20px;">
+          <div class="sidebar-bug-icon" style="font-size: 40px; margin-bottom: 8px;">🎬</div>
+          <h2 class="sidebar-section-title" style="margin-bottom: 6px; font-size: 18px;">Record Video</h2>
+          <p class="sidebar-bug-description" style="margin-bottom: 10px; font-size: 13px;">
+            Record your screen with click tracking. We'll capture:
+          </p>
+
+          <ul class="sidebar-bug-features-compact" style="margin-bottom: 10px;">
+            <li style="padding: 4px 0;">🎥 Screen recording (up to 5 min)</li>
+            <li style="padding: 4px 0;">🖱️ Click interactions with element info</li>
+            <li style="padding: 4px 0;">📄 Page URL changes</li>
+            <li style="padding: 4px 0;">⏸️ Pause/resume support</li>
+          </ul>
+
+          <div class="sidebar-bug-instructions-compact" style="padding: 10px 12px; margin-bottom: 12px;">
+            <p style="font-size: 12px; margin-bottom: 4px;"><strong>How it works:</strong></p>
+            <ol style="font-size: 11px; margin: 0; padding-left: 16px;">
+              <li>Click "Start Recording"</li>
+              <li>A floating control will appear on the page</li>
+              <li>Perform your actions (clicks are tracked with visual feedback)</li>
+              <li>Stop when done to review the recording</li>
+            </ol>
+          </div>
+
+          <button id="sidebar-video-start-btn" class="sidebar-primary-btn sidebar-bug-record-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="12" r="8"/>
+            </svg>
+            Start Recording
+          </button>
+        </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Set up listeners for video recording screen
+   * @param {Pointa} pointa - Reference to main Pointa instance
+   */
+  setupVideoRecordListeners(pointa) {
+    const startBtn = this.sidebar.querySelector('#sidebar-video-start-btn');
+    const stopBtn = this.sidebar.querySelector('#sidebar-video-stop-btn');
+    const pauseBtn = this.sidebar.querySelector('#sidebar-video-pause-btn');
+    const backBtn = this.sidebar.querySelector('#sidebar-video-back-btn');
+
+    if (startBtn) {
+      startBtn.addEventListener('click', async () => {
+        try {
+          this.isRecordingVideo = true;
+
+          // Update UI to recording state
+          const content = this.sidebar.querySelector('#sidebar-main');
+          if (content) {
+            content.innerHTML = this.buildVideoRecordScreen(true);
+            this.setupVideoRecordListeners(pointa);
+
+            // Start sidebar timer
+            this.startVideoSidebarTimer();
+          }
+
+          // Start the actual recording
+          await pointa.startVideoRecording();
+        } catch (error) {
+          console.error('[Sidebar] Error starting video recording:', error);
+          this.isRecordingVideo = false;
+          alert('Error starting video recording: ' + error.message);
+        }
+      });
+    }
+
+    if (stopBtn) {
+      stopBtn.addEventListener('click', async () => {
+        try {
+          // Stop sidebar timer
+          this.stopVideoSidebarTimer();
+          this.isRecordingVideo = false;
+
+          // Stop the recording (this will show the review modal)
+          await pointa.stopVideoRecording();
+        } catch (error) {
+          console.error('[Sidebar] Error stopping video recording:', error);
+          alert('Error stopping recording. Your data may have been lost.');
+        }
+
+        // Return sidebar to normal state
+        this.currentView = null;
+        const serverOnline = await this.checkServerStatus();
+        await this.updateContent(pointa, serverOnline);
+      });
+    }
+
+    if (pauseBtn) {
+      pauseBtn.addEventListener('click', () => {
+        if (!window.VideoRecorder) return;
+
+        if (window.VideoRecorder.isPaused) {
+          window.VideoRecorder.resumeRecording();
+          pauseBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1"/>
+              <rect x="14" y="4" width="4" height="16" rx="1"/>
+            </svg>
+            Pause
+          `;
+        } else {
+          window.VideoRecorder.pauseRecording();
+          pauseBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21"/>
+            </svg>
+            Resume
+          `;
+        }
+      });
+    }
+
+    if (backBtn) {
+      backBtn.addEventListener('click', async () => {
+        // Reset state
+        this.isRecordingVideo = false;
+        this.currentView = null;
+
+        // Show badges again
+        if (window.pointa && window.pointa.badgeManager) {
+          window.pointa.badgeManager.hideBadges = false;
+          window.pointa.badgeManager.showExistingAnnotations();
+        }
+
+        const serverOnline = await this.checkServerStatus();
+        await this.updateContent(pointa, serverOnline);
+      });
+    }
+  },
+
+  /**
+   * Start the video recording timer in sidebar
+   */
+  startVideoSidebarTimer() {
+    const timerEl = this.sidebar?.querySelector('#sidebar-video-timer');
+    if (!timerEl) return;
+
+    this.videoTimerInterval = setInterval(() => {
+      if (window.VideoRecorder?.isRecording) {
+        const elapsed = window.VideoRecorder.getRelativeTime();
+        timerEl.textContent = window.VideoRecorder.formatDuration(elapsed);
+      }
+    }, 100);
+  },
+
+  /**
+   * Stop the video recording timer in sidebar
+   */
+  stopVideoSidebarTimer() {
+    if (this.videoTimerInterval) {
+      clearInterval(this.videoTimerInterval);
+      this.videoTimerInterval = null;
+    }
+  },
+
   /**
    * Set up listeners for bug report screen
    * @param {Pointa} pointa - Reference to main Pointa instance
@@ -5250,6 +5519,7 @@ IMPORTANT - Git Workflow:
     const backBtn = this.sidebar.querySelector('#sidebar-issue-type-back-btn');
     const bugOption = this.sidebar.querySelector('#sidebar-issue-type-bug');
     const performanceOption = this.sidebar.querySelector('#sidebar-issue-type-performance');
+    const videoOption = this.sidebar.querySelector('#sidebar-issue-type-video');
 
     if (backBtn) {
       backBtn.addEventListener('click', async () => {
@@ -5268,6 +5538,12 @@ IMPORTANT - Git Workflow:
     if (performanceOption) {
       performanceOption.addEventListener('click', () => {
         this.showPerformanceReportScreen();
+      });
+    }
+
+    if (videoOption) {
+      videoOption.addEventListener('click', () => {
+        this.showVideoRecordScreen();
       });
     }
   },

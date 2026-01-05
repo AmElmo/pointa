@@ -335,6 +335,27 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
+        // Video Recording: Start tab capture
+        case 'startVideoCapture':
+          this.startVideoCapture(sender.tab.id).
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Video Recording: Stop tab capture
+        case 'stopVideoCapture':
+          this.stopVideoCapture(sender.tab.id).
+          then(() => sendResponse({ success: true })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Video Recording: Save video to disk
+        case 'saveVideoRecording':
+          this.saveVideoRecording(request.videoData).
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -477,6 +498,9 @@ class PointaBackground {
       'content/modules/bug-replay-engine.js',
       'content/modules/performance-recorder.js',
       'content/modules/performance-report-ui.js',
+      'content/modules/video-recorder.js',
+      'content/modules/video-recording-ui.js',
+      'content/modules/video-feedback-ui.js',
       'content/modules/sidebar-ui.js',
       'content/content.js'];
 
@@ -2117,6 +2141,97 @@ class PointaBackground {
     } catch (error) {
       console.error(`[CDP] Error stopping recording for tab ${tabId}:`, error);
       this.cdpRecordings.delete(tabId);
+      throw error;
+    }
+  }
+
+  // ============================================================
+  // Video Recording: Tab capture for screen recording
+  // ============================================================
+
+  /**
+   * Start video capture for a tab using tabCapture API
+   * @param {number} tabId - Tab ID to capture
+   * @returns {Promise<Object>} Result with streamId or error
+   */
+  async startVideoCapture(tabId) {
+    try {
+      console.log(`[VideoCapture] Starting capture for tab ${tabId}`);
+
+      // Use chrome.tabCapture to get a MediaStream
+      // Note: tabCapture.capture() must be called from an active tab context
+      // We'll use getMediaStreamId to get a stream ID that can be used by content script
+
+      const streamId = await new Promise((resolve, reject) => {
+        chrome.tabCapture.getMediaStreamId(
+          { targetTabId: tabId },
+          (streamId) => {
+            if (chrome.runtime.lastError) {
+              reject(new Error(chrome.runtime.lastError.message));
+            } else {
+              resolve(streamId);
+            }
+          }
+        );
+      });
+
+      console.log(`[VideoCapture] Got stream ID for tab ${tabId}`);
+      return { streamId };
+
+    } catch (error) {
+      console.error(`[VideoCapture] Error starting capture:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Stop video capture for a tab
+   * @param {number} tabId - Tab ID
+   */
+  async stopVideoCapture(tabId) {
+    console.log(`[VideoCapture] Stopping capture for tab ${tabId}`);
+    // The actual stream cleanup is handled by the content script
+    // This method is just for notification purposes
+  }
+
+  /**
+   * Save video recording to disk via API server
+   * @param {Object} videoData - Video recording data
+   * @returns {Promise<Object>} Result with file path
+   */
+  async saveVideoRecording(videoData) {
+    try {
+      console.log(`[VideoCapture] Saving video recording: ${videoData.id}`);
+
+      // Convert video blob to base64 if needed
+      let videoBase64 = videoData.videoBase64;
+
+      // Save video file via API
+      const response = await fetch(`${this.apiServerUrl}/api/videos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: videoData.id,
+          video: videoBase64,
+          metadata: videoData.metadata,
+          clicks: videoData.clicks,
+          pageChanges: videoData.pageChanges,
+          duration: videoData.duration,
+          startTime: videoData.startTime,
+          endTime: videoData.endTime
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save video: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`[VideoCapture] Video saved: ${result.path}`);
+      return result;
+
+    } catch (error) {
+      console.error(`[VideoCapture] Error saving video:`, error);
       throw error;
     }
   }
