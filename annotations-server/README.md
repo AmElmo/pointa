@@ -2,6 +2,12 @@
 
 Global MCP server for Pointa browser extension.
 
+> **Note:** This is a CLI tool. Install globally with:
+> ```bash
+> npm install -g pointa-server
+> ```
+> Or use with `npx` (no install needed): `npx pointa-server start`
+
 ## Quick Start
 
 No installation required! Just add the MCP server to your AI coding tool:
@@ -169,6 +175,26 @@ Then use:
 }
 ```
 
+### Antigravity
+
+1. Click on **Agent session** in Antigravity
+2. Select the **"..."** dropdown → **MCP Servers** → **Manage MCP Servers**
+3. Click **View raw config**
+4. Edit `mcp_config.json` and add:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+5. Save and restart Antigravity
+
 ### VS Code
 
 1. Install an AI extension that supports MCP (like GitHub Copilot Chat or Continue)
@@ -217,7 +243,7 @@ Data is stored in:
 
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/AmElmo/pointa.git
 cd pointa/annotations-server
 
 # Install dependencies
@@ -226,6 +252,10 @@ npm install
 # Run in development mode
 npm run dev
 ```
+
+## Chrome Extension
+
+Install the companion browser extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane).
 
 ## License
 
