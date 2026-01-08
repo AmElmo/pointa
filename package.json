@@ -9,6 +9,8 @@
   },
   "devDependencies": {
     "eslint": "^8.57.0"
+  },
+  "dependencies": {
+    "pointa-server": "^1.0.0"
   }
 }
-
