@@ -252,6 +252,30 @@ claude mcp add --transport stdio pointa -- npx -y pointa-server
 </details>
 
 <details>
+<summary><b>Antigravity</b></summary>
+
+1. Click on **Agent session** in Antigravity
+2. Select the **"..."** dropdown → **MCP Servers** → **Manage MCP Servers**
+3. Click **View raw config**
+4. Edit `mcp_config.json` and add:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+5. Save and restart Antigravity
+
+**Note:** The npx command automatically handles server installation and startup.
+</details>
+
+<details>
 <summary><b>Other Editors (VS Code, etc.)</b></summary>
 
 Install an MCP-compatible AI extension and add:
