@@ -335,6 +335,38 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
+        // ============================================
+        // Linear Integration Message Handlers
+        // ============================================
+
+        // Get Linear API key from storage
+        case 'getLinearApiKey':
+          chrome.storage.local.get(['linearApiKey']).
+          then((result) => sendResponse({ success: true, apiKey: result.linearApiKey || null })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Save Linear API key to storage
+        case 'setLinearApiKey':
+          chrome.storage.local.set({ linearApiKey: request.apiKey }).
+          then(() => sendResponse({ success: true })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Validate Linear API key and get teams
+        case 'getLinearTeams':
+          this.getLinearTeams(request.apiKey).
+          then((teams) => sendResponse({ success: true, teams })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        // Create Linear issue from annotations
+        case 'createLinearIssue':
+          this.createLinearIssue(request.annotationIds, request.teamId, request.apiKey, request.title).
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown action' });
       }
@@ -2225,6 +2257,94 @@ class PointaBackground {
       };
     } catch (error) {
       console.error('[Send to AI] Error sending to AI:', error.message);
+      throw error;
+    }
+  }
+
+  // ============================================
+  // Linear Integration Methods
+  // ============================================
+
+  /**
+   * Get Linear teams using API key
+   * @param {string} apiKey - Linear API key
+   * @returns {Promise<Array>} - Array of team objects
+   */
+  async getLinearTeams(apiKey) {
+    try {
+      console.log('[Linear] Fetching teams...');
+
+      const response = await fetch(`${this.apiServerUrl}/api/linear/teams`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Linear-Api-Key': apiKey
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch Linear teams');
+      }
+
+      console.log(`[Linear] Found ${result.teams.length} teams`);
+      return result.teams;
+    } catch (error) {
+      console.error('[Linear] Error fetching teams:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a Linear issue from selected annotations
+   * @param {Array<string>} annotationIds - Array of annotation IDs to sync
+   * @param {string} teamId - Linear team ID
+   * @param {string} apiKey - Linear API key
+   * @param {string} title - Optional custom title
+   * @returns {Promise<Object>} - Issue creation result
+   */
+  async createLinearIssue(annotationIds, teamId, apiKey, title = null) {
+    try {
+      console.log(`[Linear] Creating issue from ${annotationIds.length} annotations...`);
+
+      const response = await fetch(`${this.apiServerUrl}/api/linear/create-issue`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          annotationIds,
+          teamId,
+          apiKey,
+          title
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `API error: ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create Linear issue');
+      }
+
+      console.log(`[Linear] Created issue ${result.issue.identifier}: ${result.issue.url}`);
+      return {
+        issue: result.issue,
+        syncedCount: result.syncedCount,
+        screenshotsUploaded: result.screenshotsUploaded
+      };
+    } catch (error) {
+      console.error('[Linear] Error creating issue:', error.message);
       throw error;
     }
   }

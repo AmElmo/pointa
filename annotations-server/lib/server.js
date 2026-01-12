@@ -943,6 +943,139 @@ class LocalAnnotationsServer {
       }
     });
 
+    // ============================================
+    // Linear Integration Endpoints
+    // ============================================
+
+    // Validate Linear API key and get teams
+    this.app.get('/api/linear/teams', async (req, res) => {
+      try {
+        const apiKey = req.headers['x-linear-api-key'];
+
+        if (!apiKey) {
+          return res.status(400).json({ error: 'Missing X-Linear-Api-Key header' });
+        }
+
+        const { createLinearService } = await import('./linear-service.js');
+        const linearService = createLinearService(apiKey);
+
+        // Validate API key first
+        const isValid = await linearService.validateApiKey();
+        if (!isValid) {
+          return res.status(401).json({ error: 'Invalid Linear API key' });
+        }
+
+        // Fetch teams
+        const teams = await linearService.getTeams();
+        res.json({ success: true, teams });
+      } catch (error) {
+        console.error('[Linear] Error fetching teams:', error);
+        res.status(500).json({ error: 'Failed to fetch Linear teams', details: error.message });
+      }
+    });
+
+    // Create Linear issue from annotations
+    this.app.post('/api/linear/create-issue', async (req, res) => {
+      try {
+        const { annotationIds, teamId, apiKey, title } = req.body;
+
+        if (!annotationIds || !Array.isArray(annotationIds) || annotationIds.length === 0) {
+          return res.status(400).json({ error: 'annotationIds array is required' });
+        }
+        if (!teamId) {
+          return res.status(400).json({ error: 'teamId is required' });
+        }
+        if (!apiKey) {
+          return res.status(400).json({ error: 'apiKey is required' });
+        }
+
+        const { createLinearService } = await import('./linear-service.js');
+        const linearService = createLinearService(apiKey);
+
+        // Validate API key
+        const isValid = await linearService.validateApiKey();
+        if (!isValid) {
+          return res.status(401).json({ error: 'Invalid Linear API key' });
+        }
+
+        // Load annotations
+        const allAnnotations = await this.loadAnnotations();
+        const selectedAnnotations = allAnnotations.filter(a => annotationIds.includes(a.id));
+
+        if (selectedAnnotations.length === 0) {
+          return res.status(404).json({ error: 'No matching annotations found' });
+        }
+
+        // Upload screenshots to Linear and get asset URLs
+        const screenshotUrls = new Map();
+        for (const annotation of selectedAnnotations) {
+          if (annotation.has_images || annotation.image_ids?.length > 0) {
+            const imageIds = annotation.image_ids || [];
+            for (const imageId of imageIds) {
+              try {
+                // Try to find the image file
+                const possiblePaths = [
+                  path.join(IMAGES_DIR, annotation.id, `${imageId}.png`),
+                  path.join(IMAGES_DIR, annotation.id, `${imageId}.webp`),
+                  path.join(IMAGES_DIR, annotation.id, `${imageId}.jpg`),
+                ];
+
+                let imagePath = null;
+                let contentType = 'image/png';
+
+                for (const p of possiblePaths) {
+                  if (existsSync(p)) {
+                    imagePath = p;
+                    if (p.endsWith('.webp')) contentType = 'image/webp';
+                    if (p.endsWith('.jpg')) contentType = 'image/jpeg';
+                    break;
+                  }
+                }
+
+                if (imagePath) {
+                  const assetUrl = await linearService.uploadFile(imagePath, `${imageId}.png`, contentType);
+                  screenshotUrls.set(imageId, assetUrl);
+                }
+              } catch (uploadError) {
+                console.warn(`[Linear] Failed to upload image ${imageId}:`, uploadError.message);
+                // Continue without this screenshot
+              }
+            }
+          }
+        }
+
+        // Format annotations into issue description
+        const description = this.formatAnnotationsForLinear(selectedAnnotations, screenshotUrls);
+
+        // Generate issue title
+        const issueTitle = title || this.generateLinearIssueTitle(selectedAnnotations);
+
+        // Create the issue
+        const issue = await linearService.createIssue({
+          teamId,
+          title: issueTitle,
+          description,
+        });
+
+        // Delete synced annotations from local storage
+        await this.deleteAnnotationsByIds(annotationIds);
+
+        res.json({
+          success: true,
+          issue: {
+            id: issue.id,
+            identifier: issue.identifier,
+            url: issue.url,
+          },
+          syncedCount: selectedAnnotations.length,
+          screenshotsUploaded: screenshotUrls.size,
+        });
+      } catch (error) {
+        console.error('[Linear] Error creating issue:', error);
+        res.status(500).json({ error: 'Failed to create Linear issue', details: error.message });
+      }
+    });
+
     // SSE endpoint for MCP connection (proper MCP SSE transport)
     this.app.get('/sse', async (req, res) => {
 
@@ -1572,6 +1705,182 @@ class LocalAnnotationsServer {
       console.error('Error saving archive:', error);
       throw error;
     }
+  }
+
+  // ============================================
+  // Linear Integration Helper Methods
+  // ============================================
+
+  /**
+   * Format annotations into a Markdown description for Linear issue
+   * @param {Array} annotations - Array of annotation objects
+   * @param {Map} screenshotUrls - Map of imageId to Linear asset URL
+   * @returns {string} - Markdown formatted description
+   */
+  formatAnnotationsForLinear(annotations, screenshotUrls = new Map()) {
+    const lines = [];
+    const date = new Date().toISOString().split('T')[0];
+
+    // Header
+    lines.push('# Pointa Annotations');
+    lines.push('');
+    lines.push(`**Synced:** ${date}`);
+
+    // Get unique URLs
+    const urls = [...new Set(annotations.map(a => a.url))];
+    if (urls.length === 1) {
+      lines.push(`**Page:** ${urls[0]}`);
+    } else {
+      lines.push(`**Pages:** ${urls.length} different pages`);
+    }
+
+    lines.push(`**Annotations:** ${annotations.length}`);
+    lines.push('');
+    lines.push('---');
+    lines.push('');
+
+    // Individual annotations
+    annotations.forEach((annotation, index) => {
+      const num = index + 1;
+
+      // Title from first message or comment
+      const firstMessage = annotation.messages?.[0]?.text || annotation.comment || 'No description';
+      const truncatedTitle = firstMessage.length > 60
+        ? firstMessage.substring(0, 60) + '...'
+        : firstMessage;
+
+      lines.push(`## ${num}. ${truncatedTitle}`);
+      lines.push('');
+
+      // Page URL if multiple pages
+      if (urls.length > 1) {
+        lines.push(`**Page:** ${annotation.url}`);
+      }
+
+      // Element info
+      if (annotation.selector) {
+        lines.push(`**Element:** \`${annotation.selector}\``);
+      }
+
+      // Source file info
+      if (annotation.source_file_path) {
+        const sourceInfo = annotation.source_line_range
+          ? `${annotation.source_file_path}:${annotation.source_line_range}`
+          : annotation.source_file_path;
+        lines.push(`**File:** ${sourceInfo}`);
+      }
+
+      lines.push('');
+
+      // Conversation/messages
+      if (annotation.messages && annotation.messages.length > 0) {
+        lines.push('### Request:');
+        annotation.messages.forEach(msg => {
+          lines.push(`> ${msg.text}`);
+        });
+        lines.push('');
+      } else if (annotation.comment) {
+        lines.push('### Request:');
+        lines.push(`> ${annotation.comment}`);
+        lines.push('');
+      }
+
+      // Screenshots
+      const imageIds = annotation.image_ids || [];
+      for (const imageId of imageIds) {
+        if (screenshotUrls.has(imageId)) {
+          const assetUrl = screenshotUrls.get(imageId);
+          lines.push(`![Screenshot](${assetUrl})`);
+          lines.push('');
+        }
+      }
+
+      // Technical context in collapsible section
+      if (annotation.element_context) {
+        lines.push('<details>');
+        lines.push('<summary>Technical Context</summary>');
+        lines.push('');
+
+        const ctx = annotation.element_context;
+        if (ctx.tag) lines.push(`- **Tag:** ${ctx.tag}`);
+        if (ctx.classes && ctx.classes.length > 0) {
+          lines.push(`- **Classes:** ${ctx.classes.join(', ')}`);
+        }
+        if (ctx.position) {
+          lines.push(`- **Position:** ${ctx.position.x}, ${ctx.position.y} (${ctx.position.width}x${ctx.position.height})`);
+        }
+        if (ctx.text) {
+          const truncatedText = ctx.text.length > 100
+            ? ctx.text.substring(0, 100) + '...'
+            : ctx.text;
+          lines.push(`- **Text:** "${truncatedText}"`);
+        }
+
+        lines.push('');
+        lines.push('</details>');
+        lines.push('');
+      }
+
+      lines.push('---');
+      lines.push('');
+    });
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Generate a title for the Linear issue based on annotations
+   * @param {Array} annotations - Array of annotation objects
+   * @returns {string} - Issue title
+   */
+  generateLinearIssueTitle(annotations) {
+    if (annotations.length === 1) {
+      const annotation = annotations[0];
+      const text = annotation.messages?.[0]?.text || annotation.comment || 'Annotation';
+      // Truncate to 100 chars for Linear title
+      return text.length > 100 ? text.substring(0, 97) + '...' : text;
+    }
+
+    // Multiple annotations - create a summary title
+    const urls = [...new Set(annotations.map(a => a.url_path || a.url))];
+    if (urls.length === 1) {
+      const pagePath = urls[0].replace(/^https?:\/\/[^/]+/, '') || '/';
+      return `${annotations.length} annotations for ${pagePath}`;
+    }
+
+    return `${annotations.length} annotations from Pointa`;
+  }
+
+  /**
+   * Delete annotations by IDs and their associated images
+   * @param {Array<string>} ids - Array of annotation IDs to delete
+   */
+  async deleteAnnotationsByIds(ids) {
+    // Use save lock to prevent race conditions
+    this.saveLock = this.saveLock.then(async () => {
+      const annotations = await this.loadAnnotations();
+      const toDelete = annotations.filter(a => ids.includes(a.id));
+      const remaining = annotations.filter(a => !ids.includes(a.id));
+
+      // Delete associated images
+      for (const annotation of toDelete) {
+        const imageDir = path.join(IMAGES_DIR, annotation.id);
+        if (existsSync(imageDir)) {
+          try {
+            await rm(imageDir, { recursive: true });
+          } catch (error) {
+            console.warn(`[Linear] Failed to delete images for ${annotation.id}:`, error.message);
+          }
+        }
+      }
+
+      // Save remaining annotations
+      await this._saveAnnotationsInternal(remaining);
+
+      console.log(`[Linear] Deleted ${toDelete.length} annotations after sync to Linear`);
+    });
+
+    return this.saveLock;
   }
 
   async loadBugReports() {

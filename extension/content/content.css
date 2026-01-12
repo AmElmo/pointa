@@ -10452,3 +10452,326 @@ body.sidebar-resizing * {
   opacity: 0.7 !important;
   cursor: wait !important;
 }
+
+/* ============================================
+   LINEAR INTEGRATION STYLES
+   ============================================ */
+
+/* Settings page - Linear API key section */
+.sidebar-linear-api-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sidebar-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--theme-outline);
+  border-radius: 6px;
+  background: var(--theme-surface-1);
+  color: var(--theme-text-primary);
+  font-size: 13px;
+  transition: border-color 0.15s ease;
+}
+
+.sidebar-input:focus {
+  outline: none;
+  border-color: var(--theme-accent);
+}
+
+.sidebar-input::placeholder {
+  color: var(--theme-text-secondary);
+  opacity: 0.7;
+}
+
+.sidebar-linear-save-btn {
+  min-width: 70px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.sidebar-linear-save-loading {
+  display: inline-flex;
+  align-items: center;
+}
+
+.sidebar-linear-status {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.sidebar-linear-status-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.sidebar-linear-status-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.sidebar-setting-link {
+  color: var(--theme-accent);
+  text-decoration: none;
+}
+
+.sidebar-setting-link:hover {
+  text-decoration: underline;
+}
+
+/* Spinner animation */
+.sidebar-spinner {
+  animation: pointa-spin 1s linear infinite;
+}
+
+@keyframes pointa-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sync to Linear button in Ask AI modal footer */
+.pointa-linear-sync-btn {
+  background: linear-gradient(135deg, #5E6AD2 0%, #4B5CC4 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pointa-linear-sync-btn:hover {
+  background: linear-gradient(135deg, #6E7AE2 0%, #5B6CD4 100%);
+  transform: translateY(-1px);
+}
+
+.pointa-linear-sync-btn:active {
+  transform: translateY(0);
+}
+
+.pointa-linear-sync-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Linear Sync Modal Overlay */
+.pointa-linear-sync-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483647;
+  animation: pointa-fade-in 0.2s ease;
+}
+
+.pointa-linear-sync-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 420px;
+  max-width: 90vw;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: pointa-slide-up 0.3s ease;
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-modal {
+  background: #1a1a1a;
+}
+
+.pointa-linear-sync-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-header {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.pointa-linear-sync-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-header h2 {
+  color: #ffffff;
+}
+
+.pointa-linear-sync-close {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #666;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.pointa-linear-sync-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #333;
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-close {
+  color: #999;
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.pointa-linear-sync-body {
+  padding: 24px;
+}
+
+.pointa-linear-sync-info {
+  margin-bottom: 20px;
+}
+
+.pointa-linear-sync-info p {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-info p {
+  color: #999;
+}
+
+.pointa-linear-sync-field {
+  margin-bottom: 16px;
+}
+
+.pointa-linear-sync-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-field label {
+  color: #ccc;
+}
+
+.pointa-linear-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.pointa-linear-select:focus {
+  outline: none;
+  border-color: #5E6AD2;
+}
+
+.pointa-linear-select:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-select {
+  background: #2a2a2a;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.pointa-linear-sync-status {
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.pointa-linear-sync-status-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.pointa-linear-sync-status-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.pointa-linear-sync-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.pointa-linear-sync-overlay[data-pointa-theme="dark"] .pointa-linear-sync-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.pointa-primary-btn {
+  background: linear-gradient(135deg, #5E6AD2 0%, #4B5CC4 100%);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pointa-primary-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6E7AE2 0%, #5B6CD4 100%);
+}
+
+.pointa-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pointa-linear-create-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@keyframes pointa-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
