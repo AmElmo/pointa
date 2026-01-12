@@ -20,6 +20,10 @@ import { randomUUID } from 'crypto';
 import chalk from 'chalk';
 import { WebSocketServer } from 'ws';
 
+// Video processing services
+import { transcribeVideo, parseTranscriptSegments } from './services/whisper-client.js';
+import { segmentVideo, formatTime } from './services/video-segmenter.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -37,6 +41,8 @@ const INSPIRATIONS_FILE = path.join(DATA_DIR, 'inspirations.json');
 const INSPIRATION_SCREENSHOTS_DIR = path.join(DATA_DIR, 'inspiration_screenshots');
 const ISSUE_REPORTS_FILE = path.join(DATA_DIR, 'issue_reports.json');
 const BUG_SCREENSHOTS_DIR = path.join(DATA_DIR, 'bug_screenshots');
+const VIDEO_FEEDBACK_FILE = path.join(DATA_DIR, 'video_feedback.json');
+const VIDEO_DIR = path.join(DATA_DIR, 'videos');
 
 // Configure multer for memory storage (we'll save manually for better control)
 const upload = multer({
@@ -1230,6 +1236,253 @@ class LocalAnnotationsServer {
       } catch (error) {
         console.error('[Linear] Error creating comprehensive issue:', error);
         res.status(500).json({ error: 'Failed to create Linear issue', details: error.message });
+      }
+    });
+
+    // ============================================
+    // Video Processing Endpoints
+    // ============================================
+
+    // Configure multer for video uploads
+    const videoUpload = multer({
+      storage: multer.memoryStorage(),
+      limits: {
+        fileSize: 100 * 1024 * 1024 // 100MB limit for videos
+      }
+    });
+
+    // Process video with SSE streaming updates
+    this.app.post('/api/video/process', videoUpload.single('video'), async (req, res) => {
+      try {
+        const videoBuffer = req.file?.buffer;
+        const recordingDataRaw = req.body.recordingData;
+
+        if (!videoBuffer) {
+          return res.status(400).json({ error: 'No video file provided' });
+        }
+
+        let recordingData = {};
+        if (recordingDataRaw) {
+          try {
+            recordingData = JSON.parse(recordingDataRaw);
+          } catch (e) {
+            console.warn('[Video] Failed to parse recording data:', e.message);
+          }
+        }
+
+        // Set up SSE for progress updates
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        const sendProgress = (data) => {
+          res.write(`data: ${JSON.stringify(data)}\n\n`);
+        };
+
+        console.log('[Video] Starting video processing...');
+
+        // Step 1: Transcribe
+        sendProgress({ status: 'transcribing', message: 'Transcribing audio...', progress: 0 });
+
+        let transcription;
+        try {
+          transcription = await transcribeVideo(videoBuffer, (progress) => {
+            sendProgress({ status: progress.status, message: progress.message, progress: 20 });
+          });
+        } catch (transcriptionError) {
+          console.error('[Video] Transcription error:', transcriptionError);
+          sendProgress({ status: 'error', message: `Transcription failed: ${transcriptionError.message}` });
+          res.end();
+          return;
+        }
+
+        // Send transcript
+        sendProgress({
+          status: 'transcript_ready',
+          message: 'Transcript ready',
+          progress: 40,
+          transcript: transcription.text
+        });
+
+        // Parse transcript into segments
+        const transcriptSegments = parseTranscriptSegments(transcription);
+        sendProgress({
+          status: 'segments_parsed',
+          message: 'Analyzing feedback...',
+          progress: 50,
+          segmentCount: transcriptSegments.length
+        });
+
+        // Step 2: Segment and categorize
+        let feedbackPoints;
+        try {
+          feedbackPoints = await segmentVideo({
+            transcription: { ...transcription, segments: transcriptSegments },
+            clicks: recordingData.clicks || [],
+            pageChanges: recordingData.pageChanges || [],
+            onProgress: (progress) => {
+              const progressValue = progress.status === 'analyzing' ? 60 : 80;
+              sendProgress({ status: progress.status, message: progress.message, progress: progressValue });
+            }
+          });
+        } catch (segmentError) {
+          console.error('[Video] Segmentation error:', segmentError);
+          // Fall back to transcript-only mode
+          feedbackPoints = transcriptSegments.map((seg, idx) => ({
+            id: `fp_${Date.now()}_${idx}`,
+            type: 'annotation',
+            time_range: { start: seg.start * 1000, end: seg.end * 1000 },
+            transcript: seg.text,
+            page_url: recordingData.pageChanges?.[0]?.url || window?.location?.href || 'unknown'
+          }));
+        }
+
+        // Send final result
+        sendProgress({
+          status: 'complete',
+          message: 'Processing complete',
+          progress: 100,
+          feedbackPoints: feedbackPoints,
+          transcript: transcription.text
+        });
+
+        console.log('[Video] Processing complete, found', feedbackPoints.length, 'feedback points');
+        res.end();
+
+      } catch (error) {
+        console.error('[Video] Processing error:', error);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to process video', details: error.message });
+        } else {
+          res.write(`data: ${JSON.stringify({ status: 'error', message: error.message })}\n\n`);
+          res.end();
+        }
+      }
+    });
+
+    // Video feedback CRUD endpoints
+    this.app.get('/api/video-feedback', async (req, res) => {
+      try {
+        const feedbackRecords = await this.loadVideoFeedback();
+        const { status, limit = 50 } = req.query;
+
+        let filtered = feedbackRecords;
+        if (status && status !== 'all') {
+          filtered = filtered.filter(r => r.status === status);
+        }
+
+        filtered = filtered.slice(0, parseInt(limit));
+
+        res.json({
+          video_feedback: filtered,
+          count: filtered.length,
+          total: feedbackRecords.length
+        });
+      } catch (error) {
+        console.error('[Video Feedback] Error loading:', error);
+        res.status(500).json({ error: 'Failed to load video feedback' });
+      }
+    });
+
+    this.app.post('/api/video-feedback', async (req, res) => {
+      try {
+        const feedbackRecord = req.body;
+
+        if (!feedbackRecord.id) {
+          return res.status(400).json({ error: 'Missing required field: id' });
+        }
+
+        const feedbackRecords = await this.loadVideoFeedback();
+        const existingIndex = feedbackRecords.findIndex(r => r.id === feedbackRecord.id);
+
+        if (existingIndex >= 0) {
+          feedbackRecords[existingIndex] = {
+            ...feedbackRecords[existingIndex],
+            ...feedbackRecord,
+            updated_at: new Date().toISOString()
+          };
+        } else {
+          feedbackRecords.push({
+            ...feedbackRecord,
+            created_at: feedbackRecord.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        }
+
+        await this.saveVideoFeedback(feedbackRecords);
+        res.json({ success: true, video_feedback: feedbackRecord });
+      } catch (error) {
+        console.error('[Video Feedback] Error saving:', error);
+        res.status(500).json({ error: 'Failed to save video feedback' });
+      }
+    });
+
+    this.app.delete('/api/video-feedback/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const feedbackRecords = await this.loadVideoFeedback();
+        const index = feedbackRecords.findIndex(r => r.id === id);
+
+        if (index === -1) {
+          return res.status(404).json({ error: 'Video feedback not found' });
+        }
+
+        const deleted = feedbackRecords[index];
+        feedbackRecords.splice(index, 1);
+
+        await this.saveVideoFeedback(feedbackRecords);
+        res.json({ success: true, deleted });
+      } catch (error) {
+        console.error('[Video Feedback] Error deleting:', error);
+        res.status(500).json({ error: 'Failed to delete video feedback' });
+      }
+    });
+
+    // Save video file endpoint
+    this.app.post('/api/videos', videoUpload.single('video'), async (req, res) => {
+      try {
+        const videoBuffer = req.file?.buffer;
+        const { videoId } = req.body;
+
+        if (!videoBuffer || !videoId) {
+          return res.status(400).json({ error: 'Missing video file or videoId' });
+        }
+
+        // Create videos directory if it doesn't exist
+        if (!existsSync(VIDEO_DIR)) {
+          await mkdir(VIDEO_DIR, { recursive: true });
+        }
+
+        const filename = `${videoId}.webm`;
+        const filePath = path.join(VIDEO_DIR, filename);
+        await writeFile(filePath, videoBuffer);
+
+        res.json({
+          success: true,
+          videoId,
+          filename,
+          size: videoBuffer.length
+        });
+      } catch (error) {
+        console.error('[Videos] Error saving:', error);
+        res.status(500).json({ error: 'Failed to save video' });
+      }
+    });
+
+    // Get video file endpoint
+    this.app.get('/api/videos/:videoId', async (req, res) => {
+      try {
+        const { videoId } = req.params;
+        const filePath = path.join(VIDEO_DIR, `${videoId}.webm`);
+
+        if (!existsSync(filePath)) {
+          return res.status(404).json({ error: 'Video not found' });
+        }
+
+        res.sendFile(filePath);
+      } catch (error) {
+        console.error('[Videos] Error retrieving:', error);
+        res.status(404).json({ error: 'Video not found' });
       }
     });
 
@@ -2565,6 +2818,78 @@ class LocalAnnotationsServer {
       } catch (error) {
         console.warn(`Warning: Could not read existing bug reports file: ${error.message}`);
       }
+    }
+  }
+
+  // Video Feedback methods
+  async loadVideoFeedback() {
+    try {
+      if (!existsSync(VIDEO_FEEDBACK_FILE)) {
+        await this.ensureVideoFeedbackFile();
+        return [];
+      }
+      const data = await readFile(VIDEO_FEEDBACK_FILE, 'utf8');
+
+      if (!data || data.trim() === '') {
+        console.warn('Empty video feedback file, initializing with empty array');
+        await this.saveVideoFeedback([]);
+        return [];
+      }
+
+      try {
+        return JSON.parse(data);
+      } catch (parseError) {
+        console.error('Corrupted video feedback JSON, reinitializing:', parseError);
+        await this.saveVideoFeedback([]);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error loading video feedback:', error);
+      return [];
+    }
+  }
+
+  async saveVideoFeedback(feedbackRecords) {
+    const jsonData = JSON.stringify(feedbackRecords, null, 2);
+
+    try {
+      const dataDir = path.dirname(VIDEO_FEEDBACK_FILE);
+      if (!existsSync(dataDir)) {
+        await mkdir(dataDir, { recursive: true });
+      }
+
+      const tempFile = VIDEO_FEEDBACK_FILE + '.tmp';
+      await writeFile(tempFile, jsonData);
+
+      const fs = await import('fs');
+      await fs.promises.rename(tempFile, VIDEO_FEEDBACK_FILE);
+    } catch (error) {
+      console.error('Error saving video feedback:', error);
+
+      // Fallback: try direct write
+      try {
+        await writeFile(VIDEO_FEEDBACK_FILE, jsonData);
+        return;
+      } catch (fallbackError) {
+        console.error('Fallback write also failed:', fallbackError);
+      }
+
+      throw error;
+    }
+  }
+
+  async ensureVideoFeedbackFile() {
+    const dataDir = path.dirname(VIDEO_FEEDBACK_FILE);
+    if (!existsSync(dataDir)) {
+      await mkdir(dataDir, { recursive: true });
+    }
+
+    if (!existsSync(VIDEO_DIR)) {
+      await mkdir(VIDEO_DIR, { recursive: true });
+    }
+
+    if (!existsSync(VIDEO_FEEDBACK_FILE)) {
+      await writeFile(VIDEO_FEEDBACK_FILE, JSON.stringify([], null, 2));
     }
   }
 

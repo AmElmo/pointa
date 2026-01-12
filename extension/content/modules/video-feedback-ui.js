@@ -2,12 +2,18 @@
  * video-feedback-ui.js
  *
  * Review modal UI for video recordings.
- * Shows video playback, list of clicks with timestamps, and page changes.
+ * Shows video playback, AI processing status, feedback points timeline,
+ * category editing, and save functionality.
  */
 
 const VideoFeedbackUI = {
   currentModal: null,
   videoUrl: null,
+  recordingData: null,
+  feedbackPoints: [],
+  transcript: null,
+  processingStatus: 'idle',
+  eventSource: null,
 
   /**
    * Show the video review modal
@@ -21,6 +27,12 @@ const VideoFeedbackUI = {
 
     // Close any existing modal
     this.hide();
+
+    // Store recording data
+    this.recordingData = recordingData;
+    this.feedbackPoints = [];
+    this.transcript = null;
+    this.processingStatus = 'idle';
 
     // Create video URL from blob
     if (recordingData.videoBlob) {
@@ -37,8 +49,6 @@ const VideoFeedbackUI = {
     modal.className = 'pointa-comment-modal video-feedback-modal';
     modal.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
 
-    const clicksHTML = this.buildClicksList(recordingData.clicks || []);
-    const pageChangesHTML = this.buildPageChangesList(recordingData.pageChanges || []);
     const videoSize = recordingData.videoSize ? this.formatFileSize(recordingData.videoSize) : 'Unknown';
 
     modal.innerHTML = `
@@ -71,14 +81,17 @@ const VideoFeedbackUI = {
                   <line x1="7" y1="2" x2="7" y2="22"></line>
                   <line x1="17" y1="2" x2="17" y2="22"></line>
                   <line x1="2" y1="12" x2="22" y2="12"></line>
-                  <line x1="2" y1="7" x2="7" y2="7"></line>
-                  <line x1="2" y1="17" x2="7" y2="17"></line>
-                  <line x1="17" y1="17" x2="22" y2="17"></line>
-                  <line x1="17" y1="7" x2="22" y2="7"></line>
                 </svg>
                 <p>Video not available</p>
               </div>
             `}
+
+            <!-- Timeline with markers -->
+            <div class="video-timeline" id="video-timeline">
+              <div class="video-timeline-track"></div>
+              <div class="video-timeline-markers" id="timeline-markers"></div>
+            </div>
+
             <div class="video-feedback-meta">
               <span class="video-meta-item">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -104,26 +117,30 @@ const VideoFeedbackUI = {
             </div>
           </div>
 
-          <!-- Tabs for clicks and page changes -->
-          <div class="video-feedback-tabs">
-            <button class="video-feedback-tab active" data-tab="clicks">
-              <span class="tab-icon">🖱️</span>
-              <span class="tab-label">Clicks</span>
-              <span class="tab-count">${recordingData.clicks?.length || 0}</span>
-            </button>
-            <button class="video-feedback-tab" data-tab="pages">
-              <span class="tab-icon">📄</span>
-              <span class="tab-label">Page Changes</span>
-              <span class="tab-count">${(recordingData.pageChanges?.length || 1) - 1}</span>
-            </button>
+          <!-- Processing Status -->
+          <div class="video-processing-status" id="processing-status">
+            <div class="processing-spinner"></div>
+            <span class="processing-message">Waiting to process...</span>
+            <div class="processing-progress-bar">
+              <div class="processing-progress-fill" style="width: 0%"></div>
+            </div>
           </div>
 
-          <!-- Tab content -->
-          <div class="video-feedback-tab-content active" data-tab-content="clicks">
-            ${clicksHTML}
+          <!-- Transcript Section -->
+          <div class="video-transcript-section" id="transcript-section" style="display: none;">
+            <h4 class="section-title">
+              <span>📝</span> Transcript
+            </h4>
+            <div class="video-transcript-content" id="transcript-content"></div>
           </div>
-          <div class="video-feedback-tab-content" data-tab-content="pages">
-            ${pageChangesHTML}
+
+          <!-- Feedback Points Section -->
+          <div class="video-feedback-points-section" id="feedback-points-section" style="display: none;">
+            <h4 class="section-title">
+              <span>📋</span> Feedback Points
+              <span class="feedback-count" id="feedback-count">0</span>
+            </h4>
+            <div class="video-feedback-points-list" id="feedback-points-list"></div>
           </div>
         </div>
 
@@ -131,13 +148,13 @@ const VideoFeedbackUI = {
           <button class="pointa-btn pointa-btn-secondary" id="video-feedback-dismiss">
             Dismiss
           </button>
-          <button class="pointa-btn pointa-btn-primary" id="video-feedback-save" disabled title="Save functionality coming in Part 2">
+          <button class="pointa-btn pointa-btn-primary" id="video-feedback-save" disabled>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
               <polyline points="17 21 17 13 7 13 7 21"></polyline>
               <polyline points="7 3 7 8 15 8"></polyline>
             </svg>
-            Save (Coming Soon)
+            Save All
           </button>
         </div>
       </div>
@@ -151,6 +168,9 @@ const VideoFeedbackUI = {
 
     // Set up event listeners
     this.setupEventListeners(recordingData);
+
+    // Start processing automatically
+    this.startProcessing();
   },
 
   /**
@@ -159,6 +179,11 @@ const VideoFeedbackUI = {
   hide() {
     if (window.PointaModalManager) {
       window.PointaModalManager.unregisterModal('video-feedback');
+    }
+
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
     }
 
     if (this.videoUrl) {
@@ -170,78 +195,491 @@ const VideoFeedbackUI = {
       this.currentModal.remove();
       this.currentModal = null;
     }
+
+    this.feedbackPoints = [];
+    this.transcript = null;
+    this.recordingData = null;
   },
 
   /**
-   * Build clicks list HTML
-   * @param {Array} clicks - Array of click events
-   * @returns {string} HTML string
+   * Start video processing via SSE
    */
-  buildClicksList(clicks) {
-    if (clicks.length === 0) {
-      return `
-        <div class="video-feedback-empty">
-          <span class="empty-icon">🖱️</span>
-          <p>No clicks recorded</p>
-        </div>
-      `;
+  async startProcessing() {
+    if (!this.recordingData?.videoBlob) {
+      this.updateProcessingStatus('error', 'No video to process');
+      return;
     }
 
-    const items = clicks.map((click, index) => {
-      const element = click.element || {};
-      const elementDesc = element.textContent?.substring(0, 30) || element.id || element.tagName || 'Unknown';
+    this.updateProcessingStatus('starting', 'Starting processing...');
+
+    try {
+      // Create FormData with video and recording data
+      const formData = new FormData();
+      formData.append('video', this.recordingData.videoBlob, 'recording.webm');
+      formData.append('recordingData', JSON.stringify({
+        clicks: this.recordingData.clicks || [],
+        pageChanges: this.recordingData.pageChanges || [],
+        duration: this.recordingData.duration,
+        metadata: this.recordingData.metadata
+      }));
+
+      // Use fetch with streaming for SSE-like processing
+      const response = await fetch('http://localhost:4242/api/video/process', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`Processing failed: ${response.status}`);
+      }
+
+      // Read SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              this.handleProcessingUpdate(data);
+            } catch (e) {
+              console.warn('[VideoFeedbackUI] Failed to parse SSE data:', e);
+            }
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('[VideoFeedbackUI] Processing error:', error);
+      this.updateProcessingStatus('error', `Processing failed: ${error.message}`);
+    }
+  },
+
+  /**
+   * Handle processing update from SSE
+   * @param {Object} data - Update data
+   */
+  handleProcessingUpdate(data) {
+    this.updateProcessingStatus(data.status, data.message, data.progress);
+
+    if (data.transcript) {
+      this.transcript = data.transcript;
+      this.showTranscript(data.transcript);
+    }
+
+    if (data.feedbackPoints) {
+      this.feedbackPoints = data.feedbackPoints;
+      this.renderFeedbackPoints();
+      this.renderTimelineMarkers();
+      this.enableSaveButton();
+    }
+
+    if (data.status === 'complete') {
+      this.hideProcessingStatus();
+    }
+
+    if (data.status === 'error') {
+      this.updateProcessingStatus('error', data.message);
+    }
+  },
+
+  /**
+   * Update processing status display
+   * @param {string} status - Status type
+   * @param {string} message - Status message
+   * @param {number} progress - Progress percentage (0-100)
+   */
+  updateProcessingStatus(status, message, progress = 0) {
+    const statusEl = this.currentModal?.querySelector('#processing-status');
+    if (!statusEl) return;
+
+    statusEl.style.display = 'flex';
+    const messageEl = statusEl.querySelector('.processing-message');
+    const progressEl = statusEl.querySelector('.processing-progress-fill');
+    const spinnerEl = statusEl.querySelector('.processing-spinner');
+
+    if (messageEl) messageEl.textContent = message;
+    if (progressEl) progressEl.style.width = `${progress}%`;
+
+    if (status === 'error') {
+      statusEl.classList.add('error');
+      if (spinnerEl) spinnerEl.style.display = 'none';
+    } else if (status === 'complete') {
+      statusEl.classList.add('complete');
+      if (spinnerEl) spinnerEl.style.display = 'none';
+    } else {
+      statusEl.classList.remove('error', 'complete');
+      if (spinnerEl) spinnerEl.style.display = 'block';
+    }
+
+    this.processingStatus = status;
+  },
+
+  /**
+   * Hide processing status
+   */
+  hideProcessingStatus() {
+    const statusEl = this.currentModal?.querySelector('#processing-status');
+    if (statusEl) {
+      setTimeout(() => {
+        statusEl.style.display = 'none';
+      }, 1000);
+    }
+  },
+
+  /**
+   * Show transcript section
+   * @param {string} transcript - Transcript text
+   */
+  showTranscript(transcript) {
+    const section = this.currentModal?.querySelector('#transcript-section');
+    const content = this.currentModal?.querySelector('#transcript-content');
+
+    if (section && content) {
+      section.style.display = 'block';
+      content.textContent = transcript;
+    }
+  },
+
+  /**
+   * Render feedback points list
+   */
+  renderFeedbackPoints() {
+    const section = this.currentModal?.querySelector('#feedback-points-section');
+    const list = this.currentModal?.querySelector('#feedback-points-list');
+    const countEl = this.currentModal?.querySelector('#feedback-count');
+
+    if (!section || !list) return;
+
+    section.style.display = 'block';
+    if (countEl) countEl.textContent = this.feedbackPoints.length;
+
+    // Group by page URL
+    const grouped = this.groupByPageUrl(this.feedbackPoints);
+
+    list.innerHTML = Object.entries(grouped).map(([url, points]) => `
+      <div class="feedback-page-group">
+        <div class="feedback-page-header">
+          <span class="page-icon">📄</span>
+          <span class="page-url">${this.truncateUrl(url)}</span>
+          <span class="page-count">${points.length} items</span>
+        </div>
+        <div class="feedback-page-items">
+          ${points.map((point, idx) => this.renderFeedbackPoint(point, idx)).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    // Set up feedback point event handlers
+    this.setupFeedbackPointHandlers();
+  },
+
+  /**
+   * Render a single feedback point
+   * @param {Object} point - Feedback point data
+   * @param {number} index - Point index
+   * @returns {string} HTML string
+   */
+  renderFeedbackPoint(point, index) {
+    const typeLabels = {
+      'annotation': { label: 'Annotation', icon: '💬', color: '#0c8ce9' },
+      'bug_report': { label: 'Bug', icon: '🐛', color: '#ef4444' },
+      'performance_report': { label: 'Performance', icon: '⚡', color: '#f59e0b' }
+    };
+
+    const typeInfo = typeLabels[point.type] || typeLabels['annotation'];
+    const startTime = this.formatTime(point.time_range?.start || 0);
+    const endTime = this.formatTime(point.time_range?.end || 0);
+
+    return `
+      <div class="feedback-point" data-point-id="${point.id}" data-start="${point.time_range?.start || 0}">
+        <div class="feedback-point-header">
+          <div class="feedback-point-time" title="Click to seek">
+            ${startTime} - ${endTime}
+          </div>
+          <div class="feedback-point-category">
+            <select class="category-select" data-point-id="${point.id}">
+              <option value="annotation" ${point.type === 'annotation' ? 'selected' : ''}>💬 Annotation</option>
+              <option value="bug_report" ${point.type === 'bug_report' ? 'selected' : ''}>🐛 Bug</option>
+              <option value="performance_report" ${point.type === 'performance_report' ? 'selected' : ''}>⚡ Performance</option>
+            </select>
+          </div>
+          <button class="feedback-point-delete" data-point-id="${point.id}" title="Delete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="feedback-point-transcript">${this.escapeHtml(point.transcript || '')}</div>
+        ${point.element_context ? `
+          <div class="feedback-point-element" title="${this.escapeHtml(point.element_context.selector || '')}">
+            ${point.element_context.tagName || 'element'}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  },
+
+  /**
+   * Render timeline markers for feedback points
+   */
+  renderTimelineMarkers() {
+    const markersEl = this.currentModal?.querySelector('#timeline-markers');
+    const videoEl = this.currentModal?.querySelector('#video-feedback-player');
+
+    if (!markersEl || !videoEl) return;
+
+    const duration = this.recordingData?.duration || (videoEl.duration * 1000) || 1;
+
+    markersEl.innerHTML = this.feedbackPoints.map(point => {
+      const startMs = point.time_range?.start || 0;
+      const position = (startMs / duration) * 100;
+      const typeColors = {
+        'annotation': '#0c8ce9',
+        'bug_report': '#ef4444',
+        'performance_report': '#f59e0b'
+      };
+      const color = typeColors[point.type] || '#0c8ce9';
 
       return `
-        <div class="video-feedback-item" data-timestamp="${click.timestamp}">
-          <div class="video-feedback-item-time">${click.timestampFormatted || '00:00'}</div>
-          <div class="video-feedback-item-icon">🖱️</div>
-          <div class="video-feedback-item-content">
-            <div class="video-feedback-item-title">Click #${index + 1}</div>
-            <div class="video-feedback-item-desc">${this.escapeHtml(elementDesc)}</div>
-            <div class="video-feedback-item-selector" title="${this.escapeHtml(element.selector || '')}">${this.escapeHtml(this.truncateSelector(element.selector || ''))}</div>
-          </div>
+        <div class="timeline-marker"
+             data-point-id="${point.id}"
+             data-start="${startMs}"
+             style="left: ${position}%; background-color: ${color};"
+             title="${this.formatTime(startMs)} - ${point.type}">
         </div>
       `;
     }).join('');
 
-    return `<div class="video-feedback-list">${items}</div>`;
+    // Add marker click handlers
+    markersEl.querySelectorAll('.timeline-marker').forEach(marker => {
+      marker.addEventListener('click', () => {
+        const startMs = parseInt(marker.dataset.start, 10);
+        if (videoEl && !isNaN(startMs)) {
+          videoEl.currentTime = startMs / 1000;
+          videoEl.play();
+        }
+      });
+    });
   },
 
   /**
-   * Build page changes list HTML
-   * @param {Array} pageChanges - Array of page change events
-   * @returns {string} HTML string
+   * Set up event handlers for feedback points
    */
-  buildPageChangesList(pageChanges) {
-    // Filter out initial page (show only navigations)
-    const navigations = pageChanges.filter(p => p.type === 'navigation');
+  setupFeedbackPointHandlers() {
+    const modal = this.currentModal;
+    if (!modal) return;
 
-    if (navigations.length === 0) {
-      return `
-        <div class="video-feedback-empty">
-          <span class="empty-icon">📄</span>
-          <p>No page changes during recording</p>
-        </div>
-      `;
+    // Time click to seek
+    modal.querySelectorAll('.feedback-point-time').forEach(el => {
+      el.addEventListener('click', () => {
+        const point = el.closest('.feedback-point');
+        const startMs = parseInt(point?.dataset.start, 10);
+        const videoEl = modal.querySelector('#video-feedback-player');
+        if (videoEl && !isNaN(startMs)) {
+          videoEl.currentTime = startMs / 1000;
+          videoEl.play();
+        }
+      });
+    });
+
+    // Category change
+    modal.querySelectorAll('.category-select').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const pointId = e.target.dataset.pointId;
+        const newType = e.target.value;
+        this.updatePointCategory(pointId, newType);
+      });
+    });
+
+    // Delete button
+    modal.querySelectorAll('.feedback-point-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const pointId = e.target.closest('button').dataset.pointId;
+        this.deletePoint(pointId);
+      });
+    });
+  },
+
+  /**
+   * Update a feedback point's category
+   * @param {string} pointId - Point ID
+   * @param {string} newType - New category type
+   */
+  updatePointCategory(pointId, newType) {
+    const point = this.feedbackPoints.find(p => p.id === pointId);
+    if (point) {
+      point.type = newType;
+      this.renderTimelineMarkers(); // Update marker colors
+    }
+  },
+
+  /**
+   * Delete a feedback point
+   * @param {string} pointId - Point ID
+   */
+  deletePoint(pointId) {
+    this.feedbackPoints = this.feedbackPoints.filter(p => p.id !== pointId);
+    this.renderFeedbackPoints();
+    this.renderTimelineMarkers();
+
+    // Update save button state
+    if (this.feedbackPoints.length === 0) {
+      const saveBtn = this.currentModal?.querySelector('#video-feedback-save');
+      if (saveBtn) saveBtn.disabled = true;
+    }
+  },
+
+  /**
+   * Enable the save button
+   */
+  enableSaveButton() {
+    const saveBtn = this.currentModal?.querySelector('#video-feedback-save');
+    if (saveBtn) {
+      saveBtn.disabled = false;
+    }
+  },
+
+  /**
+   * Save all feedback points as individual items
+   */
+  async saveAll() {
+    if (this.feedbackPoints.length === 0) return;
+
+    const saveBtn = this.currentModal?.querySelector('#video-feedback-save');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<span class="processing-spinner small"></span> Saving...';
     }
 
-    const items = navigations.map((change, index) => {
-      const urlObj = this.parseUrl(change.url);
+    try {
+      for (const point of this.feedbackPoints) {
+        await this.saveFeedbackPoint(point);
+      }
 
-      return `
-        <div class="video-feedback-item" data-timestamp="${change.timestamp}">
-          <div class="video-feedback-item-time">${change.timestampFormatted || '00:00'}</div>
-          <div class="video-feedback-item-icon">📄</div>
-          <div class="video-feedback-item-content">
-            <div class="video-feedback-item-title">Navigation #${index + 1}</div>
-            <div class="video-feedback-item-desc">${this.escapeHtml(urlObj.pathname || '/')}</div>
-            <div class="video-feedback-item-url" title="${this.escapeHtml(change.url)}">${this.escapeHtml(urlObj.host)}</div>
-          </div>
-        </div>
-      `;
-    }).join('');
+      // Show success
+      if (saveBtn) {
+        saveBtn.innerHTML = '✓ Saved!';
+      }
 
-    return `<div class="video-feedback-list">${items}</div>`;
+      // Close modal after brief delay
+      setTimeout(() => {
+        this.hide();
+      }, 1500);
+
+    } catch (error) {
+      console.error('[VideoFeedbackUI] Save error:', error);
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = 'Save Failed - Retry';
+      }
+    }
+  },
+
+  /**
+   * Save a single feedback point as an annotation/bug/perf report
+   * @param {Object} point - Feedback point
+   */
+  async saveFeedbackPoint(point) {
+    const baseUrl = 'http://localhost:4242';
+
+    if (point.type === 'annotation') {
+      // Save as annotation
+      const annotation = {
+        id: `pointa_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        url: point.page_url,
+        status: 'pending',
+        messages: [{
+          id: `msg_${Date.now()}`,
+          type: 'user',
+          content: point.transcript,
+          created_at: new Date().toISOString()
+        }],
+        element_context: point.element_context,
+        source: 'video',
+        video_time_range: point.time_range,
+        created_at: new Date().toISOString()
+      };
+
+      await fetch(`${baseUrl}/api/annotations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(annotation)
+      });
+
+    } else if (point.type === 'bug_report') {
+      // Save as bug report
+      const bugReport = {
+        id: `bug_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'bug-report',
+        status: 'active',
+        report: point.transcript,
+        context: {
+          page: {
+            url: point.page_url
+          }
+        },
+        element_context: point.element_context,
+        source: 'video',
+        video_time_range: point.time_range,
+        created: new Date().toISOString()
+      };
+
+      await fetch(`${baseUrl}/api/bug-reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bugReport)
+      });
+
+    } else if (point.type === 'performance_report') {
+      // Save as performance report
+      const perfReport = {
+        id: `perf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: 'performance-investigation',
+        status: 'active',
+        report: point.transcript,
+        context: {
+          page: {
+            url: point.page_url
+          }
+        },
+        element_context: point.element_context,
+        source: 'video',
+        video_time_range: point.time_range,
+        created: new Date().toISOString()
+      };
+
+      await fetch(`${baseUrl}/api/bug-reports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(perfReport)
+      });
+    }
+  },
+
+  /**
+   * Group feedback points by page URL
+   * @param {Array} points - Feedback points
+   * @returns {Object} Grouped points
+   */
+  groupByPageUrl(points) {
+    const grouped = {};
+    for (const point of points) {
+      const url = point.page_url || 'Unknown Page';
+      if (!grouped[url]) grouped[url] = [];
+      grouped[url].push(point);
+    }
+    return grouped;
   },
 
   /**
@@ -264,39 +702,10 @@ const VideoFeedbackUI = {
       dismissBtn.addEventListener('click', () => this.hide());
     }
 
-    // Tab switching
-    const tabs = modal.querySelectorAll('.video-feedback-tab');
-    const tabContents = modal.querySelectorAll('.video-feedback-tab-content');
-
-    tabs.forEach(tab => {
-      tab.addEventListener('click', () => {
-        const targetTab = tab.dataset.tab;
-
-        tabs.forEach(t => t.classList.remove('active'));
-        tabContents.forEach(c => c.classList.remove('active'));
-
-        tab.classList.add('active');
-        const targetContent = modal.querySelector(`[data-tab-content="${targetTab}"]`);
-        if (targetContent) {
-          targetContent.classList.add('active');
-        }
-      });
-    });
-
-    // Click on timeline items to seek video
-    const timelineItems = modal.querySelectorAll('.video-feedback-item');
-    const videoPlayer = modal.querySelector('#video-feedback-player');
-
-    if (videoPlayer) {
-      timelineItems.forEach(item => {
-        item.addEventListener('click', () => {
-          const timestamp = parseInt(item.dataset.timestamp, 10);
-          if (!isNaN(timestamp)) {
-            videoPlayer.currentTime = timestamp / 1000;
-            videoPlayer.play();
-          }
-        });
-      });
+    // Save button
+    const saveBtn = modal.querySelector('#video-feedback-save');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', () => this.saveAll());
     }
 
     // ESC to close
@@ -317,6 +726,18 @@ const VideoFeedbackUI = {
   },
 
   /**
+   * Format time in milliseconds to MM:SS
+   * @param {number} ms - Time in milliseconds
+   * @returns {string} Formatted time
+   */
+  formatTime(ms) {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  },
+
+  /**
    * Format file size
    * @param {number} bytes - Size in bytes
    * @returns {string} Formatted size
@@ -330,26 +751,21 @@ const VideoFeedbackUI = {
   },
 
   /**
-   * Parse URL safely
-   * @param {string} url - URL to parse
-   * @returns {Object} Parsed URL parts
+   * Truncate URL for display
+   * @param {string} url - URL to truncate
+   * @returns {string} Truncated URL
    */
-  parseUrl(url) {
+  truncateUrl(url) {
     try {
-      return new URL(url);
+      const parsed = new URL(url);
+      const path = parsed.pathname;
+      if (path.length > 40) {
+        return parsed.host + path.substring(0, 37) + '...';
+      }
+      return parsed.host + path;
     } catch {
-      return { pathname: url, host: '' };
+      return url.substring(0, 50);
     }
-  },
-
-  /**
-   * Truncate selector for display
-   * @param {string} selector - CSS selector
-   * @returns {string} Truncated selector
-   */
-  truncateSelector(selector) {
-    if (selector.length <= 40) return selector;
-    return selector.substring(0, 37) + '...';
   },
 
   /**
@@ -374,7 +790,7 @@ const VideoFeedbackUI = {
     style.id = 'video-feedback-ui-styles';
     style.textContent = `
       .video-feedback-modal .pointa-comment-modal-content {
-        max-width: 700px;
+        max-width: 800px;
         width: 95vw;
         max-height: 90vh;
         display: flex;
@@ -409,9 +825,46 @@ const VideoFeedbackUI = {
         color: var(--theme-text-secondary, #666);
       }
 
-      .video-feedback-no-video svg {
-        opacity: 0.5;
-        margin-bottom: 12px;
+      /* Timeline */
+      .video-timeline {
+        position: relative;
+        height: 24px;
+        margin: 12px 0;
+        cursor: pointer;
+      }
+
+      .video-timeline-track {
+        position: absolute;
+        top: 10px;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--theme-outline, #e0e0e0);
+        border-radius: 2px;
+      }
+
+      .video-timeline-markers {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 100%;
+      }
+
+      .timeline-marker {
+        position: absolute;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        transform: translate(-50%, 50%);
+        cursor: pointer;
+        transition: transform 0.2s ease;
+        border: 2px solid white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      }
+
+      .timeline-marker:hover {
+        transform: translate(-50%, 50%) scale(1.3);
       }
 
       .video-feedback-meta {
@@ -429,142 +882,241 @@ const VideoFeedbackUI = {
         color: var(--theme-text-secondary, #666);
       }
 
-      .video-meta-item svg {
-        opacity: 0.7;
-      }
-
-      .video-feedback-tabs {
+      /* Processing Status */
+      .video-processing-status {
         display: flex;
-        gap: 8px;
-        margin-bottom: 12px;
-        border-bottom: 1px solid var(--theme-outline, #e0e0e0);
-        padding-bottom: 12px;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 20px;
+        background: var(--theme-surface, #f5f5f5);
+        border-radius: 12px;
+        margin-bottom: 16px;
       }
 
-      .video-feedback-tab {
+      .video-processing-status.error {
+        background: #fef2f2;
+      }
+
+      .video-processing-status.error .processing-message {
+        color: #dc2626;
+      }
+
+      .video-processing-status.complete {
+        background: #f0fdf4;
+      }
+
+      .video-processing-status.complete .processing-message {
+        color: #16a34a;
+      }
+
+      .processing-spinner {
+        width: 24px;
+        height: 24px;
+        border: 3px solid var(--theme-outline, #e0e0e0);
+        border-top-color: var(--theme-primary, #0c8ce9);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      .processing-spinner.small {
+        width: 14px;
+        height: 14px;
+        border-width: 2px;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      .processing-message {
+        font-size: 14px;
+        color: var(--theme-text-primary, #333);
+      }
+
+      .processing-progress-bar {
+        width: 100%;
+        max-width: 300px;
+        height: 4px;
+        background: var(--theme-outline, #e0e0e0);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+
+      .processing-progress-fill {
+        height: 100%;
+        background: var(--theme-primary, #0c8ce9);
+        transition: width 0.3s ease;
+      }
+
+      /* Transcript Section */
+      .video-transcript-section {
+        margin-bottom: 16px;
+      }
+
+      .section-title {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 8px 12px;
-        border: none;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--theme-text-primary, #333);
+      }
+
+      .video-transcript-content {
+        padding: 12px;
         background: var(--theme-surface, #f5f5f5);
         border-radius: 8px;
         font-size: 13px;
-        color: var(--theme-text-secondary, #666);
-        cursor: pointer;
-        transition: all 0.2s ease;
+        line-height: 1.6;
+        max-height: 150px;
+        overflow-y: auto;
+        color: var(--theme-text-primary, #333);
       }
 
-      .video-feedback-tab:hover {
-        background: var(--theme-surface-hover, #e8e8e8);
+      /* Feedback Points Section */
+      .video-feedback-points-section {
+        margin-bottom: 16px;
       }
 
-      .video-feedback-tab.active {
+      .feedback-count {
         background: var(--theme-primary, #0c8ce9);
-        color: #fff;
-      }
-
-      .video-feedback-tab .tab-count {
-        background: rgba(0, 0, 0, 0.1);
-        padding: 2px 6px;
+        color: white;
+        padding: 2px 8px;
         border-radius: 10px;
         font-size: 11px;
         font-weight: 600;
       }
 
-      .video-feedback-tab.active .tab-count {
-        background: rgba(255, 255, 255, 0.2);
-      }
-
-      .video-feedback-tab-content {
-        display: none;
-      }
-
-      .video-feedback-tab-content.active {
-        display: block;
-      }
-
-      .video-feedback-list {
+      .video-feedback-points-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        max-height: 250px;
+        gap: 12px;
+        max-height: 300px;
         overflow-y: auto;
       }
 
-      .video-feedback-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 10px 12px;
+      .feedback-page-group {
         background: var(--theme-surface, #f5f5f5);
         border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
+        overflow: hidden;
       }
 
-      .video-feedback-item:hover {
-        background: var(--theme-surface-hover, #e8e8e8);
+      .feedback-page-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        background: rgba(0,0,0,0.05);
+        font-size: 12px;
       }
 
-      .video-feedback-item-time {
+      .page-icon {
+        font-size: 14px;
+      }
+
+      .page-url {
+        flex: 1;
+        font-family: monospace;
+        color: var(--theme-text-secondary, #666);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .page-count {
+        background: rgba(0,0,0,0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
+
+      .feedback-page-items {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .feedback-point {
+        padding: 12px;
+        background: var(--theme-background, #fff);
+        border-left: 3px solid transparent;
+        transition: border-color 0.2s ease;
+      }
+
+      .feedback-point:hover {
+        border-left-color: var(--theme-primary, #0c8ce9);
+      }
+
+      .feedback-point-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .feedback-point-time {
         font-size: 12px;
         font-weight: 600;
         color: var(--theme-primary, #0c8ce9);
         font-variant-numeric: tabular-nums;
-        min-width: 40px;
+        cursor: pointer;
       }
 
-      .video-feedback-item-icon {
-        font-size: 16px;
+      .feedback-point-time:hover {
+        text-decoration: underline;
       }
 
-      .video-feedback-item-content {
+      .feedback-point-category {
         flex: 1;
-        min-width: 0;
       }
 
-      .video-feedback-item-title {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--theme-text-primary, #333);
-        margin-bottom: 2px;
-      }
-
-      .video-feedback-item-desc {
+      .category-select {
+        padding: 4px 8px;
+        border: 1px solid var(--theme-outline, #e0e0e0);
+        border-radius: 4px;
         font-size: 12px;
-        color: var(--theme-text-secondary, #666);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        background: var(--theme-background, #fff);
+        cursor: pointer;
       }
 
-      .video-feedback-item-selector,
-      .video-feedback-item-url {
-        font-size: 11px;
-        color: var(--theme-text-tertiary, #999);
-        font-family: monospace;
-        margin-top: 4px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .video-feedback-empty {
+      .feedback-point-delete {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 40px;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: transparent;
+        color: var(--theme-text-secondary, #666);
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+      }
+
+      .feedback-point-delete:hover {
+        background: #fef2f2;
+        color: #dc2626;
+      }
+
+      .feedback-point-transcript {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--theme-text-primary, #333);
+      }
+
+      .feedback-point-element {
+        margin-top: 8px;
+        padding: 4px 8px;
+        background: rgba(0,0,0,0.05);
+        border-radius: 4px;
+        font-size: 11px;
+        font-family: monospace;
         color: var(--theme-text-secondary, #666);
       }
 
-      .video-feedback-empty .empty-icon {
-        font-size: 32px;
-        margin-bottom: 8px;
-        opacity: 0.5;
-      }
-
+      /* Actions */
       .video-feedback-actions {
         display: flex;
         justify-content: flex-end;
@@ -583,6 +1135,16 @@ const VideoFeedbackUI = {
       .video-feedback-actions .pointa-btn:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 600px) {
+        .video-feedback-modal .pointa-comment-modal-content {
+          max-width: 100%;
+          width: 100%;
+          max-height: 100vh;
+          border-radius: 0;
+        }
       }
     `;
 
