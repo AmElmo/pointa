@@ -2725,6 +2725,12 @@ ${taskDescription}`;
               <img src="${chrome.runtime.getURL('assets/icons/stars.png')}" width="20" height="20" alt="Ask AI" class="sidebar-icon" />
               <span class="sidebar-tooltip">Ask AI</span>
             </button>
+            <button id="sidebar-linear-sync-btn" class="sidebar-quick-action-btn sidebar-linear-sync-btn" data-tooltip="Sync to Linear" style="display: none;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.59 5.58L20 12l-8-8-8 8z" fill="currentColor" stroke="none"/>
+              </svg>
+              <span class="sidebar-tooltip">Sync to Linear</span>
+            </button>
             <button id="sidebar-notification-center-btn" class="sidebar-quick-action-btn ${this.notificationCenterOpen ? 'active' : ''}" data-tooltip="To Review">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -4491,16 +4497,6 @@ ${taskDescription}`;
         
         <div class="pointa-ask-ai-footer">
           <button class="pointa-secondary-btn" data-close-modal>Close</button>
-          ${hasContent ? `
-          <button class="pointa-linear-sync-btn" id="pointa-linear-sync-btn">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5.46289 4.46777L5.46289 4.46777C3.74907 6.23851 3 8.4258 3 12C3 15.5742 3.74907 17.7615 5.46289 19.5322C7.22861 21.3569 9.7707 22.5 14 22.5C14.4142 22.5 14.75 22.8358 14.75 23.25C14.75 23.6642 14.4142 24 14 24C9.4293 24 6.37139 22.7681 4.23711 20.5428C2.05093 18.2635 1.5 15.4258 1.5 12C1.5 8.5742 2.05093 5.73649 4.23711 3.45723C6.37139 1.23192 9.4293 0 14 0C18.5707 0 21.6286 1.23192 23.7629 3.45723C25.9491 5.73649 26.5 8.5742 26.5 12C26.5 15.4258 25.9491 18.2635 23.7629 20.5428C23.4759 20.8398 23.0011 20.8482 22.7041 20.5611C22.4071 20.2741 22.3988 19.7993 22.6858 19.5023L22.7629 19.5822L22.6858 19.5023C24.3934 17.7337 25 15.5742 25 12C25 8.4258 24.3934 6.26627 22.6858 4.49766L22.6858 4.49764C20.9193 2.66805 18.3707 1.5 14 1.5C9.6293 1.5 7.08069 2.66805 5.46289 4.46777Z" fill="currentColor"/>
-              <path d="M14 5.25C12.2051 5.25 10.75 6.70507 10.75 8.5C10.75 10.2949 12.2051 11.75 14 11.75C15.7949 11.75 17.25 10.2949 17.25 8.5C17.25 6.70507 15.7949 5.25 14 5.25ZM9.25 8.5C9.25 5.87665 11.3766 3.75 14 3.75C16.6234 3.75 18.75 5.87665 18.75 8.5C18.75 11.1234 16.6234 13.25 14 13.25C11.3766 13.25 9.25 11.1234 9.25 8.5Z" fill="currentColor"/>
-              <path d="M14 15.75C10.7543 15.75 7.75 17.5414 7.75 20.5V23.25C7.75 23.6642 7.41421 24 7 24C6.58579 24 6.25 23.6642 6.25 23.25V20.5C6.25 16.3586 10.2957 14.25 14 14.25C17.7043 14.25 21.75 16.3586 21.75 20.5V23.25C21.75 23.6642 21.4142 24 21 24C20.5858 24 20.25 23.6642 20.25 23.25V20.5C20.25 17.5414 17.2457 15.75 14 15.75Z" fill="currentColor"/>
-            </svg>
-            Sync to Linear
-          </button>
-          ` : ''}
         </div>
       </div>
     `;
@@ -4940,33 +4936,6 @@ IMPORTANT - Git Workflow:
           const tool = option.dataset.tool;
           await sendToTool(tool, option);
         });
-      });
-    }
-
-    // Linear sync button handler
-    const linearSyncBtn = overlay.querySelector('#pointa-linear-sync-btn');
-    if (linearSyncBtn) {
-      linearSyncBtn.addEventListener('click', async () => {
-        // Get selected annotations
-        const annotationCheckboxes = overlay.querySelectorAll('.pointa-page-checkbox');
-        const selectedUrls = Array.from(annotationCheckboxes)
-          .filter((cb) => cb.checked)
-          .map((cb) => cb.dataset.pageUrl);
-
-        // Collect annotation IDs from selected pages
-        const selectedAnnotationIds = [];
-        selectedUrls.forEach((url) => {
-          const annotations = pageGroups.get(url) || [];
-          annotations.forEach((a) => selectedAnnotationIds.push(a.id));
-        });
-
-        if (selectedAnnotationIds.length === 0) {
-          alert('Please select at least one annotation to sync to Linear.');
-          return;
-        }
-
-        // Show Linear sync modal
-        await this.showLinearSyncModal(selectedAnnotationIds, overlay);
       });
     }
 
@@ -6011,6 +5980,31 @@ IMPORTANT - Git Workflow:
 
     }
 
+    // Linear sync button - conditionally shown based on settings
+    const linearSyncBtn = this.sidebar.querySelector('#sidebar-linear-sync-btn');
+    if (linearSyncBtn) {
+      // Check if Linear is enabled and API key exists
+      const checkLinearEnabled = async () => {
+        const [storageResult, apiKeyResponse] = await Promise.all([
+          new Promise(resolve => chrome.storage.local.get(['linearEnabled'], resolve)),
+          new Promise(resolve => chrome.runtime.sendMessage({ action: 'getLinearApiKey' }, resolve))
+        ]);
+
+        const isEnabled = storageResult.linearEnabled || false;
+        const hasApiKey = apiKeyResponse?.success && apiKeyResponse.apiKey;
+
+        linearSyncBtn.style.display = (isEnabled && hasApiKey) ? 'flex' : 'none';
+      };
+
+      // Initial check
+      checkLinearEnabled();
+
+      // Click handler
+      linearSyncBtn.addEventListener('click', async () => {
+        await this.showLinearSyncSelectionModal();
+      });
+    }
+
     // Page navigation copy buttons
     const pageNavCopyButtons = this.sidebar.querySelectorAll('.sidebar-page-nav-copy');
 
@@ -6858,22 +6852,33 @@ IMPORTANT - Git Workflow:
 
           <div class="sidebar-setting-group">
             <label>Linear Integration</label>
-            <div class="sidebar-linear-api-container">
-              <input type="password" id="sidebar-linear-api-key" class="sidebar-input" placeholder="Enter your Linear API key">
-              <button id="sidebar-linear-save-btn" class="sidebar-secondary-btn sidebar-linear-save-btn">
-                <span class="sidebar-linear-save-text">Save</span>
-                <span class="sidebar-linear-save-loading" style="display: none;">
-                  <svg class="sidebar-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                  </svg>
-                </span>
-              </button>
+            <div class="sidebar-setting-row">
+              <span class="sidebar-setting-label">Enable Linear Sync</span>
+              <label class="sidebar-toggle">
+                <input type="checkbox" id="sidebar-linear-enabled-toggle">
+                <span class="sidebar-toggle-slider"></span>
+              </label>
             </div>
-            <div id="sidebar-linear-status" class="sidebar-linear-status" style="display: none;"></div>
             <p class="sidebar-setting-note">
-              <a href="https://linear.app/settings/api" target="_blank" rel="noopener noreferrer" class="sidebar-setting-link">Get your API key from Linear</a>
-              to enable syncing annotations to Linear issues.
+              Sync your annotations and bug reports to Linear issues
             </p>
+            <div id="sidebar-linear-config" class="sidebar-linear-config" style="display: none;">
+              <div class="sidebar-linear-api-container">
+                <input type="password" id="sidebar-linear-api-key" class="sidebar-input" placeholder="Enter your Linear API key">
+                <button id="sidebar-linear-save-btn" class="sidebar-secondary-btn sidebar-linear-save-btn">
+                  <span class="sidebar-linear-save-text">Save</span>
+                  <span class="sidebar-linear-save-loading" style="display: none;">
+                    <svg class="sidebar-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                  </span>
+                </button>
+              </div>
+              <div id="sidebar-linear-status" class="sidebar-linear-status" style="display: none;"></div>
+              <p class="sidebar-setting-note">
+                <a href="https://linear.app/settings/api" target="_blank" rel="noopener noreferrer" class="sidebar-setting-link">Get your API key from Linear</a>
+              </p>
+            </div>
           </div>
 
           <div class="sidebar-setting-group">
@@ -6955,18 +6960,46 @@ IMPORTANT - Git Workflow:
       });
     }
 
-    // Linear API key setup
+    // Linear Integration toggle and API key setup
+    const linearEnabledToggle = this.sidebar.querySelector('#sidebar-linear-enabled-toggle');
+    const linearConfigDiv = this.sidebar.querySelector('#sidebar-linear-config');
     const linearApiKeyInput = this.sidebar.querySelector('#sidebar-linear-api-key');
     const linearSaveBtn = this.sidebar.querySelector('#sidebar-linear-save-btn');
     const linearStatus = this.sidebar.querySelector('#sidebar-linear-status');
 
+    if (linearEnabledToggle && linearConfigDiv) {
+      // Load current setting
+      chrome.storage.local.get(['linearEnabled'], (result) => {
+        const isEnabled = result.linearEnabled || false;
+        linearEnabledToggle.checked = isEnabled;
+        linearConfigDiv.style.display = isEnabled ? 'block' : 'none';
+      });
+
+      // Handle toggle change
+      linearEnabledToggle.addEventListener('change', async () => {
+        const isEnabled = linearEnabledToggle.checked;
+        await chrome.storage.local.set({ linearEnabled: isEnabled });
+        linearConfigDiv.style.display = isEnabled ? 'block' : 'none';
+
+        // If disabling, we could optionally clear the API key
+        // For now, we keep it so re-enabling doesn't require re-entry
+      });
+    }
+
     if (linearApiKeyInput && linearSaveBtn) {
-      // Load existing API key (show masked version)
+      // Load existing API key (show masked version) and auto-enable toggle if key exists
       chrome.runtime.sendMessage({ action: 'getLinearApiKey' }, (response) => {
         if (response?.success && response.apiKey) {
           linearApiKeyInput.value = '••••••••••••••••';
           linearApiKeyInput.dataset.hasKey = 'true';
           this.showLinearStatus(linearStatus, 'success', 'Connected to Linear');
+
+          // Auto-enable toggle if API key exists
+          if (linearEnabledToggle && linearConfigDiv) {
+            linearEnabledToggle.checked = true;
+            linearConfigDiv.style.display = 'block';
+            chrome.storage.local.set({ linearEnabled: true });
+          }
         }
       });
 
@@ -7137,11 +7170,20 @@ IMPORTANT - Git Workflow:
   },
 
   /**
-   * Show Linear sync modal to select team and create issue
-   * @param {Array<string>} annotationIds - Array of annotation IDs to sync
-   * @param {HTMLElement} parentOverlay - Parent Ask AI overlay to close on success
+   * Show status message in Linear sync modal
    */
-  async showLinearSyncModal(annotationIds, parentOverlay) {
+  showLinearSyncStatus(statusEl, type, message) {
+    if (!statusEl) return;
+    statusEl.style.display = 'block';
+    statusEl.className = `pointa-linear-sync-status pointa-linear-sync-status-${type}`;
+    statusEl.textContent = message;
+  },
+
+  /**
+   * Show Linear sync selection modal - allows selecting annotations, bug reports, and performance investigations
+   * This is the main entry point for syncing to Linear from the sidebar
+   */
+  async showLinearSyncSelectionModal() {
     // Check if API key is configured
     const apiKeyResponse = await new Promise((resolve) => {
       chrome.runtime.sendMessage({ action: 'getLinearApiKey' }, resolve);
@@ -7154,13 +7196,99 @@ IMPORTANT - Git Workflow:
 
     const apiKey = apiKeyResponse.apiKey;
 
+    // Load all data
+    // 1. Load annotations (pending status)
+    const annotationsResponse = await chrome.runtime.sendMessage({
+      action: 'getAnnotations',
+      limit: 1000
+    });
+    const allAnnotations = annotationsResponse?.success ? (annotationsResponse.annotations || []) : [];
+    const pendingAnnotations = allAnnotations.filter(a => a.status === 'pending' || !a.status);
+
+    // Separate regular annotations and design annotations
+    const regularAnnotations = pendingAnnotations.filter(a => a.type !== 'design-edit');
+    const designAnnotations = pendingAnnotations.filter(a => a.type === 'design-edit');
+
+    // 2. Load issue reports (bug reports + performance investigations)
+    const issueReports = await this.loadBugReports();
+    const activeBugReports = issueReports.filter(r =>
+      r.type !== 'performance-investigation' &&
+      (r.status === 'active' || r.status === 'debugging' || r.status === 'in-review')
+    );
+    const activePerformanceReports = issueReports.filter(r =>
+      r.type === 'performance-investigation' &&
+      (r.status === 'active' || r.status === 'debugging' || r.status === 'in-review')
+    );
+
+    const hasContent = regularAnnotations.length > 0 ||
+                       designAnnotations.length > 0 ||
+                       activeBugReports.length > 0 ||
+                       activePerformanceReports.length > 0;
+
     // Create the modal
     const modal = document.createElement('div');
     modal.className = 'pointa-linear-sync-overlay';
     modal.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
 
+    // Build selection lists HTML
+    const buildItemsList = (items, type, label) => {
+      if (items.length === 0) return '';
+
+      const itemsHTML = items.map((item, index) => {
+        let preview = '';
+        let meta = '';
+
+        if (type === 'annotation' || type === 'design') {
+          const firstMessage = item.messages?.[0]?.text || item.comment || item.changes_summary || 'No description';
+          preview = firstMessage.length > 60 ? firstMessage.substring(0, 60) + '...' : firstMessage;
+          const urlPath = item.url_path || new URL(item.url || 'http://localhost').pathname;
+          meta = urlPath;
+        } else if (type === 'bug') {
+          preview = item.report?.expectedBehavior || 'Bug report';
+          preview = preview.length > 60 ? preview.substring(0, 60) + '...' : preview;
+          meta = item.keyIssues?.length ? `${item.keyIssues.length} issue(s)` : 'No issues detected';
+        } else if (type === 'performance') {
+          preview = item.report?.userDescription || 'Performance investigation';
+          preview = preview.length > 60 ? preview.substring(0, 60) + '...' : preview;
+          meta = item.insights?.issues?.length ? `${item.insights.issues.length} insight(s)` : 'No insights';
+        }
+
+        return `
+          <label class="pointa-linear-item">
+            <input type="checkbox" class="pointa-linear-item-checkbox"
+                   data-item-type="${type}"
+                   data-item-id="${item.id}"
+                   checked>
+            <div class="pointa-linear-item-content">
+              <div class="pointa-linear-item-preview">${PointaUtils.escapeHtml(preview)}</div>
+              <div class="pointa-linear-item-meta">${PointaUtils.escapeHtml(meta)}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+
+      return `
+        <div class="pointa-linear-section">
+          <div class="pointa-linear-section-header">
+            <label class="pointa-linear-section-toggle">
+              <input type="checkbox" class="pointa-linear-section-checkbox" data-section="${type}" checked>
+              <span>${label} (${items.length})</span>
+            </label>
+          </div>
+          <div class="pointa-linear-section-items">
+            ${itemsHTML}
+          </div>
+        </div>
+      `;
+    };
+
+    const annotationsHTML = buildItemsList(regularAnnotations, 'annotation', 'Annotations');
+    const designHTML = buildItemsList(designAnnotations, 'design', 'Design Changes');
+    const bugsHTML = buildItemsList(activeBugReports, 'bug', 'Bug Reports');
+    const perfHTML = buildItemsList(activePerformanceReports, 'performance', 'Performance Investigations');
+
     modal.innerHTML = `
-      <div class="pointa-linear-sync-modal">
+      <div class="pointa-linear-sync-modal pointa-linear-sync-modal-selection">
         <div class="pointa-linear-sync-header">
           <h2>Sync to Linear</h2>
           <button class="pointa-linear-sync-close" id="pointa-linear-close">
@@ -7172,31 +7300,52 @@ IMPORTANT - Git Workflow:
         </div>
 
         <div class="pointa-linear-sync-body">
-          <div class="pointa-linear-sync-info">
-            <p><strong>${annotationIds.length}</strong> annotation${annotationIds.length > 1 ? 's' : ''} will be synced to Linear</p>
-          </div>
+          ${!hasContent ? `
+            <div class="pointa-linear-empty-state">
+              <p>No pending items to sync.</p>
+              <p class="pointa-linear-empty-hint">Create annotations, report bugs, or investigate performance issues first.</p>
+            </div>
+          ` : `
+            <div class="pointa-linear-selection-info">
+              <p>Select items to include in the Linear issue:</p>
+            </div>
 
-          <div class="pointa-linear-sync-field">
-            <label for="pointa-linear-team">Select Team:</label>
-            <select id="pointa-linear-team" class="pointa-linear-select" disabled>
-              <option value="">Loading teams...</option>
-            </select>
-          </div>
+            <div class="pointa-linear-items-container">
+              ${annotationsHTML}
+              ${designHTML}
+              ${bugsHTML}
+              ${perfHTML}
+            </div>
 
-          <div id="pointa-linear-sync-status" class="pointa-linear-sync-status" style="display: none;"></div>
+            <div class="pointa-linear-sync-field">
+              <label for="pointa-linear-team">Select Team:</label>
+              <select id="pointa-linear-team" class="pointa-linear-select" disabled>
+                <option value="">Loading teams...</option>
+              </select>
+            </div>
+
+            <div class="pointa-linear-summary">
+              <span id="pointa-linear-selected-count">0</span> items selected
+            </div>
+          `}
         </div>
 
         <div class="pointa-linear-sync-footer">
-          <button class="pointa-secondary-btn" id="pointa-linear-cancel">Cancel</button>
-          <button class="pointa-primary-btn" id="pointa-linear-create" disabled>
-            <span class="pointa-linear-create-text">Create Issue</span>
-            <span class="pointa-linear-create-loading" style="display: none;">
-              <svg class="sidebar-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-              </svg>
-              Creating...
-            </span>
-          </button>
+          <div id="pointa-linear-sync-status" class="pointa-linear-sync-status" style="display: none;"></div>
+          <div class="pointa-linear-sync-footer-buttons">
+            <button class="pointa-secondary-btn" id="pointa-linear-cancel">Cancel</button>
+          ${hasContent ? `
+            <button class="pointa-primary-btn" id="pointa-linear-create" disabled>
+              <span class="pointa-linear-create-text">Create Issue</span>
+              <span class="pointa-linear-create-loading" style="display: none;">
+                <svg class="sidebar-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+                Creating...
+              </span>
+            </button>
+          ` : ''}
+          </div>
         </div>
       </div>
     `;
@@ -7208,6 +7357,7 @@ IMPORTANT - Git Workflow:
     const cancelBtn = modal.querySelector('#pointa-linear-cancel');
     const closeBtn = modal.querySelector('#pointa-linear-close');
     const statusEl = modal.querySelector('#pointa-linear-sync-status');
+    const selectedCountEl = modal.querySelector('#pointa-linear-selected-count');
 
     // Close handlers
     const closeModal = () => {
@@ -7220,6 +7370,53 @@ IMPORTANT - Git Workflow:
       if (e.target === modal) closeModal();
     });
 
+    if (!hasContent) return;
+
+    // Update selected count
+    const updateSelectedCount = () => {
+      const checkedItems = modal.querySelectorAll('.pointa-linear-item-checkbox:checked');
+      const count = checkedItems.length;
+      if (selectedCountEl) {
+        selectedCountEl.textContent = count;
+      }
+      if (createBtn) {
+        createBtn.disabled = count === 0 || !teamSelect.value;
+      }
+    };
+
+    // Section toggle handlers
+    const sectionCheckboxes = modal.querySelectorAll('.pointa-linear-section-checkbox');
+    sectionCheckboxes.forEach(sectionCb => {
+      sectionCb.addEventListener('change', () => {
+        const section = sectionCb.dataset.section;
+        const itemCheckboxes = modal.querySelectorAll(`.pointa-linear-item-checkbox[data-item-type="${section}"]`);
+        itemCheckboxes.forEach(cb => {
+          cb.checked = sectionCb.checked;
+        });
+        updateSelectedCount();
+      });
+    });
+
+    // Individual item checkbox handlers
+    const itemCheckboxes = modal.querySelectorAll('.pointa-linear-item-checkbox');
+    itemCheckboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        updateSelectedCount();
+        // Update section checkbox state
+        const section = cb.dataset.itemType;
+        const sectionItems = modal.querySelectorAll(`.pointa-linear-item-checkbox[data-item-type="${section}"]`);
+        const sectionChecked = modal.querySelectorAll(`.pointa-linear-item-checkbox[data-item-type="${section}"]:checked`);
+        const sectionCb = modal.querySelector(`.pointa-linear-section-checkbox[data-section="${section}"]`);
+        if (sectionCb) {
+          sectionCb.checked = sectionChecked.length === sectionItems.length;
+          sectionCb.indeterminate = sectionChecked.length > 0 && sectionChecked.length < sectionItems.length;
+        }
+      });
+    });
+
+    // Initial count
+    updateSelectedCount();
+
     // Load teams
     try {
       const teamsResponse = await new Promise((resolve) => {
@@ -7231,7 +7428,7 @@ IMPORTANT - Git Workflow:
           `<option value="${team.id}">${PointaUtils.escapeHtml(team.name)} (${team.key})</option>`
         ).join('');
         teamSelect.disabled = false;
-        createBtn.disabled = false;
+        updateSelectedCount(); // Re-check button state
       } else {
         teamSelect.innerHTML = '<option value="">No teams found</option>';
         this.showLinearSyncStatus(statusEl, 'error', teamsResponse?.error || 'Failed to load teams');
@@ -7241,11 +7438,37 @@ IMPORTANT - Git Workflow:
       this.showLinearSyncStatus(statusEl, 'error', error.message);
     }
 
+    // Team select change handler
+    teamSelect.addEventListener('change', updateSelectedCount);
+
     // Create issue handler
     createBtn.addEventListener('click', async () => {
       const teamId = teamSelect.value;
       if (!teamId) {
         this.showLinearSyncStatus(statusEl, 'error', 'Please select a team');
+        return;
+      }
+
+      // Collect selected items by type
+      const selectedItems = {
+        annotations: [],
+        designs: [],
+        bugs: [],
+        performance: []
+      };
+
+      modal.querySelectorAll('.pointa-linear-item-checkbox:checked').forEach(cb => {
+        const type = cb.dataset.itemType;
+        const id = cb.dataset.itemId;
+        if (type === 'annotation') selectedItems.annotations.push(id);
+        else if (type === 'design') selectedItems.designs.push(id);
+        else if (type === 'bug') selectedItems.bugs.push(id);
+        else if (type === 'performance') selectedItems.performance.push(id);
+      });
+
+      const totalSelected = Object.values(selectedItems).reduce((sum, arr) => sum + arr.length, 0);
+      if (totalSelected === 0) {
+        this.showLinearSyncStatus(statusEl, 'error', 'Please select at least one item');
         return;
       }
 
@@ -7259,31 +7482,23 @@ IMPORTANT - Git Workflow:
       cancelBtn.disabled = true;
 
       try {
+        // Call the enhanced server endpoint
         const response = await new Promise((resolve) => {
           chrome.runtime.sendMessage({
-            action: 'createLinearIssue',
-            annotationIds,
+            action: 'createLinearIssueComprehensive',
+            selectedItems,
             teamId,
             apiKey
           }, resolve);
         });
 
         if (response?.success && response.issue) {
-          // Success - show message and close both modals
+          // Success - show message and close
           this.showLinearSyncStatus(statusEl, 'success', `Created ${response.issue.identifier}`);
 
           // Wait a moment to show the success message
           setTimeout(() => {
-            // Close this modal
             closeModal();
-
-            // Close the parent Ask AI modal
-            if (parentOverlay) {
-              if (window.PointaModalManager) {
-                window.PointaModalManager.unregisterModal('ask-ai');
-              }
-              parentOverlay.remove();
-            }
 
             // Open the Linear issue in a new tab
             window.open(response.issue.url, '_blank');
@@ -7312,16 +7527,6 @@ IMPORTANT - Git Workflow:
         cancelBtn.disabled = false;
       }
     });
-  },
-
-  /**
-   * Show status message in Linear sync modal
-   */
-  showLinearSyncStatus(statusEl, type, message) {
-    if (!statusEl) return;
-    statusEl.style.display = 'block';
-    statusEl.className = `pointa-linear-sync-status pointa-linear-sync-status-${type}`;
-    statusEl.textContent = message;
   },
 
   /**

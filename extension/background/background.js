@@ -360,9 +360,9 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
-        // Create Linear issue from annotations
-        case 'createLinearIssue':
-          this.createLinearIssue(request.annotationIds, request.teamId, request.apiKey, request.title).
+        // Create Linear issue from all item types (annotations, designs, bugs, performance)
+        case 'createLinearIssueComprehensive':
+          this.createLinearIssueComprehensive(request.selectedItems, request.teamId, request.apiKey).
           then((result) => sendResponse({ success: true, ...result })).
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
@@ -2302,27 +2302,26 @@ class PointaBackground {
   }
 
   /**
-   * Create a Linear issue from selected annotations
-   * @param {Array<string>} annotationIds - Array of annotation IDs to sync
+   * Create Linear issue from all item types (annotations, designs, bugs, performance)
+   * @param {Object} selectedItems - Object with arrays of IDs: {annotations: [], designs: [], bugs: [], performance: []}
    * @param {string} teamId - Linear team ID
    * @param {string} apiKey - Linear API key
-   * @param {string} title - Optional custom title
    * @returns {Promise<Object>} - Issue creation result
    */
-  async createLinearIssue(annotationIds, teamId, apiKey, title = null) {
+  async createLinearIssueComprehensive(selectedItems, teamId, apiKey) {
     try {
-      console.log(`[Linear] Creating issue from ${annotationIds.length} annotations...`);
+      const totalCount = Object.values(selectedItems).reduce((sum, arr) => sum + arr.length, 0);
+      console.log(`[Linear] Creating comprehensive issue from ${totalCount} items...`);
 
-      const response = await fetch(`${this.apiServerUrl}/api/linear/create-issue`, {
+      const response = await fetch(`${this.apiServerUrl}/api/linear/create-issue-comprehensive`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          annotationIds,
+          selectedItems,
           teamId,
-          apiKey,
-          title
+          apiKey
         })
       });
 
@@ -2340,11 +2339,11 @@ class PointaBackground {
       console.log(`[Linear] Created issue ${result.issue.identifier}: ${result.issue.url}`);
       return {
         issue: result.issue,
-        syncedCount: result.syncedCount,
+        syncedCounts: result.syncedCounts,
         screenshotsUploaded: result.screenshotsUploaded
       };
     } catch (error) {
-      console.error('[Linear] Error creating issue:', error.message);
+      console.error('[Linear] Error creating comprehensive issue:', error.message);
       throw error;
     }
   }
