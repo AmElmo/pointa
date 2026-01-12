@@ -2725,6 +2725,12 @@ ${taskDescription}`;
               <img src="${chrome.runtime.getURL('assets/icons/stars.png')}" width="20" height="20" alt="Ask AI" class="sidebar-icon" />
               <span class="sidebar-tooltip">Ask AI</span>
             </button>
+            <button id="sidebar-linear-sync-btn" class="sidebar-quick-action-btn sidebar-linear-sync-btn" data-tooltip="Sync to Linear" style="display: none;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 12l1.41 1.41L11 7.83V20h2V7.83l5.59 5.58L20 12l-8-8-8 8z" fill="currentColor" stroke="none"/>
+              </svg>
+              <span class="sidebar-tooltip">Sync to Linear</span>
+            </button>
             <button id="sidebar-notification-center-btn" class="sidebar-quick-action-btn ${this.notificationCenterOpen ? 'active' : ''}" data-tooltip="To Review">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -5974,6 +5980,31 @@ IMPORTANT - Git Workflow:
 
     }
 
+    // Linear sync button - conditionally shown based on settings
+    const linearSyncBtn = this.sidebar.querySelector('#sidebar-linear-sync-btn');
+    if (linearSyncBtn) {
+      // Check if Linear is enabled and API key exists
+      const checkLinearEnabled = async () => {
+        const [storageResult, apiKeyResponse] = await Promise.all([
+          new Promise(resolve => chrome.storage.local.get(['linearEnabled'], resolve)),
+          new Promise(resolve => chrome.runtime.sendMessage({ action: 'getLinearApiKey' }, resolve))
+        ]);
+
+        const isEnabled = storageResult.linearEnabled || false;
+        const hasApiKey = apiKeyResponse?.success && apiKeyResponse.apiKey;
+
+        linearSyncBtn.style.display = (isEnabled && hasApiKey) ? 'flex' : 'none';
+      };
+
+      // Initial check
+      checkLinearEnabled();
+
+      // Click handler
+      linearSyncBtn.addEventListener('click', async () => {
+        await this.showLinearSyncSelectionModal();
+      });
+    }
+
     // Page navigation copy buttons
     const pageNavCopyButtons = this.sidebar.querySelectorAll('.sidebar-page-nav-copy');
 
@@ -6820,6 +6851,37 @@ IMPORTANT - Git Workflow:
           </div>
 
           <div class="sidebar-setting-group">
+            <label>Linear Integration</label>
+            <div class="sidebar-setting-row">
+              <span class="sidebar-setting-label">Enable Linear Sync</span>
+              <label class="sidebar-toggle">
+                <input type="checkbox" id="sidebar-linear-enabled-toggle">
+                <span class="sidebar-toggle-slider"></span>
+              </label>
+            </div>
+            <p class="sidebar-setting-note">
+              Sync your annotations and bug reports to Linear issues
+            </p>
+            <div id="sidebar-linear-config" class="sidebar-linear-config" style="display: none;">
+              <div class="sidebar-linear-api-container">
+                <input type="password" id="sidebar-linear-api-key" class="sidebar-input" placeholder="Enter your Linear API key">
+                <button id="sidebar-linear-save-btn" class="sidebar-secondary-btn sidebar-linear-save-btn">
+                  <span class="sidebar-linear-save-text">Save</span>
+                  <span class="sidebar-linear-save-loading" style="display: none;">
+                    <svg class="sidebar-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                  </span>
+                </button>
+              </div>
+              <div id="sidebar-linear-status" class="sidebar-linear-status" style="display: none;"></div>
+              <p class="sidebar-setting-note">
+                <a href="https://linear.app/settings/api" target="_blank" rel="noopener noreferrer" class="sidebar-setting-link">Get your API key from Linear</a>
+              </p>
+            </div>
+          </div>
+
+          <div class="sidebar-setting-group">
             <label>Help & Setup</label>
             <button id="sidebar-setup-guide-btn" class="sidebar-secondary-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -6895,6 +6957,101 @@ IMPORTANT - Git Workflow:
       // Save on change
       autoSendToggle.addEventListener('change', () => {
         chrome.storage.local.set({ aiAutoSend: autoSendToggle.checked });
+      });
+    }
+
+    // Linear Integration toggle and API key setup
+    const linearEnabledToggle = this.sidebar.querySelector('#sidebar-linear-enabled-toggle');
+    const linearConfigDiv = this.sidebar.querySelector('#sidebar-linear-config');
+    const linearApiKeyInput = this.sidebar.querySelector('#sidebar-linear-api-key');
+    const linearSaveBtn = this.sidebar.querySelector('#sidebar-linear-save-btn');
+    const linearStatus = this.sidebar.querySelector('#sidebar-linear-status');
+
+    if (linearEnabledToggle && linearConfigDiv) {
+      // Load current setting
+      chrome.storage.local.get(['linearEnabled'], (result) => {
+        const isEnabled = result.linearEnabled || false;
+        linearEnabledToggle.checked = isEnabled;
+        linearConfigDiv.style.display = isEnabled ? 'block' : 'none';
+      });
+
+      // Handle toggle change
+      linearEnabledToggle.addEventListener('change', async () => {
+        const isEnabled = linearEnabledToggle.checked;
+        await chrome.storage.local.set({ linearEnabled: isEnabled });
+        linearConfigDiv.style.display = isEnabled ? 'block' : 'none';
+
+        // If disabling, we could optionally clear the API key
+        // For now, we keep it so re-enabling doesn't require re-entry
+      });
+    }
+
+    if (linearApiKeyInput && linearSaveBtn) {
+      // Load existing API key (show masked version) and auto-enable toggle if key exists
+      chrome.runtime.sendMessage({ action: 'getLinearApiKey' }, (response) => {
+        if (response?.success && response.apiKey) {
+          linearApiKeyInput.value = '••••••••••••••••';
+          linearApiKeyInput.dataset.hasKey = 'true';
+          this.showLinearStatus(linearStatus, 'success', 'Connected to Linear');
+
+          // Auto-enable toggle if API key exists
+          if (linearEnabledToggle && linearConfigDiv) {
+            linearEnabledToggle.checked = true;
+            linearConfigDiv.style.display = 'block';
+            chrome.storage.local.set({ linearEnabled: true });
+          }
+        }
+      });
+
+      // Clear masked value on focus if it's the placeholder
+      linearApiKeyInput.addEventListener('focus', () => {
+        if (linearApiKeyInput.dataset.hasKey === 'true' && linearApiKeyInput.value === '••••••••••••••••') {
+          linearApiKeyInput.value = '';
+        }
+      });
+
+      // Save button click
+      linearSaveBtn.addEventListener('click', async () => {
+        const apiKey = linearApiKeyInput.value.trim();
+
+        if (!apiKey || apiKey === '••••••••••••••••') {
+          this.showLinearStatus(linearStatus, 'error', 'Please enter an API key');
+          return;
+        }
+
+        // Show loading state
+        const saveText = linearSaveBtn.querySelector('.sidebar-linear-save-text');
+        const saveLoading = linearSaveBtn.querySelector('.sidebar-linear-save-loading');
+        if (saveText) saveText.style.display = 'none';
+        if (saveLoading) saveLoading.style.display = 'inline-flex';
+        linearSaveBtn.disabled = true;
+
+        try {
+          // Validate by fetching teams
+          const response = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({ action: 'getLinearTeams', apiKey }, resolve);
+          });
+
+          if (response?.success && response.teams?.length > 0) {
+            // Save the API key
+            await new Promise((resolve) => {
+              chrome.runtime.sendMessage({ action: 'setLinearApiKey', apiKey }, resolve);
+            });
+
+            linearApiKeyInput.value = '••••••••••••••••';
+            linearApiKeyInput.dataset.hasKey = 'true';
+            this.showLinearStatus(linearStatus, 'success', `Connected! Found ${response.teams.length} team${response.teams.length > 1 ? 's' : ''}`);
+          } else {
+            this.showLinearStatus(linearStatus, 'error', response?.error || 'Invalid API key');
+          }
+        } catch (error) {
+          this.showLinearStatus(linearStatus, 'error', error.message || 'Failed to validate API key');
+        } finally {
+          // Reset button state
+          if (saveText) saveText.style.display = 'inline';
+          if (saveLoading) saveLoading.style.display = 'none';
+          linearSaveBtn.disabled = false;
+        }
       });
     }
 
@@ -6989,6 +7146,387 @@ IMPORTANT - Git Workflow:
       }
     };
     document.addEventListener('keydown', escHandler);
+  },
+
+  /**
+   * Show Linear status message
+   * @param {HTMLElement} statusEl - Status element
+   * @param {string} type - 'success' or 'error'
+   * @param {string} message - Message to display
+   */
+  showLinearStatus(statusEl, type, message) {
+    if (!statusEl) return;
+
+    statusEl.style.display = 'block';
+    statusEl.className = `sidebar-linear-status sidebar-linear-status-${type}`;
+    statusEl.textContent = message;
+
+    // Auto-hide success messages after 3 seconds
+    if (type === 'success') {
+      setTimeout(() => {
+        statusEl.style.display = 'none';
+      }, 3000);
+    }
+  },
+
+  /**
+   * Show status message in Linear sync modal
+   */
+  showLinearSyncStatus(statusEl, type, message) {
+    if (!statusEl) return;
+    statusEl.style.display = 'block';
+    statusEl.className = `pointa-linear-sync-status pointa-linear-sync-status-${type}`;
+    statusEl.textContent = message;
+  },
+
+  /**
+   * Show Linear sync selection modal - allows selecting annotations, bug reports, and performance investigations
+   * This is the main entry point for syncing to Linear from the sidebar
+   */
+  async showLinearSyncSelectionModal() {
+    // Check if API key is configured
+    const apiKeyResponse = await new Promise((resolve) => {
+      chrome.runtime.sendMessage({ action: 'getLinearApiKey' }, resolve);
+    });
+
+    if (!apiKeyResponse?.success || !apiKeyResponse.apiKey) {
+      alert('Please configure your Linear API key in Settings first.');
+      return;
+    }
+
+    const apiKey = apiKeyResponse.apiKey;
+
+    // Load all data
+    // 1. Load annotations (pending status)
+    const annotationsResponse = await chrome.runtime.sendMessage({
+      action: 'getAnnotations',
+      limit: 1000
+    });
+    const allAnnotations = annotationsResponse?.success ? (annotationsResponse.annotations || []) : [];
+    const pendingAnnotations = allAnnotations.filter(a => a.status === 'pending' || !a.status);
+
+    // Separate regular annotations and design annotations
+    const regularAnnotations = pendingAnnotations.filter(a => a.type !== 'design-edit');
+    const designAnnotations = pendingAnnotations.filter(a => a.type === 'design-edit');
+
+    // 2. Load issue reports (bug reports + performance investigations)
+    const issueReports = await this.loadBugReports();
+    const activeBugReports = issueReports.filter(r =>
+      r.type !== 'performance-investigation' &&
+      (r.status === 'active' || r.status === 'debugging' || r.status === 'in-review')
+    );
+    const activePerformanceReports = issueReports.filter(r =>
+      r.type === 'performance-investigation' &&
+      (r.status === 'active' || r.status === 'debugging' || r.status === 'in-review')
+    );
+
+    const hasContent = regularAnnotations.length > 0 ||
+                       designAnnotations.length > 0 ||
+                       activeBugReports.length > 0 ||
+                       activePerformanceReports.length > 0;
+
+    // Create the modal
+    const modal = document.createElement('div');
+    modal.className = 'pointa-linear-sync-overlay';
+    modal.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
+
+    // Build selection lists HTML
+    const buildItemsList = (items, type, label) => {
+      if (items.length === 0) return '';
+
+      const itemsHTML = items.map((item, index) => {
+        let preview = '';
+        let meta = '';
+
+        if (type === 'annotation' || type === 'design') {
+          const firstMessage = item.messages?.[0]?.text || item.comment || item.changes_summary || 'No description';
+          preview = firstMessage.length > 60 ? firstMessage.substring(0, 60) + '...' : firstMessage;
+          const urlPath = item.url_path || new URL(item.url || 'http://localhost').pathname;
+          meta = urlPath;
+        } else if (type === 'bug') {
+          preview = item.report?.expectedBehavior || 'Bug report';
+          preview = preview.length > 60 ? preview.substring(0, 60) + '...' : preview;
+          meta = item.keyIssues?.length ? `${item.keyIssues.length} issue(s)` : 'No issues detected';
+        } else if (type === 'performance') {
+          preview = item.report?.userDescription || 'Performance investigation';
+          preview = preview.length > 60 ? preview.substring(0, 60) + '...' : preview;
+          meta = item.insights?.issues?.length ? `${item.insights.issues.length} insight(s)` : 'No insights';
+        }
+
+        return `
+          <label class="pointa-linear-item">
+            <input type="checkbox" class="pointa-linear-item-checkbox"
+                   data-item-type="${type}"
+                   data-item-id="${item.id}"
+                   checked>
+            <div class="pointa-linear-item-content">
+              <div class="pointa-linear-item-preview">${PointaUtils.escapeHtml(preview)}</div>
+              <div class="pointa-linear-item-meta">${PointaUtils.escapeHtml(meta)}</div>
+            </div>
+          </label>
+        `;
+      }).join('');
+
+      return `
+        <div class="pointa-linear-section">
+          <div class="pointa-linear-section-header">
+            <label class="pointa-linear-section-toggle">
+              <input type="checkbox" class="pointa-linear-section-checkbox" data-section="${type}" checked>
+              <span>${label} (${items.length})</span>
+            </label>
+          </div>
+          <div class="pointa-linear-section-items">
+            ${itemsHTML}
+          </div>
+        </div>
+      `;
+    };
+
+    const annotationsHTML = buildItemsList(regularAnnotations, 'annotation', 'Annotations');
+    const designHTML = buildItemsList(designAnnotations, 'design', 'Design Changes');
+    const bugsHTML = buildItemsList(activeBugReports, 'bug', 'Bug Reports');
+    const perfHTML = buildItemsList(activePerformanceReports, 'performance', 'Performance Investigations');
+
+    modal.innerHTML = `
+      <div class="pointa-linear-sync-modal pointa-linear-sync-modal-selection">
+        <div class="pointa-linear-sync-header">
+          <h2>Sync to Linear</h2>
+          <button class="pointa-linear-sync-close" id="pointa-linear-close">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div class="pointa-linear-sync-body">
+          ${!hasContent ? `
+            <div class="pointa-linear-empty-state">
+              <p>No pending items to sync.</p>
+              <p class="pointa-linear-empty-hint">Create annotations, report bugs, or investigate performance issues first.</p>
+            </div>
+          ` : `
+            <div class="pointa-linear-selection-info">
+              <p>Select items to include in the Linear issue:</p>
+            </div>
+
+            <div class="pointa-linear-items-container">
+              ${annotationsHTML}
+              ${designHTML}
+              ${bugsHTML}
+              ${perfHTML}
+            </div>
+
+            <div class="pointa-linear-sync-field">
+              <label for="pointa-linear-team">Select Team:</label>
+              <select id="pointa-linear-team" class="pointa-linear-select" disabled>
+                <option value="">Loading teams...</option>
+              </select>
+            </div>
+
+            <div class="pointa-linear-summary">
+              <span id="pointa-linear-selected-count">0</span> items selected
+            </div>
+          `}
+        </div>
+
+        <div class="pointa-linear-sync-footer">
+          <div id="pointa-linear-sync-status" class="pointa-linear-sync-status" style="display: none;"></div>
+          <div class="pointa-linear-sync-footer-buttons">
+            <button class="pointa-secondary-btn" id="pointa-linear-cancel">Cancel</button>
+          ${hasContent ? `
+            <button class="pointa-primary-btn" id="pointa-linear-create" disabled>
+              <span class="pointa-linear-create-text">Create Issue</span>
+              <span class="pointa-linear-create-loading" style="display: none;">
+                <svg class="sidebar-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+                Creating...
+              </span>
+            </button>
+          ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const teamSelect = modal.querySelector('#pointa-linear-team');
+    const createBtn = modal.querySelector('#pointa-linear-create');
+    const cancelBtn = modal.querySelector('#pointa-linear-cancel');
+    const closeBtn = modal.querySelector('#pointa-linear-close');
+    const statusEl = modal.querySelector('#pointa-linear-sync-status');
+    const selectedCountEl = modal.querySelector('#pointa-linear-selected-count');
+
+    // Close handlers
+    const closeModal = () => {
+      modal.remove();
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    if (!hasContent) return;
+
+    // Update selected count
+    const updateSelectedCount = () => {
+      const checkedItems = modal.querySelectorAll('.pointa-linear-item-checkbox:checked');
+      const count = checkedItems.length;
+      if (selectedCountEl) {
+        selectedCountEl.textContent = count;
+      }
+      if (createBtn) {
+        createBtn.disabled = count === 0 || !teamSelect.value;
+      }
+    };
+
+    // Section toggle handlers
+    const sectionCheckboxes = modal.querySelectorAll('.pointa-linear-section-checkbox');
+    sectionCheckboxes.forEach(sectionCb => {
+      sectionCb.addEventListener('change', () => {
+        const section = sectionCb.dataset.section;
+        const itemCheckboxes = modal.querySelectorAll(`.pointa-linear-item-checkbox[data-item-type="${section}"]`);
+        itemCheckboxes.forEach(cb => {
+          cb.checked = sectionCb.checked;
+        });
+        updateSelectedCount();
+      });
+    });
+
+    // Individual item checkbox handlers
+    const itemCheckboxes = modal.querySelectorAll('.pointa-linear-item-checkbox');
+    itemCheckboxes.forEach(cb => {
+      cb.addEventListener('change', () => {
+        updateSelectedCount();
+        // Update section checkbox state
+        const section = cb.dataset.itemType;
+        const sectionItems = modal.querySelectorAll(`.pointa-linear-item-checkbox[data-item-type="${section}"]`);
+        const sectionChecked = modal.querySelectorAll(`.pointa-linear-item-checkbox[data-item-type="${section}"]:checked`);
+        const sectionCb = modal.querySelector(`.pointa-linear-section-checkbox[data-section="${section}"]`);
+        if (sectionCb) {
+          sectionCb.checked = sectionChecked.length === sectionItems.length;
+          sectionCb.indeterminate = sectionChecked.length > 0 && sectionChecked.length < sectionItems.length;
+        }
+      });
+    });
+
+    // Initial count
+    updateSelectedCount();
+
+    // Load teams
+    try {
+      const teamsResponse = await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getLinearTeams', apiKey }, resolve);
+      });
+
+      if (teamsResponse?.success && teamsResponse.teams?.length > 0) {
+        teamSelect.innerHTML = teamsResponse.teams.map((team) =>
+          `<option value="${team.id}">${PointaUtils.escapeHtml(team.name)} (${team.key})</option>`
+        ).join('');
+        teamSelect.disabled = false;
+        updateSelectedCount(); // Re-check button state
+      } else {
+        teamSelect.innerHTML = '<option value="">No teams found</option>';
+        this.showLinearSyncStatus(statusEl, 'error', teamsResponse?.error || 'Failed to load teams');
+      }
+    } catch (error) {
+      teamSelect.innerHTML = '<option value="">Error loading teams</option>';
+      this.showLinearSyncStatus(statusEl, 'error', error.message);
+    }
+
+    // Team select change handler
+    teamSelect.addEventListener('change', updateSelectedCount);
+
+    // Create issue handler
+    createBtn.addEventListener('click', async () => {
+      const teamId = teamSelect.value;
+      if (!teamId) {
+        this.showLinearSyncStatus(statusEl, 'error', 'Please select a team');
+        return;
+      }
+
+      // Collect selected items by type
+      const selectedItems = {
+        annotations: [],
+        designs: [],
+        bugs: [],
+        performance: []
+      };
+
+      modal.querySelectorAll('.pointa-linear-item-checkbox:checked').forEach(cb => {
+        const type = cb.dataset.itemType;
+        const id = cb.dataset.itemId;
+        if (type === 'annotation') selectedItems.annotations.push(id);
+        else if (type === 'design') selectedItems.designs.push(id);
+        else if (type === 'bug') selectedItems.bugs.push(id);
+        else if (type === 'performance') selectedItems.performance.push(id);
+      });
+
+      const totalSelected = Object.values(selectedItems).reduce((sum, arr) => sum + arr.length, 0);
+      if (totalSelected === 0) {
+        this.showLinearSyncStatus(statusEl, 'error', 'Please select at least one item');
+        return;
+      }
+
+      // Show loading state
+      const createText = createBtn.querySelector('.pointa-linear-create-text');
+      const createLoading = createBtn.querySelector('.pointa-linear-create-loading');
+      if (createText) createText.style.display = 'none';
+      if (createLoading) createLoading.style.display = 'inline-flex';
+      createBtn.disabled = true;
+      teamSelect.disabled = true;
+      cancelBtn.disabled = true;
+
+      try {
+        // Call the enhanced server endpoint
+        const response = await new Promise((resolve) => {
+          chrome.runtime.sendMessage({
+            action: 'createLinearIssueComprehensive',
+            selectedItems,
+            teamId,
+            apiKey
+          }, resolve);
+        });
+
+        if (response?.success && response.issue) {
+          // Success - show message and close
+          this.showLinearSyncStatus(statusEl, 'success', `Created ${response.issue.identifier}`);
+
+          // Wait a moment to show the success message
+          setTimeout(() => {
+            closeModal();
+
+            // Open the Linear issue in a new tab
+            window.open(response.issue.url, '_blank');
+
+            // Refresh sidebar content
+            if (this.sidebar && window.pointa) {
+              this.updateContent(window.pointa, true);
+            }
+          }, 1000);
+        } else {
+          this.showLinearSyncStatus(statusEl, 'error', response?.error || 'Failed to create issue');
+          // Reset button state
+          if (createText) createText.style.display = 'inline';
+          if (createLoading) createLoading.style.display = 'none';
+          createBtn.disabled = false;
+          teamSelect.disabled = false;
+          cancelBtn.disabled = false;
+        }
+      } catch (error) {
+        this.showLinearSyncStatus(statusEl, 'error', error.message);
+        // Reset button state
+        if (createText) createText.style.display = 'inline';
+        if (createLoading) createLoading.style.display = 'none';
+        createBtn.disabled = false;
+        teamSelect.disabled = false;
+        cancelBtn.disabled = false;
+      }
+    });
   },
 
   /**
