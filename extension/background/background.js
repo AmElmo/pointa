@@ -2191,33 +2191,11 @@ class PointaBackground {
    * @returns {Promise<Object>} Result with streamId or error
    */
   async startVideoCapture(tabId) {
-    try {
-      console.log(`[VideoCapture] Starting capture for tab ${tabId}`);
-
-      // Use chrome.tabCapture to get a MediaStream
-      // Note: tabCapture.capture() must be called from an active tab context
-      // We'll use getMediaStreamId to get a stream ID that can be used by content script
-
-      const streamId = await new Promise((resolve, reject) => {
-        chrome.tabCapture.getMediaStreamId(
-          { targetTabId: tabId },
-          (streamId) => {
-            if (chrome.runtime.lastError) {
-              reject(new Error(chrome.runtime.lastError.message));
-            } else {
-              resolve(streamId);
-            }
-          }
-        );
-      });
-
-      console.log(`[VideoCapture] Got stream ID for tab ${tabId}`);
-      return { streamId };
-
-    } catch (error) {
-      console.error(`[VideoCapture] Error starting capture:`, error);
-      throw error;
-    }
+    // Video capture is now handled directly in the content script using getDisplayMedia
+    // This method is kept for backwards compatibility and logging purposes
+    console.log(`[VideoCapture] Video recording initiated for tab ${tabId}`);
+    console.log(`[VideoCapture] Using getDisplayMedia in content script`);
+    return { success: true };
   }
 
   /**

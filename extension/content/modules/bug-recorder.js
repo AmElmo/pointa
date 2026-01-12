@@ -20,7 +20,8 @@ const BugRecorder = {
   performanceObserver: null,
   interactionHandlers: new Map(),
   maxRecordingDuration: 30000, // 30 seconds (handled by sidebar UI)
-  
+  beforeUnloadHandler: null,  // Beforeunload warning handler
+
   // Backend logging integration
   includeBackendLogs: false,  // Whether to capture backend logs
   backendLogStatus: null,     // Current SDK connection status
@@ -303,10 +304,30 @@ const BugRecorder = {
       }
     });
 
+    // Set up beforeunload warning to prevent accidental data loss
+    this.setupBeforeUnloadWarning();
+
     // Note: Auto-stop is handled by the sidebar UI timer
     // which will trigger the full stopBugReporting() flow including UI updates
 
 
+  },
+
+  /**
+   * Set up beforeunload warning to prevent accidental data loss on page reload/navigation
+   */
+  setupBeforeUnloadWarning() {
+    this.beforeUnloadHandler = (event) => {
+      if (this.isRecording) {
+        // Standard way to show browser's native "Leave site?" dialog
+        event.preventDefault();
+        // For older browsers
+        event.returnValue = 'You have an active bug recording session. If you leave, your recording will be lost.';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
   },
 
   /**
@@ -388,6 +409,12 @@ const BugRecorder = {
 
     // Remove window error handlers
     this.removeWindowErrorHandlers();
+
+    // Remove beforeunload handler
+    if (this.beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+      this.beforeUnloadHandler = null;
+    }
 
     // Remove interaction handlers
     this.removeInteractionHandlers();

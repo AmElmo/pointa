@@ -13,6 +13,7 @@ const PerformanceRecorder = {
   interactionHandlers: new Map(),
   maxRecordingDuration: 30000, // 30 seconds
   recordingTimeout: null,
+  beforeUnloadHandler: null,  // Beforeunload warning handler
 
   /**
    * Start recording a performance investigation session
@@ -59,6 +60,9 @@ const PerformanceRecorder = {
       }
     });
 
+    // Set up beforeunload warning to prevent accidental data loss
+    this.setupBeforeUnloadWarning();
+
     // Auto-stop after max duration
     this.recordingTimeout = setTimeout(() => {
 
@@ -66,6 +70,23 @@ const PerformanceRecorder = {
     }, this.maxRecordingDuration);
 
 
+  },
+
+  /**
+   * Set up beforeunload warning to prevent accidental data loss on page reload/navigation
+   */
+  setupBeforeUnloadWarning() {
+    this.beforeUnloadHandler = (event) => {
+      if (this.isRecording) {
+        // Standard way to show browser's native "Leave site?" dialog
+        event.preventDefault();
+        // For older browsers
+        event.returnValue = 'You have an active performance recording session. If you leave, your recording will be lost.';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
   },
 
   /**
@@ -90,6 +111,12 @@ const PerformanceRecorder = {
     });
 
     this.isRecording = false;
+
+    // Remove beforeunload handler
+    if (this.beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+      this.beforeUnloadHandler = null;
+    }
 
     // Remove interaction handlers
     this.removeInteractionHandlers();

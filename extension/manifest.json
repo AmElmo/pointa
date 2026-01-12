@@ -10,8 +10,7 @@
     "storage",
     "tabs",
     "debugger",
-    "scripting",
-    "tabCapture"
+    "scripting"
   ],
   "icons": {
     "16": "assets/icons/pointa-icon16.png",

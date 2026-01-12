@@ -23,6 +23,7 @@ const VideoRecorder = {
   clickHandler: null,
   urlChangeInterval: null,
   lastUrl: null,
+  beforeUnloadHandler: null,
 
   /**
    * Start video recording
@@ -35,43 +36,21 @@ const VideoRecorder = {
     }
 
     try {
-      // Request tab capture from background script
-      const response = await chrome.runtime.sendMessage({
-        action: 'startVideoCapture'
+      // Use getDisplayMedia to capture the screen/tab/window
+      // This prompts the user to select what to share
+      this.stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: { ideal: 30, max: 30 }
+        },
+        audio: true // Include system/tab audio if available
       });
 
-      if (!response.success) {
-        console.error('[VideoRecorder] Failed to start capture:', response.error);
+      if (!this.stream) {
+        console.error('[VideoRecorder] No stream received from getDisplayMedia');
         return false;
       }
 
-      // Get the stream from the background script
-      // The background script will have created the stream and we need to use it
-      this.stream = response.stream;
-
-      // If we got a streamId, we need to get the stream in content script
-      if (response.streamId) {
-        try {
-          // Use getDisplayMedia with the streamId hint
-          this.stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              mandatory: {
-                chromeMediaSource: 'tab',
-                chromeMediaSourceId: response.streamId
-              }
-            },
-            video: {
-              mandatory: {
-                chromeMediaSource: 'tab',
-                chromeMediaSourceId: response.streamId
-              }
-            }
-          });
-        } catch (streamError) {
-          console.error('[VideoRecorder] Failed to get stream:', streamError);
-          return false;
-        }
-      }
+      console.log('[VideoRecorder] Got display media stream');
 
       this.isRecording = true;
       this.isPaused = false;
@@ -135,6 +114,9 @@ const VideoRecorder = {
 
       // Set up max duration timer
       this.setupDurationTimer();
+
+      // Set up beforeunload warning to prevent accidental data loss
+      this.setupBeforeUnloadWarning();
 
       console.log('[VideoRecorder] Recording started');
       return true;
@@ -393,6 +375,23 @@ const VideoRecorder = {
   },
 
   /**
+   * Set up beforeunload warning to prevent accidental data loss on page reload/navigation
+   */
+  setupBeforeUnloadWarning() {
+    this.beforeUnloadHandler = (event) => {
+      if (this.isRecording) {
+        // Standard way to show browser's native "Leave site?" dialog
+        event.preventDefault();
+        // For older browsers
+        event.returnValue = 'You have an active video recording. If you leave, your recording will be lost.';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', this.beforeUnloadHandler);
+  },
+
+  /**
    * Get relative time from start (accounting for pauses)
    * @returns {number} Milliseconds since start (excluding paused time)
    */
@@ -495,6 +494,12 @@ const VideoRecorder = {
     if (this.clickHandler) {
       document.removeEventListener('click', this.clickHandler, true);
       this.clickHandler = null;
+    }
+
+    // Remove beforeunload handler
+    if (this.beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this.beforeUnloadHandler);
+      this.beforeUnloadHandler = null;
     }
 
     // Clear intervals
