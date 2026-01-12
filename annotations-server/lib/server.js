@@ -1152,6 +1152,106 @@ class LocalAnnotationsServer {
           description,
         });
 
+        // Create attachment records for uploaded files (so they appear in Linear's Resources panel)
+        let attachmentsCreated = 0;
+
+        // Create attachments for bug report JSON files
+        for (const bug of selectedBugs) {
+          const jsonUrl = attachmentUrls.get(`bug-${bug.id}`);
+          if (jsonUrl) {
+            try {
+              await linearService.createAttachment({
+                issueId: issue.id,
+                title: `Bug Report Data (${bug.id})`,
+                url: jsonUrl,
+                subtitle: 'Full timeline, console logs, network requests, and debugging context',
+              });
+              attachmentsCreated++;
+              console.log(`[Linear] Created attachment for bug report ${bug.id}`);
+            } catch (attachError) {
+              console.warn(`[Linear] Failed to create attachment for bug ${bug.id}:`, attachError.message);
+            }
+          }
+        }
+
+        // Create attachments for performance report JSON files
+        for (const perf of selectedPerformance) {
+          const jsonUrl = attachmentUrls.get(`perf-${perf.id}`);
+          if (jsonUrl) {
+            try {
+              await linearService.createAttachment({
+                issueId: issue.id,
+                title: `Performance Report Data (${perf.id})`,
+                url: jsonUrl,
+                subtitle: 'Full resource timings, interactions, and performance metrics',
+              });
+              attachmentsCreated++;
+              console.log(`[Linear] Created attachment for performance report ${perf.id}`);
+            } catch (attachError) {
+              console.warn(`[Linear] Failed to create attachment for perf ${perf.id}:`, attachError.message);
+            }
+          }
+        }
+
+        // Create attachments for screenshots (bug reports)
+        for (const bug of selectedBugs) {
+          const screenshotUrl = screenshotUrls.get(`bug-${bug.id}`);
+          if (screenshotUrl) {
+            try {
+              await linearService.createAttachment({
+                issueId: issue.id,
+                title: `Bug Screenshot (${bug.id})`,
+                url: screenshotUrl,
+                subtitle: 'Screenshot captured at time of bug report',
+              });
+              attachmentsCreated++;
+            } catch (attachError) {
+              console.warn(`[Linear] Failed to create screenshot attachment for bug ${bug.id}:`, attachError.message);
+            }
+          }
+        }
+
+        // Create attachments for screenshots (performance reports)
+        for (const perf of selectedPerformance) {
+          const screenshotUrl = screenshotUrls.get(`perf-${perf.id}`);
+          if (screenshotUrl) {
+            try {
+              await linearService.createAttachment({
+                issueId: issue.id,
+                title: `Performance Screenshot (${perf.id})`,
+                url: screenshotUrl,
+                subtitle: 'Screenshot captured during performance investigation',
+              });
+              attachmentsCreated++;
+            } catch (attachError) {
+              console.warn(`[Linear] Failed to create screenshot attachment for perf ${perf.id}:`, attachError.message);
+            }
+          }
+        }
+
+        // Create attachments for annotation screenshots
+        for (const annotation of [...selectedAnnotations, ...selectedDesigns]) {
+          const imageIds = annotation.image_ids || [];
+          for (const imageId of imageIds) {
+            const imageUrl = screenshotUrls.get(imageId);
+            if (imageUrl) {
+              try {
+                await linearService.createAttachment({
+                  issueId: issue.id,
+                  title: `Annotation Screenshot`,
+                  url: imageUrl,
+                  subtitle: annotation.type === 'design-edit' ? 'Design change screenshot' : 'Annotation screenshot',
+                });
+                attachmentsCreated++;
+              } catch (attachError) {
+                console.warn(`[Linear] Failed to create screenshot attachment for annotation:`, attachError.message);
+              }
+            }
+          }
+        }
+
+        console.log(`[Linear] Created ${attachmentsCreated} attachments for issue ${issue.identifier}`);
+
         // Delete synced items
         const annotationIdsToDelete = [...selectedAnnotations, ...selectedDesigns].map(a => a.id);
         if (annotationIdsToDelete.length > 0) {
@@ -1177,7 +1277,7 @@ class LocalAnnotationsServer {
             performance: selectedPerformance.length,
           },
           screenshotsUploaded: screenshotUrls.size,
-          attachmentsUploaded: attachmentUrls.size,
+          attachmentsCreated,
         });
       } catch (error) {
         console.error('[Linear] Error creating comprehensive issue:', error);

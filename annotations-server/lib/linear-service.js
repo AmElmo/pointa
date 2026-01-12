@@ -184,6 +184,39 @@ export class LinearService {
       throw error;
     }
   }
+
+  /**
+   * Create an attachment on a Linear issue
+   * @param {Object} input - Attachment creation input
+   * @param {string} input.issueId - The Linear issue ID to attach to
+   * @param {string} input.title - Attachment title
+   * @param {string} input.url - The URL of the uploaded asset
+   * @param {string} [input.subtitle] - Optional subtitle
+   * @returns {Promise<{id: string, url: string}>}
+   */
+  async createAttachment({ issueId, title, url, subtitle }) {
+    try {
+      const result = await this.client.createAttachment({
+        issueId,
+        title,
+        url,
+        subtitle,
+      });
+
+      if (!result.success) {
+        throw new Error('Failed to create Linear attachment');
+      }
+
+      const attachment = await result.attachment;
+      return {
+        id: attachment.id,
+        url: attachment.url,
+      };
+    } catch (error) {
+      console.error('[LinearService] Failed to create attachment:', error.message);
+      throw error;
+    }
+  }
 }
 
 /**
