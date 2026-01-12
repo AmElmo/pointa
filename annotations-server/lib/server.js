@@ -1193,64 +1193,12 @@ class LocalAnnotationsServer {
           }
         }
 
-        // Create attachments for screenshots (bug reports)
-        for (const bug of selectedBugs) {
-          const screenshotUrl = screenshotUrls.get(`bug-${bug.id}`);
-          if (screenshotUrl) {
-            try {
-              await linearService.createAttachment({
-                issueId: issue.id,
-                title: `Bug Screenshot (${bug.id})`,
-                url: screenshotUrl,
-                subtitle: 'Screenshot captured at time of bug report',
-              });
-              attachmentsCreated++;
-            } catch (attachError) {
-              console.warn(`[Linear] Failed to create screenshot attachment for bug ${bug.id}:`, attachError.message);
-            }
-          }
-        }
+        // Note: Screenshots are embedded inline in the issue description (as markdown images)
+        // rather than as separate attachments. This allows Linear's MCP server to potentially
+        // return them as base64 to AI agents. Separate attachments would require authentication
+        // to download, which the MCP server doesn't support.
 
-        // Create attachments for screenshots (performance reports)
-        for (const perf of selectedPerformance) {
-          const screenshotUrl = screenshotUrls.get(`perf-${perf.id}`);
-          if (screenshotUrl) {
-            try {
-              await linearService.createAttachment({
-                issueId: issue.id,
-                title: `Performance Screenshot (${perf.id})`,
-                url: screenshotUrl,
-                subtitle: 'Screenshot captured during performance investigation',
-              });
-              attachmentsCreated++;
-            } catch (attachError) {
-              console.warn(`[Linear] Failed to create screenshot attachment for perf ${perf.id}:`, attachError.message);
-            }
-          }
-        }
-
-        // Create attachments for annotation screenshots
-        for (const annotation of [...selectedAnnotations, ...selectedDesigns]) {
-          const imageIds = annotation.image_ids || [];
-          for (const imageId of imageIds) {
-            const imageUrl = screenshotUrls.get(imageId);
-            if (imageUrl) {
-              try {
-                await linearService.createAttachment({
-                  issueId: issue.id,
-                  title: `Annotation Screenshot`,
-                  url: imageUrl,
-                  subtitle: annotation.type === 'design-edit' ? 'Design change screenshot' : 'Annotation screenshot',
-                });
-                attachmentsCreated++;
-              } catch (attachError) {
-                console.warn(`[Linear] Failed to create screenshot attachment for annotation:`, attachError.message);
-              }
-            }
-          }
-        }
-
-        console.log(`[Linear] Created ${attachmentsCreated} attachments for issue ${issue.identifier}`);
+        console.log(`[Linear] Created ${attachmentsCreated} attachments (JSON data files) for issue ${issue.identifier}`);
 
         // Delete synced items
         const annotationIdsToDelete = [...selectedAnnotations, ...selectedDesigns].map(a => a.id);
