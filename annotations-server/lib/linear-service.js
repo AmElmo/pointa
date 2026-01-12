@@ -49,6 +49,58 @@ export class LinearService {
   }
 
   /**
+   * Upload a buffer directly to Linear's private cloud storage
+   * Useful for uploading JSON data without writing to disk first
+   * @param {Buffer} buffer - The data buffer to upload
+   * @param {string} filename - Name for the file in Linear
+   * @param {string} contentType - MIME type (e.g., 'application/json')
+   * @returns {Promise<string>} - The asset URL to use in issue descriptions
+   */
+  async uploadBuffer(buffer, filename, contentType = 'application/json') {
+    try {
+      const fileSize = buffer.length;
+
+      // Request upload URL from Linear
+      const uploadPayload = await this.client.fileUpload(contentType, filename, fileSize);
+
+      if (!uploadPayload.uploadFile) {
+        throw new Error('Failed to get upload URL from Linear');
+      }
+
+      const { uploadUrl, assetUrl, headers } = uploadPayload.uploadFile;
+
+      // Build headers for the PUT request
+      const uploadHeaders = {
+        'Content-Type': contentType,
+        'cache-control': 'max-age=31536000',
+      };
+
+      // Add auth headers from Linear
+      if (headers && headers.length > 0) {
+        for (const header of headers) {
+          uploadHeaders[header.key] = header.value;
+        }
+      }
+
+      // Upload buffer to Linear's storage
+      const response = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: uploadHeaders,
+        body: buffer,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed with status ${response.status}: ${response.statusText}`);
+      }
+
+      return assetUrl;
+    } catch (error) {
+      console.error('[LinearService] Failed to upload buffer:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Upload a file to Linear's private cloud storage
    * @param {string} filePath - Path to the file on disk
    * @param {string} filename - Name for the file in Linear
