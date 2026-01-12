@@ -943,6 +943,296 @@ class LocalAnnotationsServer {
       }
     });
 
+    // ============================================
+    // Linear Integration Endpoints
+    // ============================================
+
+    // Validate Linear API key and get teams
+    this.app.get('/api/linear/teams', async (req, res) => {
+      try {
+        const apiKey = req.headers['x-linear-api-key'];
+
+        if (!apiKey) {
+          return res.status(400).json({ error: 'Missing X-Linear-Api-Key header' });
+        }
+
+        const { createLinearService } = await import('./linear-service.js');
+        const linearService = createLinearService(apiKey);
+
+        // Validate API key first
+        const isValid = await linearService.validateApiKey();
+        if (!isValid) {
+          return res.status(401).json({ error: 'Invalid Linear API key' });
+        }
+
+        // Fetch teams
+        const teams = await linearService.getTeams();
+        res.json({ success: true, teams });
+      } catch (error) {
+        console.error('[Linear] Error fetching teams:', error);
+        res.status(500).json({ error: 'Failed to fetch Linear teams', details: error.message });
+      }
+    });
+
+    // Create Linear issue from all item types (comprehensive endpoint)
+    this.app.post('/api/linear/create-issue-comprehensive', async (req, res) => {
+      try {
+        const { selectedItems, teamId, apiKey } = req.body;
+
+        if (!selectedItems) {
+          return res.status(400).json({ error: 'selectedItems is required' });
+        }
+        if (!teamId) {
+          return res.status(400).json({ error: 'teamId is required' });
+        }
+        if (!apiKey) {
+          return res.status(400).json({ error: 'apiKey is required' });
+        }
+
+        const { annotations = [], designs = [], bugs = [], performance = [] } = selectedItems;
+        const totalCount = annotations.length + designs.length + bugs.length + performance.length;
+
+        if (totalCount === 0) {
+          return res.status(400).json({ error: 'At least one item must be selected' });
+        }
+
+        const { createLinearService } = await import('./linear-service.js');
+        const linearService = createLinearService(apiKey);
+
+        // Validate API key
+        const isValid = await linearService.validateApiKey();
+        if (!isValid) {
+          return res.status(401).json({ error: 'Invalid Linear API key' });
+        }
+
+        // Load all data
+        const allAnnotations = await this.loadAnnotations();
+        const allIssueReports = await this.loadBugReports();
+
+        // Filter selected items
+        const selectedAnnotations = allAnnotations.filter(a =>
+          annotations.includes(a.id) && a.type !== 'design-edit'
+        );
+        const selectedDesigns = allAnnotations.filter(a =>
+          designs.includes(a.id) || (annotations.includes(a.id) && a.type === 'design-edit')
+        );
+        const selectedBugs = allIssueReports.filter(r =>
+          bugs.includes(r.id) && r.type !== 'performance-investigation'
+        );
+        const selectedPerformance = allIssueReports.filter(r =>
+          performance.includes(r.id) || (bugs.includes(r.id) && r.type === 'performance-investigation')
+        );
+
+        // Upload screenshots for annotations and designs
+        const screenshotUrls = new Map();
+        const allAnnotationsWithImages = [...selectedAnnotations, ...selectedDesigns];
+
+        for (const annotation of allAnnotationsWithImages) {
+          if (annotation.has_images || annotation.image_ids?.length > 0) {
+            const imageIds = annotation.image_ids || [];
+            for (const imageId of imageIds) {
+              try {
+                const possiblePaths = [
+                  path.join(IMAGES_DIR, annotation.id, `${imageId}.png`),
+                  path.join(IMAGES_DIR, annotation.id, `${imageId}.webp`),
+                  path.join(IMAGES_DIR, annotation.id, `${imageId}.jpg`),
+                ];
+
+                let imagePath = null;
+                let contentType = 'image/png';
+
+                for (const p of possiblePaths) {
+                  if (existsSync(p)) {
+                    imagePath = p;
+                    if (p.endsWith('.webp')) contentType = 'image/webp';
+                    if (p.endsWith('.jpg')) contentType = 'image/jpeg';
+                    break;
+                  }
+                }
+
+                if (imagePath) {
+                  const assetUrl = await linearService.uploadFile(imagePath, `${imageId}.png`, contentType);
+                  screenshotUrls.set(imageId, assetUrl);
+                }
+              } catch (uploadError) {
+                console.warn(`[Linear] Failed to upload image ${imageId}:`, uploadError.message);
+              }
+            }
+          }
+        }
+
+        // Upload screenshots for bug reports
+        for (const bug of selectedBugs) {
+          const lastRecording = bug.recordings?.[bug.recordings.length - 1];
+          if (lastRecording?.screenshot?.id) {
+            try {
+              const screenshotPath = path.join(IMAGES_DIR, 'bug-reports', bug.id, `${lastRecording.screenshot.id}.png`);
+              if (existsSync(screenshotPath)) {
+                const assetUrl = await linearService.uploadFile(screenshotPath, `bug-${bug.id}.png`, 'image/png');
+                screenshotUrls.set(`bug-${bug.id}`, assetUrl);
+              }
+            } catch (uploadError) {
+              console.warn(`[Linear] Failed to upload bug screenshot:`, uploadError.message);
+            }
+          }
+        }
+
+        // Upload screenshots for performance reports
+        for (const perf of selectedPerformance) {
+          if (perf.screenshot?.id) {
+            try {
+              const screenshotPath = path.join(IMAGES_DIR, 'bug-reports', perf.id, `${perf.screenshot.id}.png`);
+              if (existsSync(screenshotPath)) {
+                const assetUrl = await linearService.uploadFile(screenshotPath, `perf-${perf.id}.png`, 'image/png');
+                screenshotUrls.set(`perf-${perf.id}`, assetUrl);
+              }
+            } catch (uploadError) {
+              console.warn(`[Linear] Failed to upload performance screenshot:`, uploadError.message);
+            }
+          }
+        }
+
+        // Upload JSON attachments for bug reports (full timeline/logs data)
+        const attachmentUrls = new Map();
+        for (const bug of selectedBugs) {
+          try {
+            const attachmentData = this.prepareBugReportAttachment(bug);
+            const jsonBuffer = Buffer.from(JSON.stringify(attachmentData, null, 2), 'utf-8');
+            const assetUrl = await linearService.uploadBuffer(
+              jsonBuffer,
+              `bug-report-${bug.id}.json`,
+              'application/json'
+            );
+            attachmentUrls.set(`bug-${bug.id}`, assetUrl);
+            console.log(`[Linear] Uploaded bug report JSON attachment for ${bug.id}`);
+          } catch (uploadError) {
+            console.warn(`[Linear] Failed to upload bug report JSON:`, uploadError.message);
+          }
+        }
+
+        // Upload JSON attachments for performance investigations (full metrics data)
+        for (const perf of selectedPerformance) {
+          try {
+            const attachmentData = this.preparePerformanceReportAttachment(perf);
+            const jsonBuffer = Buffer.from(JSON.stringify(attachmentData, null, 2), 'utf-8');
+            const assetUrl = await linearService.uploadBuffer(
+              jsonBuffer,
+              `performance-report-${perf.id}.json`,
+              'application/json'
+            );
+            attachmentUrls.set(`perf-${perf.id}`, assetUrl);
+            console.log(`[Linear] Uploaded performance report JSON attachment for ${perf.id}`);
+          } catch (uploadError) {
+            console.warn(`[Linear] Failed to upload performance report JSON:`, uploadError.message);
+          }
+        }
+
+        // Format comprehensive issue description
+        const description = this.formatComprehensiveIssue(
+          selectedAnnotations,
+          selectedDesigns,
+          selectedBugs,
+          selectedPerformance,
+          screenshotUrls,
+          attachmentUrls
+        );
+
+        // Generate issue title
+        const issueTitle = this.generateComprehensiveIssueTitle(
+          selectedAnnotations,
+          selectedDesigns,
+          selectedBugs,
+          selectedPerformance
+        );
+
+        // Create the issue
+        const issue = await linearService.createIssue({
+          teamId,
+          title: issueTitle,
+          description,
+        });
+
+        // Create attachment records for uploaded files (so they appear in Linear's Resources panel)
+        let attachmentsCreated = 0;
+
+        // Create attachments for bug report JSON files
+        for (const bug of selectedBugs) {
+          const jsonUrl = attachmentUrls.get(`bug-${bug.id}`);
+          if (jsonUrl) {
+            try {
+              await linearService.createAttachment({
+                issueId: issue.id,
+                title: `Bug Report Data (${bug.id})`,
+                url: jsonUrl,
+                subtitle: 'Full timeline, console logs, network requests, and debugging context',
+              });
+              attachmentsCreated++;
+              console.log(`[Linear] Created attachment for bug report ${bug.id}`);
+            } catch (attachError) {
+              console.warn(`[Linear] Failed to create attachment for bug ${bug.id}:`, attachError.message);
+            }
+          }
+        }
+
+        // Create attachments for performance report JSON files
+        for (const perf of selectedPerformance) {
+          const jsonUrl = attachmentUrls.get(`perf-${perf.id}`);
+          if (jsonUrl) {
+            try {
+              await linearService.createAttachment({
+                issueId: issue.id,
+                title: `Performance Report Data (${perf.id})`,
+                url: jsonUrl,
+                subtitle: 'Full resource timings, interactions, and performance metrics',
+              });
+              attachmentsCreated++;
+              console.log(`[Linear] Created attachment for performance report ${perf.id}`);
+            } catch (attachError) {
+              console.warn(`[Linear] Failed to create attachment for perf ${perf.id}:`, attachError.message);
+            }
+          }
+        }
+
+        // Note: Screenshots are embedded inline in the issue description (as markdown images)
+        // rather than as separate attachments. This allows Linear's MCP server to potentially
+        // return them as base64 to AI agents. Separate attachments would require authentication
+        // to download, which the MCP server doesn't support.
+
+        console.log(`[Linear] Created ${attachmentsCreated} attachments (JSON data files) for issue ${issue.identifier}`);
+
+        // Delete synced items
+        const annotationIdsToDelete = [...selectedAnnotations, ...selectedDesigns].map(a => a.id);
+        if (annotationIdsToDelete.length > 0) {
+          await this.deleteAnnotationsByIds(annotationIdsToDelete);
+        }
+
+        const bugIdsToDelete = [...selectedBugs, ...selectedPerformance].map(r => r.id);
+        if (bugIdsToDelete.length > 0) {
+          await this.deleteIssueReportsByIds(bugIdsToDelete);
+        }
+
+        res.json({
+          success: true,
+          issue: {
+            id: issue.id,
+            identifier: issue.identifier,
+            url: issue.url,
+          },
+          syncedCounts: {
+            annotations: selectedAnnotations.length,
+            designs: selectedDesigns.length,
+            bugs: selectedBugs.length,
+            performance: selectedPerformance.length,
+          },
+          screenshotsUploaded: screenshotUrls.size,
+          attachmentsCreated,
+        });
+      } catch (error) {
+        console.error('[Linear] Error creating comprehensive issue:', error);
+        res.status(500).json({ error: 'Failed to create Linear issue', details: error.message });
+      }
+    });
+
     // SSE endpoint for MCP connection (proper MCP SSE transport)
     this.app.get('/sse', async (req, res) => {
 
@@ -1572,6 +1862,587 @@ class LocalAnnotationsServer {
       console.error('Error saving archive:', error);
       throw error;
     }
+  }
+
+  // ============================================
+  // Linear Integration Helper Methods
+  // ============================================
+
+  /**
+   * Format a comprehensive Linear issue from all item types
+   * This creates a well-structured issue that AI coding tools can parse
+   * @param {Array} annotations - Regular annotations
+   * @param {Array} designs - Design annotations
+   * @param {Array} bugs - Bug reports
+   * @param {Array} performance - Performance investigations
+   * @param {Map} screenshotUrls - Map of screenshot URLs
+   * @param {Map} attachmentUrls - Map of JSON attachment URLs (bug-{id} -> url, perf-{id} -> url)
+   */
+  formatComprehensiveIssue(annotations, designs, bugs, performance, screenshotUrls, attachmentUrls = new Map()) {
+    const lines = [];
+    const date = new Date().toISOString().split('T')[0];
+
+    // Header
+    lines.push('# Pointa Feedback Report');
+    lines.push('');
+    lines.push(`**Synced:** ${date}`);
+
+    // Summary counts
+    const counts = [];
+    if (annotations.length > 0) counts.push(`${annotations.length} annotation${annotations.length > 1 ? 's' : ''}`);
+    if (designs.length > 0) counts.push(`${designs.length} design change${designs.length > 1 ? 's' : ''}`);
+    if (bugs.length > 0) counts.push(`${bugs.length} bug report${bugs.length > 1 ? 's' : ''}`);
+    if (performance.length > 0) counts.push(`${performance.length} performance investigation${performance.length > 1 ? 's' : ''}`);
+    lines.push(`**Items:** ${counts.join(', ')}`);
+    lines.push('');
+
+    // Annotations section
+    if (annotations.length > 0) {
+      lines.push('---');
+      lines.push('');
+      lines.push('## Annotations');
+      lines.push('');
+      annotations.forEach((annotation, index) => {
+        lines.push(...this.formatAnnotationForComprehensive(annotation, index + 1, screenshotUrls));
+      });
+    }
+
+    // Design Changes section
+    if (designs.length > 0) {
+      lines.push('---');
+      lines.push('');
+      lines.push('## Design Changes');
+      lines.push('');
+      designs.forEach((design, index) => {
+        lines.push(...this.formatDesignAnnotationForLinear(design, index + 1, screenshotUrls));
+      });
+    }
+
+    // Bug Reports section
+    if (bugs.length > 0) {
+      lines.push('---');
+      lines.push('');
+      lines.push('## Bug Reports');
+      lines.push('');
+      bugs.forEach((bug, index) => {
+        const attachmentUrl = attachmentUrls.get(`bug-${bug.id}`) || null;
+        lines.push(...this.formatBugReportForLinear(bug, index + 1, screenshotUrls, attachmentUrl));
+      });
+    }
+
+    // Performance Investigations section
+    if (performance.length > 0) {
+      lines.push('---');
+      lines.push('');
+      lines.push('## Performance Investigations');
+      lines.push('');
+      performance.forEach((perf, index) => {
+        const attachmentUrl = attachmentUrls.get(`perf-${perf.id}`) || null;
+        lines.push(...this.formatPerformanceReportForLinear(perf, index + 1, screenshotUrls, attachmentUrl));
+      });
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Format a single annotation for comprehensive issue
+   */
+  formatAnnotationForComprehensive(annotation, num, screenshotUrls) {
+    const lines = [];
+
+    const firstMessage = annotation.messages?.[0]?.text || annotation.comment || 'No description';
+    const truncatedTitle = firstMessage.length > 60 ? firstMessage.substring(0, 60) + '...' : firstMessage;
+
+    lines.push(`### ${num}. ${truncatedTitle}`);
+    lines.push('');
+
+    // Page info
+    if (annotation.url) {
+      lines.push(`**Page:** ${annotation.url}`);
+    }
+
+    // Element info
+    if (annotation.selector) {
+      lines.push(`**Element:** \`${annotation.selector}\``);
+    }
+
+    // Source file info
+    if (annotation.source_file_path) {
+      const sourceInfo = annotation.source_line_range
+        ? `${annotation.source_file_path}:${annotation.source_line_range}`
+        : annotation.source_file_path;
+      lines.push(`**File:** ${sourceInfo}`);
+    }
+
+    lines.push('');
+
+    // Messages/Request
+    if (annotation.messages && annotation.messages.length > 0) {
+      lines.push('**Request:**');
+      annotation.messages.forEach(msg => {
+        lines.push(`> ${msg.text}`);
+      });
+      lines.push('');
+    }
+
+    // Screenshots
+    const imageIds = annotation.image_ids || [];
+    for (const imageId of imageIds) {
+      if (screenshotUrls.has(imageId)) {
+        lines.push(`![Screenshot](${screenshotUrls.get(imageId)})`);
+        lines.push('');
+      }
+    }
+
+    // Technical context
+    if (annotation.element_context) {
+      lines.push('<details>');
+      lines.push('<summary>Technical Context</summary>');
+      lines.push('');
+      const ctx = annotation.element_context;
+      if (ctx.tag) lines.push(`- **Tag:** ${ctx.tag}`);
+      if (ctx.classes && ctx.classes.length > 0) {
+        lines.push(`- **Classes:** ${ctx.classes.join(', ')}`);
+      }
+      if (ctx.position) {
+        lines.push(`- **Position:** ${ctx.position.x}, ${ctx.position.y} (${ctx.position.width}x${ctx.position.height})`);
+      }
+      lines.push('');
+      lines.push('</details>');
+      lines.push('');
+    }
+
+    return lines;
+  }
+
+  /**
+   * Format a design annotation for Linear with full design context
+   */
+  formatDesignAnnotationForLinear(design, num, screenshotUrls) {
+    const lines = [];
+
+    const summary = design.changes_summary || 'Design change';
+    lines.push(`### ${num}. ${summary}`);
+    lines.push('');
+
+    // Page info
+    if (design.url) {
+      lines.push(`**Page:** ${design.url}`);
+    }
+
+    // Element info
+    if (design.selector) {
+      lines.push(`**Element:** \`${design.selector}\``);
+    }
+
+    // Source file info
+    if (design.source_file_path) {
+      const sourceInfo = design.source_line_range
+        ? `${design.source_file_path}:${design.source_line_range}`
+        : design.source_file_path;
+      lines.push(`**File:** ${sourceInfo}`);
+    }
+
+    lines.push('');
+
+    // CSS Changes (the core of design annotations)
+    if (design.css_changes && Object.keys(design.css_changes).length > 0) {
+      lines.push('**CSS Changes:**');
+      lines.push('```css');
+      for (const [prop, change] of Object.entries(design.css_changes)) {
+        lines.push(`${prop}: ${change.old} → ${change.new}`);
+      }
+      lines.push('```');
+      lines.push('');
+    }
+
+    // Design Context (framework detection, reusability, etc.)
+    if (design.design_context) {
+      const ctx = design.design_context;
+
+      if (ctx.css_framework) {
+        lines.push(`**CSS Framework:** ${ctx.css_framework.framework} (${ctx.css_framework.confidence} confidence)`);
+      }
+
+      if (ctx.reusability) {
+        if (ctx.reusability.instances_on_page > 1) {
+          lines.push(`**Instances on page:** ${ctx.reusability.instances_on_page}`);
+        }
+        if (ctx.reusability.likely_component) {
+          lines.push(`**Component:** ${ctx.reusability.primary_class || 'Yes'}`);
+        }
+        if (ctx.reusability.recommendation) {
+          lines.push(`**Recommendation:** ${ctx.reusability.recommendation}`);
+        }
+      }
+
+      if (ctx.styling_approach) {
+        lines.push(`**Styling approach:** ${ctx.styling_approach.recommended_approach}`);
+      }
+
+      if (ctx.component_context) {
+        if (ctx.component_context.component_name) {
+          lines.push(`**Component name:** ${ctx.component_context.component_name}`);
+        }
+        if (ctx.component_context.recommendation) {
+          lines.push(`**Implementation:** ${ctx.component_context.recommendation}`);
+        }
+      }
+
+      lines.push('');
+    }
+
+    // Screenshots
+    const imageIds = design.image_ids || [];
+    for (const imageId of imageIds) {
+      if (screenshotUrls.has(imageId)) {
+        lines.push(`![Screenshot](${screenshotUrls.get(imageId)})`);
+        lines.push('');
+      }
+    }
+
+    // Full computed styles in collapsible section
+    if (design.element_context?.computed_styles) {
+      lines.push('<details>');
+      lines.push('<summary>Computed Styles (Before Change)</summary>');
+      lines.push('');
+      lines.push('```json');
+      lines.push(JSON.stringify(design.element_context.computed_styles, null, 2));
+      lines.push('```');
+      lines.push('');
+      lines.push('</details>');
+      lines.push('');
+    }
+
+    return lines;
+  }
+
+  /**
+   * Format a bug report for Linear - clean description with attachment reference
+   * @param {Object} bug - The bug report object
+   * @param {number} num - Bug report number for display
+   * @param {Map} screenshotUrls - Map of screenshot URLs
+   * @param {string|null} attachmentUrl - URL to the full JSON data attachment
+   */
+  formatBugReportForLinear(bug, num, screenshotUrls, attachmentUrl = null) {
+    const lines = [];
+
+    const description = bug.report?.expectedBehavior || 'Bug report';
+    const truncatedTitle = description.length > 60 ? description.substring(0, 60) + '...' : description;
+
+    lines.push(`### ${num}. ${truncatedTitle}`);
+    lines.push('');
+
+    // Page info
+    if (bug.context?.page?.url) {
+      lines.push(`**Page:** ${bug.context.page.url}`);
+    }
+
+    // Browser info
+    if (bug.context?.browser) {
+      lines.push(`**Browser:** ${bug.context.browser}`);
+    }
+
+    // Viewport
+    if (bug.context?.page?.viewport) {
+      lines.push(`**Viewport:** ${bug.context.page.viewport.width}x${bug.context.page.viewport.height}`);
+    }
+
+    lines.push('');
+
+    // Expected behavior
+    if (bug.report?.expectedBehavior) {
+      lines.push('**Expected Behavior:**');
+      lines.push(`> ${bug.report.expectedBehavior}`);
+      lines.push('');
+    }
+
+    // Key issues identified (summary only)
+    if (bug.keyIssues && bug.keyIssues.length > 0) {
+      lines.push('**Key Issues Detected:**');
+      bug.keyIssues.forEach(issue => {
+        lines.push(`- ${issue.type}: ${issue.message || issue.details || 'No details'}`);
+      });
+      lines.push('');
+    }
+
+    // Screenshot
+    if (screenshotUrls.has(`bug-${bug.id}`)) {
+      lines.push(`![Bug Screenshot](${screenshotUrls.get(`bug-${bug.id}`)})`);
+      lines.push('');
+    }
+
+    // Timeline summary (counts only) + reference to full data
+    const lastRecording = bug.recordings?.[bug.recordings.length - 1];
+    if (lastRecording?.timeline && lastRecording.timeline.length > 0) {
+      const consoleErrors = lastRecording.timeline.filter(e => e.type === 'console-error').length;
+      const consoleLogs = lastRecording.timeline.filter(e => e.type === 'console-log' || e.type === 'console-warn').length;
+      const networkErrors = lastRecording.timeline.filter(e => e.type === 'network-error').length;
+      const networkRequests = lastRecording.timeline.filter(e => e.type === 'network-request').length;
+      const interactions = lastRecording.timeline.filter(e => e.type === 'click' || e.type === 'input').length;
+      const backendLogs = lastRecording.timeline.filter(e => e.source === 'backend').length;
+
+      lines.push('**Timeline Summary:**');
+      if (consoleErrors > 0) lines.push(`- ${consoleErrors} console error(s)`);
+      if (consoleLogs > 0) lines.push(`- ${consoleLogs} console log(s)/warning(s)`);
+      if (networkErrors > 0) lines.push(`- ${networkErrors} network error(s)`);
+      if (networkRequests > 0) lines.push(`- ${networkRequests} network request(s)`);
+      if (interactions > 0) lines.push(`- ${interactions} user interaction(s)`);
+      if (backendLogs > 0) lines.push(`- ${backendLogs} backend log(s)`);
+      lines.push('');
+    }
+
+    // Recording metadata
+    if (lastRecording?.metadata) {
+      lines.push(`**Recording Duration:** ${lastRecording.metadata.duration ? Math.round(lastRecording.metadata.duration / 1000) + 's' : 'Unknown'}`);
+      lines.push('');
+    }
+
+    // Reference to full data attachment
+    if (attachmentUrl) {
+      lines.push(`**Full Debug Data:** [Download JSON](${attachmentUrl})`);
+      lines.push('*Contains complete timeline, console logs, network requests, and backend logs for AI analysis.*');
+      lines.push('');
+    }
+
+    return lines;
+  }
+
+  /**
+   * Prepare bug report data for JSON attachment
+   * Returns the full bug report with all timeline data for AI tools to consume
+   */
+  prepareBugReportAttachment(bug) {
+    return {
+      id: bug.id,
+      created: bug.created,
+      updated: bug.updated,
+      status: bug.status,
+      report: bug.report,
+      context: bug.context,
+      keyIssues: bug.keyIssues,
+      recordings: bug.recordings, // Full recordings with complete timeline
+      ai_actions: bug.ai_actions,
+    };
+  }
+
+  /**
+   * Format a performance investigation for Linear - clean description with attachment reference
+   * @param {Object} perf - The performance report object
+   * @param {number} num - Report number for display
+   * @param {Map} screenshotUrls - Map of screenshot URLs
+   * @param {string|null} attachmentUrl - URL to the full JSON data attachment
+   */
+  formatPerformanceReportForLinear(perf, num, screenshotUrls, attachmentUrl = null) {
+    const lines = [];
+
+    const description = perf.report?.userDescription || 'Performance investigation';
+    const truncatedTitle = description.length > 60 ? description.substring(0, 60) + '...' : description;
+
+    lines.push(`### ${num}. ${truncatedTitle}`);
+    lines.push('');
+
+    // Page info
+    if (perf.metadata?.url) {
+      lines.push(`**Page:** ${perf.metadata.url}`);
+    }
+
+    // Browser info
+    if (perf.metadata?.browser) {
+      lines.push(`**Browser:** ${perf.metadata.browser}`);
+    }
+
+    // Viewport
+    if (perf.metadata?.viewport) {
+      lines.push(`**Viewport:** ${perf.metadata.viewport.width}x${perf.metadata.viewport.height}`);
+    }
+
+    lines.push('');
+
+    // User description
+    if (perf.report?.userDescription) {
+      lines.push('**Issue Description:**');
+      lines.push(`> ${perf.report.userDescription}`);
+      lines.push('');
+    }
+
+    // When it happens
+    if (perf.report?.whenHappens) {
+      lines.push('**When it happens:**');
+      lines.push(`> ${perf.report.whenHappens}`);
+      lines.push('');
+    }
+
+    // Performance insights (these are valuable summaries, keep them)
+    if (perf.insights?.issues && perf.insights.issues.length > 0) {
+      lines.push('**Performance Issues Detected:**');
+      perf.insights.issues.forEach(issue => {
+        lines.push(`- **${issue.type}**: ${issue.description || issue.message}`);
+        if (issue.recommendation) {
+          lines.push(`  - Recommendation: ${issue.recommendation}`);
+        }
+      });
+      lines.push('');
+    }
+
+    // Screenshot
+    if (screenshotUrls.has(`perf-${perf.id}`)) {
+      lines.push(`![Performance Screenshot](${screenshotUrls.get(`perf-${perf.id}`)})`);
+      lines.push('');
+    }
+
+    // Performance metrics summary (counts only)
+    if (perf.performance) {
+      const resourceCount = perf.performance.resources?.length || 0;
+      const slowResourceCount = perf.performance.resources?.filter(r => r.duration > 500).length || 0;
+      const interactionCount = perf.performance.interactions?.length || 0;
+
+      lines.push('**Metrics Summary:**');
+      if (perf.performance.deviceInfo) {
+        const device = perf.performance.deviceInfo;
+        if (device.memory) lines.push(`- Device Memory: ${device.memory} GB`);
+        if (device.hardwareConcurrency) lines.push(`- CPU Cores: ${device.hardwareConcurrency}`);
+        if (device.connection) lines.push(`- Connection: ${device.connection.effectiveType}`);
+      }
+      lines.push(`- Total Resources Tracked: ${resourceCount}`);
+      if (slowResourceCount > 0) lines.push(`- Slow Resources (>500ms): ${slowResourceCount}`);
+      if (interactionCount > 0) lines.push(`- User Interactions: ${interactionCount}`);
+      lines.push('');
+    }
+
+    // Recording duration
+    if (perf.duration) {
+      lines.push(`**Recording Duration:** ${Math.round(perf.duration / 1000)}s`);
+      lines.push('');
+    }
+
+    // Reference to full data attachment
+    if (attachmentUrl) {
+      lines.push(`**Full Performance Data:** [Download JSON](${attachmentUrl})`);
+      lines.push('*Contains complete resource timings, all interactions, and detailed metrics for AI analysis.*');
+      lines.push('');
+    }
+
+    return lines;
+  }
+
+  /**
+   * Prepare performance report data for JSON attachment
+   * Returns the full performance report with all metrics for AI tools to consume
+   */
+  preparePerformanceReportAttachment(perf) {
+    return {
+      id: perf.id,
+      type: perf.type,
+      created: perf.created,
+      updated: perf.updated,
+      status: perf.status,
+      report: perf.report,
+      performance: perf.performance, // Full performance data (all resources, interactions)
+      insights: perf.insights, // Full insights
+      metadata: perf.metadata,
+      duration: perf.duration,
+    };
+  }
+
+  /**
+   * Generate a title for comprehensive Linear issue
+   */
+  generateComprehensiveIssueTitle(annotations, designs, bugs, performance) {
+    const totalCount = annotations.length + designs.length + bugs.length + performance.length;
+
+    // If only one item, use its content as title
+    if (totalCount === 1) {
+      if (annotations.length === 1) {
+        const text = annotations[0].messages?.[0]?.text || annotations[0].comment || 'Annotation';
+        return text.length > 100 ? text.substring(0, 97) + '...' : text;
+      }
+      if (designs.length === 1) {
+        const text = designs[0].changes_summary || 'Design change';
+        return text.length > 100 ? text.substring(0, 97) + '...' : text;
+      }
+      if (bugs.length === 1) {
+        const text = bugs[0].report?.expectedBehavior || 'Bug report';
+        return text.length > 100 ? text.substring(0, 97) + '...' : text;
+      }
+      if (performance.length === 1) {
+        const text = performance[0].report?.userDescription || 'Performance issue';
+        return text.length > 100 ? text.substring(0, 97) + '...' : text;
+      }
+    }
+
+    // Multiple items - describe what's included
+    const parts = [];
+    if (annotations.length > 0) parts.push(`${annotations.length} annotation${annotations.length > 1 ? 's' : ''}`);
+    if (designs.length > 0) parts.push(`${designs.length} design${designs.length > 1 ? 's' : ''}`);
+    if (bugs.length > 0) parts.push(`${bugs.length} bug${bugs.length > 1 ? 's' : ''}`);
+    if (performance.length > 0) parts.push(`${performance.length} perf`);
+
+    return `Pointa: ${parts.join(', ')}`;
+  }
+
+  /**
+   * Delete issue reports (bug reports and performance investigations) by IDs
+   * @param {Array<string>} ids - Array of issue report IDs to delete
+   */
+  async deleteIssueReportsByIds(ids) {
+    this.issueReportsSaveLock = this.issueReportsSaveLock.then(async () => {
+      const issueReports = await this.loadBugReports();
+      const toDelete = issueReports.filter(r => ids.includes(r.id));
+      const remaining = issueReports.filter(r => !ids.includes(r.id));
+
+      // Delete associated images
+      for (const report of toDelete) {
+        const imageDir = path.join(IMAGES_DIR, 'bug-reports', report.id);
+        if (existsSync(imageDir)) {
+          try {
+            await rm(imageDir, { recursive: true });
+          } catch (error) {
+            console.warn(`[Linear] Failed to delete images for issue ${report.id}:`, error.message);
+          }
+        }
+      }
+
+      // Save remaining issue reports
+      await this._saveBugReportsInternal(remaining);
+
+      console.log(`[Linear] Deleted ${toDelete.length} issue reports after sync to Linear`);
+    });
+
+    return this.issueReportsSaveLock;
+  }
+
+  /**
+   * Delete annotations by IDs and their associated images
+   * @param {Array<string>} ids - Array of annotation IDs to delete
+   */
+  async deleteAnnotationsByIds(ids) {
+    // Use save lock to prevent race conditions
+    this.saveLock = this.saveLock.then(async () => {
+      const annotations = await this.loadAnnotations();
+      const toDelete = annotations.filter(a => ids.includes(a.id));
+      const remaining = annotations.filter(a => !ids.includes(a.id));
+
+      // Delete associated images
+      for (const annotation of toDelete) {
+        const imageDir = path.join(IMAGES_DIR, annotation.id);
+        if (existsSync(imageDir)) {
+          try {
+            await rm(imageDir, { recursive: true });
+          } catch (error) {
+            console.warn(`[Linear] Failed to delete images for ${annotation.id}:`, error.message);
+          }
+        }
+      }
+
+      // Save remaining annotations
+      await this._saveAnnotationsInternal(remaining);
+
+      console.log(`[Linear] Deleted ${toDelete.length} annotations after sync to Linear`);
+    });
+
+    return this.saveLock;
   }
 
   async loadBugReports() {
