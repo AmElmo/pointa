@@ -61,20 +61,6 @@ export async function segmentVideo({ transcription, clicks, pageChanges, onProgr
 function buildSegments({ transcriptSegments, pageChanges, clicks }) {
   const segments = [];
 
-  // Create time-ordered events list
-  const events = [
-    ...pageChanges.map(pc => ({
-      type: 'page_change',
-      timestamp: pc.timestamp,
-      data: pc
-    })),
-    ...clicks.map(c => ({
-      type: 'click',
-      timestamp: c.timestamp,
-      data: c
-    }))
-  ].sort((a, b) => a.timestamp - b.timestamp);
-
   // Process each transcript segment
   for (const tseg of transcriptSegments) {
     const startMs = tseg.start * 1000;

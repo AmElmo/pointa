@@ -22,7 +22,7 @@ import { WebSocketServer } from 'ws';
 
 // Video processing services
 import { transcribeVideo, parseTranscriptSegments } from './services/whisper-client.js';
-import { segmentVideo, formatTime } from './services/video-segmenter.js';
+import { segmentVideo } from './services/video-segmenter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

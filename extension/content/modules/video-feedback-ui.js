@@ -390,13 +390,6 @@ const VideoFeedbackUI = {
    * @returns {string} HTML string
    */
   renderFeedbackPoint(point, index) {
-    const typeLabels = {
-      'annotation': { label: 'Annotation', icon: '💬', color: '#0c8ce9' },
-      'bug_report': { label: 'Bug', icon: '🐛', color: '#ef4444' },
-      'performance_report': { label: 'Performance', icon: '⚡', color: '#f59e0b' }
-    };
-
-    const typeInfo = typeLabels[point.type] || typeLabels['annotation'];
     const startTime = this.formatTime(point.time_range?.start || 0);
     const endTime = this.formatTime(point.time_range?.end || 0);
 
