@@ -1,6 +1,8 @@
 # pointa-server
 
-Global MCP server for Pointa browser extension.
+MCP server for [Pointa](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane) — a Chrome extension that lets you leave visual annotations on your localhost for AI coding agents to pick up and implement.
+
+Point at UI issues, add comments, and your AI agent sees exactly what you see.
 
 > **Note:** This is a CLI tool. Install globally with:
 > ```bash
@@ -12,7 +14,15 @@ Global MCP server for Pointa browser extension.
 
 No installation required! Just add the MCP server to your AI coding tool:
 
-### Cursor (Recommended)
+### Claude Code
+
+```bash
+claude mcp add --transport http pointa http://127.0.0.1:4242/mcp
+```
+
+Then start the server: `npx pointa-server start`
+
+### Cursor
 
 1. Open Cursor → Settings → Cursor Settings
 2. Go to the Tools & Integrations tab
@@ -30,7 +40,7 @@ No installation required! Just add the MCP server to your AI coding tool:
 }
 ```
 
-That's it! The server will auto-start when Cursor opens and works with the Chrome extension.
+The server will auto-start when Cursor opens.
 
 ---
 
@@ -227,6 +237,57 @@ Then configure your editor with: `http://127.0.0.1:4242/mcp`
 
 **Note:** The Pointa MCP server supports HTTP, SSE, and stdio transports for maximum compatibility.
 
+## MCP Tools
+
+The server exposes the following tools via MCP for AI coding agents:
+
+### Annotation Tools
+
+| Tool | Description |
+|------|-------------|
+| `read_annotations` | Retrieves visual annotations with pagination. Supports URL filtering for multi-project safety. |
+| `read_annotation_by_id` | Retrieves a single annotation by ID. |
+| `mark_annotations_for_review` | Marks annotations as "in-review" after AI addresses them. |
+| `get_annotation_images` | Retrieves images for an annotation as base64 data URLs. |
+
+### Issue Report Tools
+
+| Tool | Description |
+|------|-------------|
+| `read_issue_reports` | Retrieves bug reports and performance investigations with timeline data. |
+| `mark_issue_needs_rerun` | Marks an issue for replay after adding debugging code. |
+| `mark_issue_for_review` | Marks an issue as fixed and ready for testing. |
+| `mark_issue_resolved` | Archives a resolved issue. |
+
+### Linear Integration Tools
+
+| Tool | Description |
+|------|-------------|
+| `fetch_linear_attachment` | Fetches Linear attachment content with API key authentication. |
+
+#### `fetch_linear_attachment`
+
+This tool solves a common problem when using Linear's MCP server: attachment URLs require authentication to access. When you sync bug reports to Linear, the debug JSON is uploaded as an attachment, but Linear's MCP server only returns the URL - not the content.
+
+**How it works:**
+
+1. Connect Linear in Pointa extension settings (one-time setup)
+2. Your API key is automatically saved to the server config
+3. Use Linear's official MCP to get an issue with attachments
+4. Use `fetch_linear_attachment` with just the URL - authentication is automatic
+
+**Parameters:**
+- `url` (required): The Linear attachment URL to fetch (e.g., `https://uploads.linear.app/...`)
+
+**Returns:**
+- `content`: The attachment content (parsed JSON for .json files, text for text files, base64 for binary)
+- `content_type`: MIME type of the attachment
+- `encoding`: How the content is encoded (`json`, `text`, or `base64`)
+
+**Note:** Requires Linear integration to be connected in Pointa extension settings. The API key is stored locally in `~/.pointa/config.json`.
+
+---
+
 ## Architecture
 
 The server provides:
@@ -252,10 +313,6 @@ npm install
 # Run in development mode
 npm run dev
 ```
-
-## Chrome Extension
-
-Install the companion browser extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane).
 
 ## License
 

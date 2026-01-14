@@ -353,6 +353,13 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
+        // Save Linear API key to Pointa server (for MCP tool usage)
+        case 'saveLinearApiKeyToServer':
+          this.saveLinearApiKeyToServer(request.apiKey).
+          then(() => sendResponse({ success: true })).
+          catch((error) => console.warn('[Linear] Server sync failed:', error.message));
+          break;
+
         // Validate Linear API key and get teams
         case 'getLinearTeams':
           this.getLinearTeams(request.apiKey).
@@ -2298,6 +2305,25 @@ class PointaBackground {
     } catch (error) {
       console.error('[Linear] Error fetching teams:', error.message);
       throw error;
+    }
+  }
+
+  /**
+   * Save Linear API key to Pointa server config (for MCP tool usage)
+   */
+  async saveLinearApiKeyToServer(apiKey) {
+    try {
+      const response = await fetch(`${this.apiServerUrl}/api/linear/save-api-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey })
+      });
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}`);
+      }
+      console.log('[Linear] API key saved to server');
+    } catch (error) {
+      console.warn('[Linear] Failed to save API key to server:', error.message);
     }
   }
 
