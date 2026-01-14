@@ -7033,10 +7033,13 @@ IMPORTANT - Git Workflow:
           });
 
           if (response?.success && response.teams?.length > 0) {
-            // Save the API key
+            // Save the API key to Chrome storage
             await new Promise((resolve) => {
               chrome.runtime.sendMessage({ action: 'setLinearApiKey', apiKey }, resolve);
             });
+
+            // Also save to Pointa server (for MCP tool usage)
+            chrome.runtime.sendMessage({ action: 'saveLinearApiKeyToServer', apiKey });
 
             linearApiKeyInput.value = '••••••••••••••••';
             linearApiKeyInput.dataset.hasKey = 'true';

@@ -37,6 +37,7 @@ const INSPIRATIONS_FILE = path.join(DATA_DIR, 'inspirations.json');
 const INSPIRATION_SCREENSHOTS_DIR = path.join(DATA_DIR, 'inspiration_screenshots');
 const ISSUE_REPORTS_FILE = path.join(DATA_DIR, 'issue_reports.json');
 const BUG_SCREENSHOTS_DIR = path.join(DATA_DIR, 'bug_screenshots');
+const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 
 // Configure multer for memory storage (we'll save manually for better control)
 const upload = multer({
@@ -974,6 +975,35 @@ class LocalAnnotationsServer {
       }
     });
 
+    // Save Linear API key to server config (for MCP tool usage)
+    this.app.post('/api/linear/save-api-key', async (req, res) => {
+      try {
+        const { apiKey } = req.body;
+
+        if (!apiKey) {
+          return res.status(400).json({ error: 'apiKey is required' });
+        }
+
+        // Validate the API key before saving
+        const { createLinearService } = await import('./linear-service.js');
+        const linearService = createLinearService(apiKey);
+        const isValid = await linearService.validateApiKey();
+
+        if (!isValid) {
+          return res.status(401).json({ error: 'Invalid Linear API key' });
+        }
+
+        // Save to config
+        await this.setConfigValue('linearApiKey', apiKey);
+        console.log('[Linear] API key saved to server config');
+
+        res.json({ success: true, message: 'Linear API key saved' });
+      } catch (error) {
+        console.error('[Linear] Error saving API key:', error);
+        res.status(500).json({ error: 'Failed to save Linear API key', details: error.message });
+      }
+    });
+
     // Create Linear issue from all item types (comprehensive endpoint)
     this.app.post('/api/linear/create-issue-comprehensive', async (req, res) => {
       try {
@@ -1028,35 +1058,30 @@ class LocalAnnotationsServer {
         const allAnnotationsWithImages = [...selectedAnnotations, ...selectedDesigns];
 
         for (const annotation of allAnnotationsWithImages) {
-          if (annotation.has_images || annotation.image_ids?.length > 0) {
-            const imageIds = annotation.image_ids || [];
-            for (const imageId of imageIds) {
-              try {
-                const possiblePaths = [
-                  path.join(IMAGES_DIR, annotation.id, `${imageId}.png`),
-                  path.join(IMAGES_DIR, annotation.id, `${imageId}.webp`),
-                  path.join(IMAGES_DIR, annotation.id, `${imageId}.jpg`),
-                ];
+          // Get images from reference_images array (the actual storage format)
+          const referenceImages = annotation.reference_images || [];
 
-                let imagePath = null;
+          for (const refImage of referenceImages) {
+            try {
+              // Use the actual file_path stored in reference_images
+              const imagePath = path.join(DATA_DIR, refImage.file_path);
+
+              if (existsSync(imagePath)) {
+                // Determine content type from file extension
                 let contentType = 'image/png';
+                if (imagePath.endsWith('.webp')) contentType = 'image/webp';
+                else if (imagePath.endsWith('.jpg') || imagePath.endsWith('.jpeg')) contentType = 'image/jpeg';
 
-                for (const p of possiblePaths) {
-                  if (existsSync(p)) {
-                    imagePath = p;
-                    if (p.endsWith('.webp')) contentType = 'image/webp';
-                    if (p.endsWith('.jpg')) contentType = 'image/jpeg';
-                    break;
-                  }
-                }
+                // Use original_name or generate a filename
+                const filename = refImage.original_name || `${refImage.id}.png`;
 
-                if (imagePath) {
-                  const assetUrl = await linearService.uploadFile(imagePath, `${imageId}.png`, contentType);
-                  screenshotUrls.set(imageId, assetUrl);
-                }
-              } catch (uploadError) {
-                console.warn(`[Linear] Failed to upload image ${imageId}:`, uploadError.message);
+                const assetUrl = await linearService.uploadFile(imagePath, filename, contentType);
+                screenshotUrls.set(refImage.id, assetUrl);
+              } else {
+                console.warn(`[Linear] Image file not found: ${imagePath}`);
               }
+            } catch (uploadError) {
+              console.warn(`[Linear] Failed to upload image ${refImage.id}:`, uploadError.message);
             }
           }
         }
@@ -1547,6 +1572,21 @@ class LocalAnnotationsServer {
             required: ['id'],
             additionalProperties: false
           }
+        },
+        {
+          name: 'fetch_linear_attachment',
+          description: 'Fetches the content of a Linear attachment URL using the stored API key. Use this when you have a Linear attachment URL (from uploads.linear.app) that requires authentication. The API key is automatically retrieved from Pointa config (saved when user connects Linear integration). Returns JSON content parsed, text as-is, or binary as base64.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+                description: 'The Linear attachment URL to fetch (e.g., "https://uploads.linear.app/...")'
+              }
+            },
+            required: ['url'],
+            additionalProperties: false
+          }
         }]
 
       };
@@ -1702,6 +1742,23 @@ class LocalAnnotationsServer {
               };
             }
 
+          case 'fetch_linear_attachment':{
+              const result = await this.fetchLinearAttachment(args);
+              return {
+                content: [
+                {
+                  type: 'text',
+                  text: JSON.stringify({
+                    tool: 'fetch_linear_attachment',
+                    status: 'success',
+                    data: result,
+                    timestamp: new Date().toISOString()
+                  }, null, 2)
+                }]
+
+              };
+            }
+
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -1747,6 +1804,58 @@ class LocalAnnotationsServer {
       console.error('Error loading annotations:', error);
       return [];
     }
+  }
+
+  /**
+   * Load config from ~/.pointa/config.json
+   */
+  async loadConfig() {
+    try {
+      if (!existsSync(CONFIG_FILE)) {
+        return {};
+      }
+      const data = await readFile(CONFIG_FILE, 'utf8');
+      if (!data || data.trim() === '') {
+        return {};
+      }
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error loading config:', error);
+      return {};
+    }
+  }
+
+  /**
+   * Save config to ~/.pointa/config.json
+   */
+  async saveConfig(config) {
+    try {
+      const dataDir = path.dirname(CONFIG_FILE);
+      if (!existsSync(dataDir)) {
+        await mkdir(dataDir, { recursive: true });
+      }
+      await writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+    } catch (error) {
+      console.error('Error saving config:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a config value
+   */
+  async getConfigValue(key) {
+    const config = await this.loadConfig();
+    return config[key];
+  }
+
+  /**
+   * Set a config value
+   */
+  async setConfigValue(key, value) {
+    const config = await this.loadConfig();
+    config[key] = value;
+    await this.saveConfig(config);
   }
 
   async saveAnnotations(annotations) {
@@ -1986,11 +2095,11 @@ class LocalAnnotationsServer {
       lines.push('');
     }
 
-    // Screenshots
-    const imageIds = annotation.image_ids || [];
-    for (const imageId of imageIds) {
-      if (screenshotUrls.has(imageId)) {
-        lines.push(`![Screenshot](${screenshotUrls.get(imageId)})`);
+    // Screenshots - extract IDs from reference_images
+    const referenceImages = annotation.reference_images || [];
+    for (const refImage of referenceImages) {
+      if (screenshotUrls.has(refImage.id)) {
+        lines.push(`![Screenshot](${screenshotUrls.get(refImage.id)})`);
         lines.push('');
       }
     }
@@ -2093,11 +2202,11 @@ class LocalAnnotationsServer {
       lines.push('');
     }
 
-    // Screenshots
-    const imageIds = design.image_ids || [];
-    for (const imageId of imageIds) {
-      if (screenshotUrls.has(imageId)) {
-        lines.push(`![Screenshot](${screenshotUrls.get(imageId)})`);
+    // Screenshots - extract IDs from reference_images
+    const referenceImages = design.reference_images || [];
+    for (const refImage of referenceImages) {
+      if (screenshotUrls.has(refImage.id)) {
+        lines.push(`![Screenshot](${screenshotUrls.get(refImage.id)})`);
         lines.push('');
       }
     }
@@ -2201,8 +2310,11 @@ class LocalAnnotationsServer {
 
     // Reference to full data attachment
     if (attachmentUrl) {
-      lines.push(`**Full Debug Data:** [Download JSON](${attachmentUrl})`);
-      lines.push('*Contains complete timeline, console logs, network requests, and backend logs for AI analysis.*');
+      lines.push('**Full Debug Data:**');
+      lines.push('*Contains complete timeline, console logs, network requests, and backend logs.*');
+      lines.push('');
+      lines.push('> **For AI agents:** Use the `fetch_linear_attachment` tool with this URL:');
+      lines.push(`> \`${attachmentUrl}\``);
       lines.push('');
     }
 
@@ -2319,8 +2431,11 @@ class LocalAnnotationsServer {
 
     // Reference to full data attachment
     if (attachmentUrl) {
-      lines.push(`**Full Performance Data:** [Download JSON](${attachmentUrl})`);
-      lines.push('*Contains complete resource timings, all interactions, and detailed metrics for AI analysis.*');
+      lines.push('**Full Performance Data:**');
+      lines.push('*Contains complete resource timings, all interactions, and detailed metrics.*');
+      lines.push('');
+      lines.push('> **For AI agents:** Use the `fetch_linear_attachment` tool with this URL:');
+      lines.push(`> \`${attachmentUrl}\``);
       lines.push('');
     }
 
@@ -3232,6 +3347,84 @@ class LocalAnnotationsServer {
         resolved_at: bugReport.resolved_at,
         resolution: bugReport.resolution
       }
+    };
+  }
+
+  /**
+   * Fetch Linear attachment content using stored API key
+   */
+  async fetchLinearAttachment(args) {
+    const { url } = args;
+
+    if (!url) {
+      throw new Error('URL is required');
+    }
+
+    // Validate URL format and domain
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error(`Invalid URL format: ${url}`);
+    }
+
+    // Ensure it's actually a Linear subdomain (not e.g. "evil-linear.app")
+    if (parsedUrl.hostname !== 'linear.app' && !parsedUrl.hostname.endsWith('.linear.app')) {
+      throw new Error(`URL must be from Linear (uploads.linear.app). Got: ${parsedUrl.hostname}`);
+    }
+
+    // Get API key from config
+    const apiKey = await this.getConfigValue('linearApiKey');
+    if (!apiKey) {
+      throw new Error('No Linear API key found. Please connect Linear in Pointa extension settings first.');
+    }
+
+    console.log(`[Linear] Fetching attachment: ${url}`);
+
+    // Fetch with timeout to prevent hanging indefinitely
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: { 'Authorization': apiKey },
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out after 30 seconds');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+    // Handle based on content type
+    if (contentType.includes('application/json') || contentType.includes('text/')) {
+      const text = await response.text();
+      if (contentType.includes('application/json')) {
+        try {
+          return { content: JSON.parse(text), content_type: contentType, encoding: 'json' };
+        } catch {
+          return { content: text, content_type: contentType, encoding: 'text' };
+        }
+      }
+      return { content: text, content_type: contentType, encoding: 'text' };
+    }
+
+    // Binary content as base64
+    const buffer = await response.arrayBuffer();
+    return {
+      content: Buffer.from(buffer).toString('base64'),
+      content_type: contentType,
+      encoding: 'base64'
     };
   }
 

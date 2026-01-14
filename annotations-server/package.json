@@ -1,6 +1,6 @@
 {
   "name": "pointa-server",
-  "version": "1.0.1",
+  "version": "1.1.1",
   "description": "Global MCP server for Pointa browser extension",
   "main": "lib/server.js",
   "type": "module",
