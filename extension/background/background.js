@@ -354,9 +354,9 @@ class PointaBackground {
           break;
 
         // Save Linear API key to Pointa server (for MCP tool usage)
+        // Fire-and-forget: caller doesn't await response, UI already shows success from Chrome storage save
         case 'saveLinearApiKeyToServer':
           this.saveLinearApiKeyToServer(request.apiKey).
-          then(() => sendResponse({ success: true })).
           catch((error) => console.warn('[Linear] Server sync failed:', error.message));
           break;
 

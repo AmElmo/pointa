@@ -3360,9 +3360,16 @@ class LocalAnnotationsServer {
       throw new Error('URL is required');
     }
 
-    // Validate URL is from Linear
-    const parsedUrl = new URL(url);
-    if (!parsedUrl.hostname.endsWith('linear.app')) {
+    // Validate URL format and domain
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      throw new Error(`Invalid URL format: ${url}`);
+    }
+
+    // Ensure it's actually a Linear subdomain (not e.g. "evil-linear.app")
+    if (parsedUrl.hostname !== 'linear.app' && !parsedUrl.hostname.endsWith('.linear.app')) {
       throw new Error(`URL must be from Linear (uploads.linear.app). Got: ${parsedUrl.hostname}`);
     }
 
@@ -3374,9 +3381,24 @@ class LocalAnnotationsServer {
 
     console.log(`[Linear] Fetching attachment: ${url}`);
 
-    const response = await fetch(url, {
-      headers: { 'Authorization': apiKey }
-    });
+    // Fetch with timeout to prevent hanging indefinitely
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    let response;
+    try {
+      response = await fetch(url, {
+        headers: { 'Authorization': apiKey },
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out after 30 seconds');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
