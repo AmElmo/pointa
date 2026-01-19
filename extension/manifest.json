@@ -38,7 +38,8 @@
         "assets/icons/pointa-icon48.png",
         "assets/icons/pointa-icon32.png",
         "assets/icons/pointa-icon16.png",
-        "assets/icons/stars.png"
+        "assets/icons/stars.png",
+        "content/content.css"
       ],
       "matches": [
         "<all_urls>"

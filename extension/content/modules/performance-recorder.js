@@ -195,8 +195,8 @@ const PerformanceRecorder = {
       element.classList.contains('bug-recording-indicator')))
       return true;
 
-      // Check if element is inside our sidebar or badge
-      const closestSidebar = element.closest('#pointa-sidebar');
+      // Check if element is inside our sidebar or badge (sidebar is now inside Shadow DOM)
+      const closestSidebar = element.closest('#pointa-sidebar-host');
       const closestBadge = element.closest('.pointa-badge, .pointa-badge-overlay');
 
       return !!(closestSidebar || closestBadge);
@@ -308,11 +308,11 @@ const PerformanceRecorder = {
     const elementsToHide = [];
 
     try {
-      // Find and hide sidebar
-      const sidebar = document.querySelector('#pointa-sidebar');
-      if (sidebar && sidebar.style.display !== 'none') {
-        elementsToHide.push({ element: sidebar, originalDisplay: sidebar.style.display });
-        sidebar.style.display = 'none';
+      // Find and hide sidebar (sidebar is now inside Shadow DOM, so hide the host)
+      const sidebarHost = document.querySelector('#pointa-sidebar-host');
+      if (sidebarHost && sidebarHost.style.display !== 'none') {
+        elementsToHide.push({ element: sidebarHost, originalDisplay: sidebarHost.style.display });
+        sidebarHost.style.display = 'none';
       }
 
       // Find and hide recording indicator

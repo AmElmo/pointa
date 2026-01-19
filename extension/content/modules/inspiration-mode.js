@@ -132,7 +132,7 @@ const InspirationMode = {
    * Check if sidebar is open
    */
   isSidebarOpen() {
-    return document.getElementById('pointa-sidebar') !== null;
+    return document.getElementById('pointa-sidebar-host') !== null;
   },
 
   /**
@@ -392,8 +392,8 @@ const InspirationMode = {
   isInspirationUIElement(element) {
     if (!element) return false;
 
-    // Check if element is within sidebar
-    if (element.closest('#pointa-sidebar')) {
+    // Check if element is within sidebar (sidebar is now inside Shadow DOM)
+    if (element.closest('#pointa-sidebar-host')) {
       return true;
     }
 
@@ -2258,11 +2258,12 @@ const InspirationMode = {
 
 
     // Hide sidebar during capture to avoid it appearing in screenshots
-    const sidebar = document.getElementById('pointa-sidebar');
-    const sidebarWasVisible = sidebar && sidebar.style.display !== 'none';
+    // Sidebar is now inside Shadow DOM, so we hide the host element
+    const sidebarHost = document.getElementById('pointa-sidebar-host');
+    const sidebarWasVisible = sidebarHost && sidebarHost.style.display !== 'none';
     let originalMarginRight = '';
-    if (sidebar) {
-      sidebar.style.display = 'none';
+    if (sidebarHost) {
+      sidebarHost.style.display = 'none';
       // Also remove body margin that sidebar adds
       originalMarginRight = document.body.style.marginRight || '';
       document.body.style.marginRight = '0';
@@ -2618,8 +2619,8 @@ const InspirationMode = {
     }
 
     // Restore sidebar visibility
-    if (sidebar && sidebarWasVisible) {
-      sidebar.style.display = '';
+    if (sidebarHost && sidebarWasVisible) {
+      sidebarHost.style.display = '';
       // Restore body margin to original value
       document.body.style.marginRight = originalMarginRight;
 

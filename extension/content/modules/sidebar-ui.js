@@ -7,6 +7,8 @@
 
 const PointaSidebar = {
   sidebar: null,
+  shadowHost: null, // Shadow DOM host element
+  shadowRoot: null, // Shadow root for CSS isolation
   sidebarWidth: 380,
   isOpen: false,
   isAnimating: false, // Guard flag to prevent overlapping open/close operations
@@ -83,7 +85,28 @@ const PointaSidebar = {
       this.sidebarWidth = result.sidebarWidth;
     }
 
-    // Create sidebar container
+    // Create Shadow DOM host for CSS isolation
+    // This prevents host page elements from bleeding through the sidebar
+    this.shadowHost = document.createElement('div');
+    this.shadowHost.id = 'pointa-sidebar-host';
+    // Critical: position the host element with maximum z-index
+    this.shadowHost.style.cssText = `
+      position: fixed !important;
+      top: 0 !important;
+      right: 0 !important;
+      width: ${this.sidebarWidth}px !important;
+      height: 100vh !important;
+      z-index: 2147483647 !important;
+      pointer-events: auto !important;
+    `;
+
+    // Attach shadow root for complete CSS isolation
+    this.shadowRoot = this.shadowHost.attachShadow({ mode: 'open' });
+
+    // Inject CSS into shadow root
+    await this.injectShadowStyles();
+
+    // Create sidebar container inside shadow root
     this.sidebar = document.createElement('div');
     this.sidebar.id = 'pointa-sidebar';
     this.sidebar.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
@@ -97,8 +120,11 @@ const PointaSidebar = {
     // Build sidebar content
     this.sidebar.innerHTML = this.buildSidebarHTML(pointa, serverOnline);
 
-    // Inject sidebar into page
-    document.body.appendChild(this.sidebar);
+    // Inject sidebar into shadow root (not directly into body)
+    this.shadowRoot.appendChild(this.sidebar);
+
+    // Inject shadow host into page
+    document.body.appendChild(this.shadowHost);
 
     // Temporarily set body background to match sidebar theme during animation
     const theme = PointaThemeManager.getEffective();
@@ -223,11 +249,13 @@ const PointaSidebar = {
 
     // Remove sidebar and clean up after transition completes (800ms + small buffer)
     setTimeout(() => {
-      // Remove the sidebar element
-      if (this.sidebar) {
-        this.sidebar.remove();
-        this.sidebar = null;
+      // Remove the shadow host element (which contains the sidebar in its shadow root)
+      if (this.shadowHost) {
+        this.shadowHost.remove();
+        this.shadowHost = null;
+        this.shadowRoot = null;
       }
+      this.sidebar = null;
 
       // Clean up body styles
       document.body.style.removeProperty('margin-right');
@@ -248,6 +276,85 @@ const PointaSidebar = {
   },
 
   /**
+   * Inject CSS styles into the shadow root for complete CSS isolation.
+   * This fetches the sidebar-specific CSS and injects it into the shadow DOM,
+   * preventing host page styles from affecting the sidebar.
+   */
+  async injectShadowStyles() {
+    // Create a style element for the shadow root
+    const styleEl = document.createElement('style');
+
+    // Fetch the CSS file from the extension
+    try {
+      const cssUrl = chrome.runtime.getURL('content/content.css');
+      const response = await fetch(cssUrl);
+      const cssText = await response.text();
+      styleEl.textContent = cssText;
+    } catch (error) {
+      console.error('Pointa: Failed to load sidebar CSS:', error);
+      // Fallback: inject critical inline styles
+      styleEl.textContent = this.getCriticalSidebarStyles();
+    }
+
+    // Insert the style element at the beginning of shadow root
+    this.shadowRoot.appendChild(styleEl);
+
+    // Also inject the Inter font
+    const fontStyle = document.createElement('style');
+    fontStyle.textContent = `
+      @font-face {
+        font-family: 'Inter';
+        src: url('${chrome.runtime.getURL('assets/fonts/InterVariable.woff2')}') format('woff2-variations');
+        font-weight: 100 900;
+        font-display: swap;
+      }
+    `;
+    this.shadowRoot.appendChild(fontStyle);
+  },
+
+  /**
+   * Get critical inline styles as fallback if CSS file loading fails
+   */
+  getCriticalSidebarStyles() {
+    return `
+      #pointa-sidebar {
+        position: fixed;
+        top: 0;
+        right: 0;
+        width: 380px;
+        height: 100vh;
+        background: var(--theme-surface, #f8f9fc);
+        border-left: 1px solid var(--theme-outline, #00000014);
+        display: flex;
+        flex-direction: column;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+        overflow: visible;
+      }
+      #pointa-sidebar[data-pointa-theme="dark"] {
+        --theme-surface: #0C0E12;
+        --theme-surface-1: #191D24;
+        --theme-text-primary: #fcfcfd;
+        --theme-text-secondary: #697586;
+        --theme-outline: #ffffff0d;
+        --theme-accent: #0c8ce9;
+        --theme-on-accent: #ffffff;
+        --theme-surface-hover: #fcfcfd14;
+      }
+      #pointa-sidebar[data-pointa-theme="light"] {
+        --theme-surface: #f8f9fc;
+        --theme-surface-1: #fcfcfd;
+        --theme-text-primary: #0c111b;
+        --theme-text-secondary: #697586;
+        --theme-outline: #00000014;
+        --theme-accent: #0c8ce9;
+        --theme-on-accent: #ffffff;
+        --theme-surface-hover: #0d0f1c14;
+      }
+    `;
+  },
+
+  /**
    * Find and shift fixed right-positioned elements on the page to avoid overlap with sidebar.
    * Elements with position:fixed and right:0 (or close to 0) will be shifted left.
    */
@@ -255,8 +362,8 @@ const PointaSidebar = {
     // Clear any previously tracked elements
     this.shiftedFixedElements = [];
 
-    // Find all elements on the page (excluding our own sidebar)
-    const allElements = document.querySelectorAll('*:not(#pointa-sidebar):not(#pointa-sidebar *)');
+    // Find all elements on the page (excluding our own sidebar host)
+    const allElements = document.querySelectorAll('*:not(#pointa-sidebar-host)');
 
     allElements.forEach(el => {
       // Skip if it's a Pointa element
@@ -7736,6 +7843,9 @@ IMPORTANT - Git Workflow:
       // Disable transitions during resize
       document.body.style.transition = 'none';
       this.sidebar.style.transition = 'none';
+      if (this.shadowHost) {
+        this.shadowHost.style.transition = 'none';
+      }
 
       e.preventDefault();
     };
@@ -7748,6 +7858,10 @@ IMPORTANT - Git Workflow:
 
       this.sidebarWidth = newWidth;
       this.sidebar.style.width = `${newWidth}px`;
+      // Also update the shadow host width
+      if (this.shadowHost) {
+        this.shadowHost.style.width = `${newWidth}px`;
+      }
       document.body.style.marginRight = `${newWidth}px`;
 
       // Update shifted fixed elements to match new width
@@ -7766,6 +7880,9 @@ IMPORTANT - Git Workflow:
       // Re-enable transitions
       document.body.style.transition = 'margin-right 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
       this.sidebar.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      if (this.shadowHost) {
+        this.shadowHost.style.transition = 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+      }
 
       // Save the new width
       chrome.storage.local.set({ sidebarWidth: this.sidebarWidth });

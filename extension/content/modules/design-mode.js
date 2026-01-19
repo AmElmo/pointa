@@ -176,7 +176,7 @@ const PointaDesignMode = {
 
     // Check if click is on extension UI elements (sidebar, modals, overlays, etc.)
     // If so, exit design mode and allow normal click behavior
-    if (e.target.closest('#pointa-sidebar') ||
+    if (e.target.closest('#pointa-sidebar-host') ||
     e.target.closest('.pointa-inspection-overlay') ||
     e.target.closest('.pointa-comment-modal')) {
       // Exit design mode when clicking extension UI
