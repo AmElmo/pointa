@@ -203,7 +203,7 @@ class PointaAnnotationMode {
 
     // Don't prevent default or stop propagation - allow normal hover effects to work
     // Skip all extension UI elements
-    if (e.target.closest('#pointa-sidebar') ||
+    if (e.target.closest('#pointa-sidebar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -238,7 +238,7 @@ class PointaAnnotationMode {
 
     // Don't prevent default or stop propagation - allow normal hover effects to work
     // Skip all extension UI elements
-    if (e.target.closest('#pointa-sidebar') ||
+    if (e.target.closest('#pointa-sidebar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -264,7 +264,7 @@ class PointaAnnotationMode {
 
     // Check if click is on extension UI elements - allow normal interaction
     // Don't prevent default or stop propagation for these elements
-    if (e.target.closest('#pointa-sidebar') ||
+    if (e.target.closest('#pointa-sidebar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -710,9 +710,9 @@ class PointaAnnotationMode {
     const widgetWidth = widgetRect.width || 320;
     const widgetHeight = widgetRect.height || 100;
 
-    // Account for sidebar on the right
-    const sidebar = document.querySelector('#pointa-sidebar');
-    const sidebarWidth = sidebar ? sidebar.offsetWidth : 0;
+    // Account for sidebar on the right (sidebar is now inside Shadow DOM)
+    const sidebarHost = document.querySelector('#pointa-sidebar-host');
+    const sidebarWidth = sidebarHost ? sidebarHost.offsetWidth : 0;
     const availableWidth = viewportWidth - sidebarWidth;
 
     // FIGMA-STYLE: If badge exists, position relative to badge; otherwise relative to element
