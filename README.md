@@ -62,6 +62,7 @@ You can also use the extension to...
 - 🏠 **Local-first** - Works on localhost, no cloud dependencies
 - 📦 **Multi-page tracking** - Annotate across different routes and pages
 - 🔒 **Privacy-focused** - All data stays on your machine
+- 🐛 **Backend log capture** - Include server logs in bug reports with zero code changes
 
 ## How It Works
 
@@ -321,6 +322,32 @@ pointa-server stop
 # Restart the server
 pointa-server restart
 ```
+
+## Backend Log Capture
+
+Capture server-side logs in your bug reports without any code changes. Just wrap your dev command with `pointa dev`:
+
+```bash
+# Instead of:
+npm run dev
+
+# Run:
+pointa dev npm run dev
+```
+
+This intercepts `console.log`, `console.error`, etc. from your Node.js server and includes them in bug report timelines. Works with any Node.js framework (Next.js, Express, Remix, etc.).
+
+**Options:**
+
+```bash
+# Capture console logs only (default)
+pointa dev npm run dev
+
+# Capture full terminal output (stdout/stderr)
+pointa dev --capture-stdout npm run dev
+```
+
+The capture mode can also be toggled in the extension's bug recording UI.
 
 ## Development
 
