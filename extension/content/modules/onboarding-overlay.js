@@ -636,6 +636,14 @@ pointa-server start</pre>
                   <p>Capture design elements from any site as references.</p>
                 </div>
               </div>
+
+              <div class="feature-detail-compact">
+                <div class="feature-icon-large">🐛</div>
+                <div class="feature-content">
+                  <h3>Bug Reports</h3>
+                  <p>Record bugs with backend logs using <code>pointa dev</code> wrapper.</p>
+                </div>
+              </div>
             </div>
           </div>
           
