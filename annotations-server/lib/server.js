@@ -80,6 +80,7 @@ class LocalAnnotationsServer {
     this.backendLogClients = new Set(); // Connected SDK clients
     this.backendLogClientPorts = new Map(); // Map: ws -> port (track which port each SDK is from)
     this.backendLogRecording = false; // Is recording active?
+    this.backendLogCaptureStdout = false; // Whether to capture stdout/stderr (full terminal output)
     this.backendLogs = []; // Buffered logs during recording
     this.backendLogRecordingStartTime = null; // When recording started
 
@@ -859,8 +860,11 @@ class LocalAnnotationsServer {
     });
 
     // Start backend log recording (called by extension when bug recording starts)
+    // Body can include: { captureStdout: boolean } to enable full terminal output capture
     this.app.post('/api/backend-logs/start', (req, res) => {
-      const result = this.startBackendLogRecording();
+      console.log('[Server] /api/backend-logs/start called, body:', req.body);
+      const { captureStdout = false } = req.body || {};
+      const result = this.startBackendLogRecording({ captureStdout });
       res.json(result);
     });
 
@@ -3777,7 +3781,9 @@ class LocalAnnotationsServer {
 
       // If recording is already active, tell the client to start
       if (this.backendLogRecording) {
-        ws.send(JSON.stringify({ type: 'start_recording' }));
+        const payload = { type: 'start_recording', captureStdout: this.backendLogCaptureStdout };
+        ws.send(JSON.stringify(payload));
+        console.log('[Backend Logs] Sent start_recording to late client with captureStdout:', this.backendLogCaptureStdout);
       }
 
       ws.on('message', (data) => {
@@ -3842,25 +3848,32 @@ class LocalAnnotationsServer {
   /**
    * Start backend log recording session
    * Called when bug recording starts in the extension
+   * @param {Object} options - Recording options
+   * @param {boolean} options.captureStdout - Whether to capture stdout/stderr (full terminal output)
    */
-  startBackendLogRecording() {
+  startBackendLogRecording(options = {}) {
+    const { captureStdout = false } = options;
+
     this.backendLogRecording = true;
+    this.backendLogCaptureStdout = captureStdout; // Store for late-connecting clients
     this.backendLogs = [];
     this.backendLogRecordingStartTime = Date.now();
 
     // Notify all connected SDK clients to start sending logs
-    const message = JSON.stringify({ type: 'start_recording' });
+    const message = JSON.stringify({ type: 'start_recording', captureStdout });
     this.backendLogClients.forEach(ws => {
       if (ws.readyState === 1) { // WebSocket.OPEN
         ws.send(message);
       }
     });
 
-    console.log(`[Backend Logs] Recording started, ${this.backendLogClients.size} SDK client(s) connected`);
-    
+    const mode = captureStdout ? 'console + terminal' : 'console only';
+    console.log(`[Backend Logs] Recording started (${mode}), ${this.backendLogClients.size} SDK client(s) connected`);
+
     return {
       success: true,
-      clientsConnected: this.backendLogClients.size
+      clientsConnected: this.backendLogClients.size,
+      captureStdout
     };
   }
 
@@ -3871,6 +3884,7 @@ class LocalAnnotationsServer {
    */
   stopBackendLogRecording() {
     this.backendLogRecording = false;
+    this.backendLogCaptureStdout = false;
 
     // Notify all connected SDK clients to stop sending logs
     const message = JSON.stringify({ type: 'stop_recording' });

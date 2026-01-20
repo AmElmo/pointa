@@ -302,9 +302,16 @@ class PointaBackground {
 
         // Backend Logs: Start recording
         case 'startBackendLogRecording':
-          this.startBackendLogRecording().
-          then((result) => sendResponse({ success: true, ...result })).
-          catch((error) => sendResponse({ success: false, error: error.message }));
+          console.log('[Background] Received startBackendLogRecording message, captureStdout:', request.captureStdout);
+          this.startBackendLogRecording({ captureStdout: request.captureStdout }).
+          then((result) => {
+            console.log('[Background] startBackendLogRecording result:', result);
+            sendResponse({ success: true, ...result });
+          }).
+          catch((error) => {
+            console.error('[Background] startBackendLogRecording error:', error.message);
+            sendResponse({ success: false, error: error.message });
+          });
           break;
 
         // Backend Logs: Stop recording and get logs
@@ -1797,12 +1804,19 @@ class PointaBackground {
   /**
    * Start backend log recording via Pointa server
    * This signals the @pointa/server-logger SDK to start sending logs
+   * @param {Object} options - Recording options
+   * @param {boolean} options.captureStdout - Whether to capture full terminal output
    */
-  async startBackendLogRecording() {
+  async startBackendLogRecording(options = {}) {
+    const { captureStdout = false } = options;
+    console.log('[Background] startBackendLogRecording method called, captureStdout:', captureStdout);
+
     try {
+      console.log('[Background] Calling API:', `${this.apiServerUrl}/api/backend-logs/start`);
       const response = await fetch(`${this.apiServerUrl}/api/backend-logs/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ captureStdout })
       });
 
       if (!response.ok) {
@@ -1810,7 +1824,8 @@ class PointaBackground {
       }
 
       const result = await response.json();
-      console.log('[Background] Backend log recording started:', result);
+      const mode = result.captureStdout ? 'console + terminal' : 'console only';
+      console.log(`[Background] Backend log recording started (${mode}):`, result);
       return result;
     } catch (error) {
       console.warn('[Background] Error starting backend log recording:', error.message);

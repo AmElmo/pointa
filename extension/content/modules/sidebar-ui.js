@@ -2228,6 +2228,19 @@ ${taskDescription}`;
             <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--theme-text-secondary);">
               Checking SDK connection...
             </div>
+            <!-- Capture mode selector - shown only when SDK is connected -->
+            <div id="sidebar-capture-mode-selector" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--theme-outline);">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; color: var(--theme-text-secondary);">Capture mode:</span>
+                <select id="sidebar-capture-mode" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--theme-outline); background: var(--theme-surface); color: var(--theme-text-primary); cursor: pointer;">
+                  <option value="console">Console logs only</option>
+                  <option value="terminal" selected>Full terminal output</option>
+                </select>
+              </div>
+              <div id="sidebar-capture-mode-hint" style="margin-top: 4px; font-size: 10px; color: var(--theme-text-secondary);">
+                Captures all terminal output including framework logs
+              </div>
+            </div>
           </div>
           
           <div class="sidebar-bug-instructions-compact">
@@ -5293,12 +5306,12 @@ IMPORTANT - Git Workflow:
     // Handle backend logs toggle
     if (backendLogsToggle) {
       const backendLogsSection = this.sidebar.querySelector('#sidebar-backend-logs-section');
-      
+
       backendLogsToggle.addEventListener('change', (e) => {
         if (window.BugRecorder) {
           window.BugRecorder.setIncludeBackendLogs(e.target.checked);
         }
-        
+
         // Visual feedback: light up the container when active
         if (backendLogsSection) {
           if (e.target.checked) {
@@ -5312,12 +5325,56 @@ IMPORTANT - Git Workflow:
       });
     }
 
+    // Handle capture mode dropdown
+    const captureModeSelect = this.sidebar.querySelector('#sidebar-capture-mode');
+    const captureModeHint = this.sidebar.querySelector('#sidebar-capture-mode-hint');
+    if (captureModeSelect) {
+      // Read initial value of dropdown and set captureStdout accordingly
+      const initialCaptureStdout = captureModeSelect.value === 'terminal';
+      console.log('[Sidebar] Capture mode dropdown initial value:', captureModeSelect.value, '-> captureStdout:', initialCaptureStdout);
+      if (window.BugRecorder) {
+        window.BugRecorder.setCaptureStdout(initialCaptureStdout);
+        console.log('[Sidebar] Set BugRecorder.captureStdout to:', initialCaptureStdout);
+      }
+      // Update hint text to match initial value
+      if (captureModeHint) {
+        if (initialCaptureStdout) {
+          captureModeHint.textContent = 'Captures all terminal output including framework logs';
+        } else {
+          captureModeHint.textContent = 'Captures console.log, console.error, etc.';
+        }
+      }
+
+      captureModeSelect.addEventListener('change', (e) => {
+        const captureStdout = e.target.value === 'terminal';
+        if (window.BugRecorder) {
+          window.BugRecorder.setCaptureStdout(captureStdout);
+        }
+        // Update hint text
+        if (captureModeHint) {
+          if (captureStdout) {
+            captureModeHint.textContent = 'Captures all terminal output including framework logs';
+          } else {
+            captureModeHint.textContent = 'Captures console.log, console.error, etc.';
+          }
+        }
+      });
+    }
+
     if (startRecordingBtn) {
       startRecordingBtn.addEventListener('click', async () => {
         // Prevent double-clicking
         if (this.isRecordingBug) {
 
           return;
+        }
+
+        // Sync capture mode with the dropdown selection right before we start
+        const captureModeSelect = this.sidebar.querySelector('#sidebar-capture-mode');
+        if (captureModeSelect && window.BugRecorder) {
+          const captureStdout = captureModeSelect.value === 'terminal';
+          window.BugRecorder.setCaptureStdout(captureStdout);
+          console.log('[Sidebar] Start click: forcing captureStdout to match dropdown:', captureStdout);
         }
 
         // Disable button immediately to prevent double clicks
@@ -5399,25 +5456,53 @@ IMPORTANT - Git Workflow:
       
       if (response && response.success && response.status) {
         const { connected, clientCount } = response.status;
-        
+
         if (connected && clientCount > 0) {
-          // SDK is connected - hide help button
+          // Backend logs ready - auto-enable and hide help button
           statusEl.innerHTML = `
-            <span style="color: #10b981;">✓ SDK connected</span>
-            <span style="margin-left: 4px; color: var(--theme-text-secondary);">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
+            <span style="color: #10b981;">✓ Backend logs ready</span>
           `;
           if (toggle) {
             toggle.disabled = false;
+            toggle.checked = true;  // Auto-enable when SDK is connected
             toggle.parentElement.style.opacity = '1';
             toggle.parentElement.style.cursor = 'pointer';
           }
+          // Auto-enable backend logs in BugRecorder
+          if (window.BugRecorder) {
+            window.BugRecorder.setIncludeBackendLogs(true);
+            // Also sync captureStdout to current dropdown selection (default: terminal)
+            const captureModeSelect = this.sidebar?.querySelector('#sidebar-capture-mode');
+            const captureStdout = captureModeSelect ? captureModeSelect.value === 'terminal' : false;
+            window.BugRecorder.setCaptureStdout(captureStdout);
+            console.log('[Sidebar] Backend logs ready: captureStdout set from dropdown:', captureStdout);
+          }
+          // Visual feedback for auto-enabled state
+          const backendLogsSection = this.sidebar?.querySelector('#sidebar-backend-logs-section');
+          if (backendLogsSection) {
+            backendLogsSection.style.background = 'rgba(16, 185, 129, 0.1)';
+            backendLogsSection.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          }
           if (helpBtn) helpBtn.style.display = 'none';
           if (helpPanel) helpPanel.style.display = 'none';
+          // Show capture mode selector when SDK is connected
+          const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+          if (captureModeSelector) {
+            captureModeSelector.style.display = 'block';
+          }
+          // Read capture mode dropdown value and set captureStdout
+          // This is needed because the initial reading might have run before BugRecorder was available
+          const captureModeSelect = this.sidebar?.querySelector('#sidebar-capture-mode');
+          if (captureModeSelect && window.BugRecorder) {
+            const captureStdout = captureModeSelect.value === 'terminal';
+            console.log('[Sidebar] Backend ready - setting captureStdout from dropdown:', captureModeSelect.value, '->', captureStdout);
+            window.BugRecorder.setCaptureStdout(captureStdout);
+          }
         } else {
-          // SDK not connected - show help button
+          // Not available - show help button
           statusEl.innerHTML = `
-            <span style="color: var(--theme-text-secondary);">SDK not connected</span>
-            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— click <strong>?</strong> for setup</span>
+            <span style="color: var(--theme-text-secondary);">Not available</span>
+            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— run <code style="background: var(--theme-surface-hover); padding: 1px 4px; border-radius: 3px;">pointa dev</code></span>
           `;
           if (toggle) {
             toggle.disabled = true;
@@ -5426,9 +5511,15 @@ IMPORTANT - Git Workflow:
             toggle.parentElement.style.cursor = 'not-allowed';
           }
           if (helpBtn) helpBtn.style.display = 'inline-flex';
+          // Hide capture mode selector when SDK is not connected
+          const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+          if (captureModeSelector) {
+            captureModeSelector.style.display = 'none';
+          }
           // Ensure BugRecorder doesn't try to use backend logs
           if (window.BugRecorder) {
             window.BugRecorder.setIncludeBackendLogs(false);
+            window.BugRecorder.setCaptureStdout(false);
           }
         }
       } else {
@@ -5440,6 +5531,11 @@ IMPORTANT - Git Workflow:
           toggle.parentElement.style.opacity = '0.5';
         }
         if (helpBtn) helpBtn.style.display = 'none';
+        // Hide capture mode selector
+        const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+        if (captureModeSelector) {
+          captureModeSelector.style.display = 'none';
+        }
       }
     } catch (error) {
       console.warn('[Sidebar] Error checking backend log status:', error);
@@ -5450,6 +5546,11 @@ IMPORTANT - Git Workflow:
         toggle.parentElement.style.opacity = '0.5';
       }
       if (helpBtn) helpBtn.style.display = 'none';
+      // Hide capture mode selector
+      const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+      if (captureModeSelector) {
+        captureModeSelector.style.display = 'none';
+      }
     }
     
     // Setup help button and framework tabs event listeners
@@ -5813,7 +5914,7 @@ IMPORTANT - Git Workflow:
             statusEl.innerHTML = `
               <div class="pointa-backend-logs-status-indicator pointa-status-connected">
                 <div class="pointa-status-dot online"></div>
-                <span class="pointa-status-text">SDK connected <span class="pointa-status-count">(${clientCount} client${clientCount > 1 ? 's' : ''})</span></span>
+                <span class="pointa-status-text">Backend logs ready</span>
               </div>
               <p class="pointa-status-success">You're all set! Backend logs will be included in bug reports.</p>
             `;
@@ -5821,9 +5922,9 @@ IMPORTANT - Git Workflow:
             statusEl.innerHTML = `
               <div class="pointa-backend-logs-status-indicator">
                 <div class="pointa-status-dot offline"></div>
-                <span class="pointa-status-text">SDK not connected</span>
+                <span class="pointa-status-text">Not available</span>
               </div>
-              <p class="pointa-status-hint">Follow the steps below to enable backend log capture</p>
+              <p class="pointa-status-hint">Run <code>pointa dev</code> to enable backend log capture</p>
             `;
           }
         } else {
@@ -5859,6 +5960,20 @@ IMPORTANT - Git Workflow:
    */
   async startBugRecording(pointa) {
     try {
+      // Final sync of backend log prefs just before recording starts
+      const captureModeSelect = this.sidebar.querySelector('#sidebar-capture-mode');
+      const backendLogsToggle = this.sidebar.querySelector('#sidebar-backend-logs-toggle');
+      if (window.BugRecorder) {
+        if (backendLogsToggle) {
+          window.BugRecorder.setIncludeBackendLogs(backendLogsToggle.checked);
+        }
+        if (captureModeSelect) {
+          const captureStdout = captureModeSelect.value === 'terminal';
+          window.BugRecorder.setCaptureStdout(captureStdout);
+          console.log('[Sidebar] Pre-start sync: captureStdout ->', captureStdout);
+        }
+      }
+
       // Hide annotation badges during bug recording and prevent them from showing
       if (pointa.badgeManager) {
         pointa.badgeManager.hideBadges = true;

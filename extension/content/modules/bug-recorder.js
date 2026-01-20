@@ -23,6 +23,7 @@ const BugRecorder = {
   
   // Backend logging integration
   includeBackendLogs: false,  // Whether to capture backend logs
+  captureStdout: false,       // Whether to capture full terminal output (stdout/stderr)
   backendLogStatus: null,     // Current SDK connection status
 
   // ========== TOKEN OPTIMIZATION HELPERS ==========
@@ -217,7 +218,21 @@ const BugRecorder = {
    * Set whether to include backend logs in recording
    */
   setIncludeBackendLogs(include) {
+    console.log('[BugRecorder] setIncludeBackendLogs called with:', include);
     this.includeBackendLogs = include;
+    // Default to full terminal output when backend logs are enabled
+    if (include && this.captureStdout === false) {
+      this.captureStdout = true;
+      console.log('[BugRecorder] Auto-enabled captureStdout because backend logs were enabled');
+    }
+  },
+
+  /**
+   * Set whether to capture full terminal output (stdout/stderr)
+   */
+  setCaptureStdout(capture) {
+    console.log('[BugRecorder] setCaptureStdout called with:', capture);
+    this.captureStdout = capture;
   },
 
   /**
@@ -273,11 +288,22 @@ const BugRecorder = {
     }
 
     // Start backend log recording if enabled
+    console.log('[BugRecorder] Backend logs check:', { includeBackendLogs: this.includeBackendLogs, captureStdout: this.captureStdout });
     if (this.includeBackendLogs) {
+      // Fail-safe: ensure we default to full terminal output if not explicitly set
+      if (this.captureStdout === false) {
+        this.captureStdout = true;
+        console.log('[BugRecorder] Defaulting captureStdout to true before startBackendLogRecording');
+      }
       try {
-        const response = await chrome.runtime.sendMessage({ action: 'startBackendLogRecording' });
+        console.log('[BugRecorder] Calling startBackendLogRecording with captureStdout:', this.captureStdout);
+        const response = await chrome.runtime.sendMessage({
+          action: 'startBackendLogRecording',
+          captureStdout: this.captureStdout
+        });
         if (response.success) {
-          console.log('[BugRecorder] Backend log recording started, clients:', response.clientsConnected);
+          const mode = response.captureStdout ? 'console + terminal' : 'console only';
+          console.log(`[BugRecorder] Backend log recording started (${mode}), clients:`, response.clientsConnected);
         } else {
           console.warn('[BugRecorder] Backend log recording failed to start:', response.error);
         }
