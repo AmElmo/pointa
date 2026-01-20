@@ -240,6 +240,16 @@ action((options) => {
   }
 });
 
+program.
+command('dev').
+description('Run a command with Pointa server log capture enabled').
+argument('<command...>', 'Command to run (e.g., npm run dev)').
+option('-p, --port <number>', 'Pointa server port', '4242').
+action(async (commandArgs, options) => {
+  const { runDevCommand } = await import('../lib/dev-runner.js');
+  await runDevCommand(commandArgs, options);
+});
+
 // Stdio mode - run server directly with stdio transport
 async function runStdioMode() {
   const serverPath = join(dirname(__dirname), 'lib', 'server.js');

@@ -2333,7 +2333,20 @@ ${taskDescription}`;
               </label>
             </div>
             <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--theme-text-secondary);">
-              Checking SDK connection...
+              Checking connection...
+            </div>
+            <!-- Capture mode selector - shown only when backend logs are available -->
+            <div id="sidebar-capture-mode-selector" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--theme-outline);">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <span style="font-size: 12px; color: var(--theme-text-secondary);">Capture mode:</span>
+                <select id="sidebar-capture-mode" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--theme-outline); background: var(--theme-surface); color: var(--theme-text-primary); cursor: pointer;">
+                  <option value="console" selected>Console logs only</option>
+                  <option value="terminal">Full terminal output</option>
+                </select>
+              </div>
+              <div id="sidebar-capture-mode-hint" style="margin-top: 4px; font-size: 10px; color: var(--theme-text-secondary);">
+                Captures console.log, console.error, etc.
+              </div>
             </div>
           </div>
           
@@ -5392,7 +5405,7 @@ IMPORTANT - Git Workflow:
     const backendLogsToggle = this.sidebar.querySelector('#sidebar-backend-logs-toggle');
     const backendLogsStatus = this.sidebar.querySelector('#sidebar-backend-logs-status');
 
-    // Check backend log SDK status
+    // Check backend log status
     if (backendLogsStatus && !this.isRecordingBug) {
       this.checkBackendLogStatus(backendLogsToggle, backendLogsStatus);
     }
@@ -5400,12 +5413,12 @@ IMPORTANT - Git Workflow:
     // Handle backend logs toggle
     if (backendLogsToggle) {
       const backendLogsSection = this.sidebar.querySelector('#sidebar-backend-logs-section');
-      
+
       backendLogsToggle.addEventListener('change', (e) => {
         if (window.BugRecorder) {
           window.BugRecorder.setIncludeBackendLogs(e.target.checked);
         }
-        
+
         // Visual feedback: light up the container when active
         if (backendLogsSection) {
           if (e.target.checked) {
@@ -5414,6 +5427,26 @@ IMPORTANT - Git Workflow:
           } else {
             backendLogsSection.style.background = 'var(--theme-surface)';
             backendLogsSection.style.borderColor = 'var(--theme-outline)';
+          }
+        }
+      });
+    }
+
+    // Handle capture mode dropdown
+    const captureModeSelect = this.sidebar.querySelector('#sidebar-capture-mode');
+    const captureModeHint = this.sidebar.querySelector('#sidebar-capture-mode-hint');
+    if (captureModeSelect) {
+      captureModeSelect.addEventListener('change', (e) => {
+        const captureStdout = e.target.value === 'terminal';
+        if (window.BugRecorder) {
+          window.BugRecorder.setCaptureStdout(captureStdout);
+        }
+        // Update hint text
+        if (captureModeHint) {
+          if (captureStdout) {
+            captureModeHint.textContent = 'Captures all terminal output including framework logs';
+          } else {
+            captureModeHint.textContent = 'Captures console.log, console.error, etc.';
           }
         }
       });
@@ -5485,7 +5518,7 @@ IMPORTANT - Git Workflow:
   },
 
   /**
-   * Check backend log SDK connection status and update UI
+   * Check backend log connection status and update UI
    * @param {HTMLElement} toggle - The toggle checkbox element
    * @param {HTMLElement} statusEl - The status text element
    */
@@ -5493,38 +5526,51 @@ IMPORTANT - Git Workflow:
     const helpBtn = this.sidebar?.querySelector('#sidebar-backend-logs-help-btn');
     const helpPanel = this.sidebar?.querySelector('#sidebar-backend-logs-help');
     
-    // Get the current page's port to check for SDK on that specific port
+    // Get the current page's port to check for backend logs on that specific port
     const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
     
     try {
-      console.log('[Sidebar] Checking backend log status for port:', currentPort);
-      const response = await chrome.runtime.sendMessage({ 
+      const response = await chrome.runtime.sendMessage({
         action: 'getBackendLogStatus',
         port: currentPort
       });
-      console.log('[Sidebar] Backend log status response:', response);
-      
+
       if (response && response.success && response.status) {
         const { connected, clientCount } = response.status;
-        
+
         if (connected && clientCount > 0) {
-          // SDK is connected - hide help button
+          // Backend logs ready - auto-enable and hide help button
           statusEl.innerHTML = `
-            <span style="color: #10b981;">✓ SDK connected</span>
-            <span style="margin-left: 4px; color: var(--theme-text-secondary);">(${clientCount} client${clientCount > 1 ? 's' : ''})</span>
+            <span style="color: #10b981;">✓ Backend logs ready</span>
           `;
           if (toggle) {
             toggle.disabled = false;
+            toggle.checked = true;  // Auto-enable when backend logs are available
             toggle.parentElement.style.opacity = '1';
             toggle.parentElement.style.cursor = 'pointer';
           }
+          // Auto-enable backend logs in BugRecorder (captureStdout synced at recording start)
+          if (window.BugRecorder) {
+            window.BugRecorder.setIncludeBackendLogs(true);
+          }
+          // Visual feedback for auto-enabled state
+          const backendLogsSection = this.sidebar?.querySelector('#sidebar-backend-logs-section');
+          if (backendLogsSection) {
+            backendLogsSection.style.background = 'rgba(16, 185, 129, 0.1)';
+            backendLogsSection.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+          }
           if (helpBtn) helpBtn.style.display = 'none';
           if (helpPanel) helpPanel.style.display = 'none';
+          // Show capture mode selector when backend logs are available
+          const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+          if (captureModeSelector) {
+            captureModeSelector.style.display = 'block';
+          }
         } else {
-          // SDK not connected - show help button
+          // Not available - show help button
           statusEl.innerHTML = `
-            <span style="color: var(--theme-text-secondary);">SDK not connected</span>
-            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— click <strong>?</strong> for setup</span>
+            <span style="color: var(--theme-text-secondary);">Not available</span>
+            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— run <code style="background: var(--theme-surface-hover); padding: 1px 4px; border-radius: 3px;">pointa dev</code></span>
           `;
           if (toggle) {
             toggle.disabled = true;
@@ -5533,9 +5579,15 @@ IMPORTANT - Git Workflow:
             toggle.parentElement.style.cursor = 'not-allowed';
           }
           if (helpBtn) helpBtn.style.display = 'inline-flex';
+          // Hide capture mode selector when backend logs are not available
+          const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+          if (captureModeSelector) {
+            captureModeSelector.style.display = 'none';
+          }
           // Ensure BugRecorder doesn't try to use backend logs
           if (window.BugRecorder) {
             window.BugRecorder.setIncludeBackendLogs(false);
+            window.BugRecorder.setCaptureStdout(false);
           }
         }
       } else {
@@ -5547,6 +5599,11 @@ IMPORTANT - Git Workflow:
           toggle.parentElement.style.opacity = '0.5';
         }
         if (helpBtn) helpBtn.style.display = 'none';
+        // Hide capture mode selector
+        const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+        if (captureModeSelector) {
+          captureModeSelector.style.display = 'none';
+        }
       }
     } catch (error) {
       console.warn('[Sidebar] Error checking backend log status:', error);
@@ -5557,6 +5614,11 @@ IMPORTANT - Git Workflow:
         toggle.parentElement.style.opacity = '0.5';
       }
       if (helpBtn) helpBtn.style.display = 'none';
+      // Hide capture mode selector
+      const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
+      if (captureModeSelector) {
+        captureModeSelector.style.display = 'none';
+      }
     }
     
     // Setup help button and framework tabs event listeners
@@ -5628,7 +5690,7 @@ IMPORTANT - Git Workflow:
           <div class="pointa-backend-logs-status" id="backend-modal-status">
             <div class="pointa-backend-logs-status-indicator">
               <div class="pointa-status-dot offline"></div>
-              <span class="pointa-status-text">Checking SDK connection...</span>
+              <span class="pointa-status-text">Checking connection...</span>
             </div>
           </div>
 
@@ -5646,134 +5708,30 @@ IMPORTANT - Git Workflow:
 
           <!-- Setup Steps -->
           <div class="pointa-backend-logs-section">
-            <h3>📦 Quick Setup (2 minutes)</h3>
-            
+            <h3>📦 Quick Setup (30 seconds)</h3>
+            <p class="pointa-setup-intro">No code changes required. Just prefix your dev command with <code>pointa dev</code>:</p>
+
             <div class="pointa-setup-step-card">
               <div class="pointa-step-number">1</div>
               <div class="pointa-step-content">
-                <h4>Install the package</h4>
+                <h4>Run your server with Pointa</h4>
+                <p class="pointa-step-hint">Instead of running your usual dev command, prefix it with <code>pointa dev</code></p>
                 <div class="pointa-command-code">
-                  <code>npm install pointa-server-logger</code>
-                  <button class="pointa-copy-btn" data-command="npm install pointa-server-logger" title="Copy command">
+                  <code>pointa dev npm run dev</code>
+                  <button class="pointa-copy-btn" data-command="pointa dev npm run dev" title="Copy command">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                     </svg>
                   </button>
                 </div>
+                <p class="pointa-step-examples">Works with any Node.js command: <code>npm run dev</code>, <code>yarn dev</code>, <code>pnpm dev</code>, <code>node server.js</code>, etc.</p>
               </div>
             </div>
 
-            <div class="pointa-setup-step-card">
-              <div class="pointa-step-number">2</div>
-              <div class="pointa-step-content">
-                <h4>Add to your server entry file</h4>
-                <p class="pointa-step-hint">Add this import at the very top of your main server file (before other imports)</p>
-                
-                <!-- Framework Tabs -->
-                <div class="pointa-framework-tabs">
-                  <button class="pointa-framework-tab active" data-framework="express">Express</button>
-                  <button class="pointa-framework-tab" data-framework="nextjs">Next.js</button>
-                  <button class="pointa-framework-tab" data-framework="fastify">Fastify</button>
-                  <button class="pointa-framework-tab" data-framework="hono">Hono</button>
-                  <button class="pointa-framework-tab" data-framework="other">Other</button>
-                </div>
-                
-                <!-- Framework Content -->
-                <div class="pointa-framework-content active" data-framework="express">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// server.js or app.js</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-<span class="pointa-code-keyword">import</span> express <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'express'</span>;
-
-<span class="pointa-code-keyword">const</span> app = <span class="pointa-code-function">express</span>();
-<span class="pointa-code-comment">// ... your routes</span></pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="nextjs">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// next.config.js (at the very top)</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-
-<span class="pointa-code-comment">/** @type {import('next').NextConfig} */</span>
-<span class="pointa-code-keyword">const</span> nextConfig = {
-  <span class="pointa-code-comment">// ... your config</span>
-};</pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="fastify">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// server.js</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-<span class="pointa-code-keyword">import</span> Fastify <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'fastify'</span>;
-
-<span class="pointa-code-keyword">const</span> fastify = <span class="pointa-code-function">Fastify</span>();
-<span class="pointa-code-comment">// ... your routes</span></pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="hono">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// server.js</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-<span class="pointa-code-keyword">import</span> { Hono } <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'hono'</span>;
-<span class="pointa-code-keyword">import</span> { serve } <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'@hono/node-server'</span>;
-
-<span class="pointa-code-keyword">const</span> app = <span class="pointa-code-keyword">new</span> <span class="pointa-code-function">Hono</span>();
-<span class="pointa-code-comment">// ... your routes</span></pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="other">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// Add at the TOP of your entry file</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-
-<span class="pointa-code-comment">// Or with CommonJS:</span>
-<span class="pointa-code-function">require</span>(<span class="pointa-code-string">'pointa-server-logger'</span>);</pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="pointa-setup-step-card">
-              <div class="pointa-step-number">3</div>
-              <div class="pointa-step-content">
-                <h4>Restart your server</h4>
-                <p>Restart your dev server and the status above will turn green ✓</p>
-              </div>
+            <div class="pointa-setup-done-hint">
+              <span class="pointa-done-icon">✨</span>
+              <span>That's it! The status above will turn green once your server is running.</span>
             </div>
           </div>
 
@@ -5920,7 +5878,7 @@ IMPORTANT - Git Workflow:
             statusEl.innerHTML = `
               <div class="pointa-backend-logs-status-indicator pointa-status-connected">
                 <div class="pointa-status-dot online"></div>
-                <span class="pointa-status-text">SDK connected <span class="pointa-status-count">(${clientCount} client${clientCount > 1 ? 's' : ''})</span></span>
+                <span class="pointa-status-text">Backend logs ready</span>
               </div>
               <p class="pointa-status-success">You're all set! Backend logs will be included in bug reports.</p>
             `;
@@ -5928,9 +5886,9 @@ IMPORTANT - Git Workflow:
             statusEl.innerHTML = `
               <div class="pointa-backend-logs-status-indicator">
                 <div class="pointa-status-dot offline"></div>
-                <span class="pointa-status-text">SDK not connected</span>
+                <span class="pointa-status-text">Not available</span>
               </div>
-              <p class="pointa-status-hint">Follow the steps below to enable backend log capture</p>
+              <p class="pointa-status-hint">Run <code>pointa dev</code> to enable backend log capture</p>
             `;
           }
         } else {
@@ -5966,6 +5924,19 @@ IMPORTANT - Git Workflow:
    */
   async startBugRecording(pointa) {
     try {
+      // Final sync of backend log prefs just before recording starts
+      const captureModeSelect = this.sidebar.querySelector('#sidebar-capture-mode');
+      const backendLogsToggle = this.sidebar.querySelector('#sidebar-backend-logs-toggle');
+      if (window.BugRecorder) {
+        if (backendLogsToggle) {
+          window.BugRecorder.setIncludeBackendLogs(backendLogsToggle.checked);
+        }
+        if (captureModeSelect) {
+          const captureStdout = captureModeSelect.value === 'terminal';
+          window.BugRecorder.setCaptureStdout(captureStdout);
+        }
+      }
+
       // Hide annotation badges during bug recording and prevent them from showing
       if (pointa.badgeManager) {
         pointa.badgeManager.hideBadges = true;

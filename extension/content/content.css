@@ -5593,6 +5593,74 @@ body.sidebar-resizing * {
   color: #999999;
 }
 
+/* Setup intro text */
+.pointa-setup-intro {
+  margin: 0 0 16px 0;
+  font-size: 13px;
+  color: #666666;
+  line-height: 1.5;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-setup-intro {
+  color: #999999;
+}
+
+.pointa-setup-intro code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-setup-intro code {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Step examples text */
+.pointa-step-examples {
+  margin: 10px 0 0 0;
+  font-size: 12px;
+  color: #888888;
+  line-height: 1.4;
+}
+
+.pointa-step-examples code {
+  background: rgba(0, 0, 0, 0.04);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 11px;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-step-examples code {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Setup done hint */
+.pointa-setup-done-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #059669;
+}
+
+.pointa-backend-logs-overlay[data-pointa-theme="dark"] .pointa-setup-done-hint {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: #34d399;
+}
+
+.pointa-done-icon {
+  font-size: 16px;
+}
+
 /* Command code block */
 .pointa-backend-logs-modal .pointa-command-code {
   display: flex;

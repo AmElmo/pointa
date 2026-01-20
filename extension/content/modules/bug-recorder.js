@@ -23,7 +23,8 @@ const BugRecorder = {
   
   // Backend logging integration
   includeBackendLogs: false,  // Whether to capture backend logs
-  backendLogStatus: null,     // Current SDK connection status
+  captureStdout: false,       // Whether to capture full terminal output (stdout/stderr)
+  backendLogStatus: null,     // Current backend log connection status
 
   // ========== TOKEN OPTIMIZATION HELPERS ==========
   
@@ -197,7 +198,7 @@ const BugRecorder = {
   // ========== END TOKEN OPTIMIZATION HELPERS ==========
 
   /**
-   * Check backend log SDK connection status
+   * Check backend log connection status
    */
   async checkBackendLogStatus() {
     try {
@@ -218,6 +219,14 @@ const BugRecorder = {
    */
   setIncludeBackendLogs(include) {
     this.includeBackendLogs = include;
+    // captureStdout is controlled by the dropdown - don't override user's choice
+  },
+
+  /**
+   * Set whether to capture full terminal output (stdout/stderr)
+   */
+  setCaptureStdout(capture) {
+    this.captureStdout = capture;
   },
 
   /**
@@ -274,11 +283,13 @@ const BugRecorder = {
 
     // Start backend log recording if enabled
     if (this.includeBackendLogs) {
+      // captureStdout is controlled by the dropdown (defaults to false = console-only)
       try {
-        const response = await chrome.runtime.sendMessage({ action: 'startBackendLogRecording' });
-        if (response.success) {
-          console.log('[BugRecorder] Backend log recording started, clients:', response.clientsConnected);
-        } else {
+        const response = await chrome.runtime.sendMessage({
+          action: 'startBackendLogRecording',
+          captureStdout: this.captureStdout
+        });
+        if (!response.success) {
           console.warn('[BugRecorder] Backend log recording failed to start:', response.error);
         }
       } catch (error) {
