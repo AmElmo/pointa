@@ -5329,22 +5329,6 @@ IMPORTANT - Git Workflow:
     const captureModeSelect = this.sidebar.querySelector('#sidebar-capture-mode');
     const captureModeHint = this.sidebar.querySelector('#sidebar-capture-mode-hint');
     if (captureModeSelect) {
-      // Read initial value of dropdown and set captureStdout accordingly
-      const initialCaptureStdout = captureModeSelect.value === 'terminal';
-      console.log('[Sidebar] Capture mode dropdown initial value:', captureModeSelect.value, '-> captureStdout:', initialCaptureStdout);
-      if (window.BugRecorder) {
-        window.BugRecorder.setCaptureStdout(initialCaptureStdout);
-        console.log('[Sidebar] Set BugRecorder.captureStdout to:', initialCaptureStdout);
-      }
-      // Update hint text to match initial value
-      if (captureModeHint) {
-        if (initialCaptureStdout) {
-          captureModeHint.textContent = 'Captures all terminal output including framework logs';
-        } else {
-          captureModeHint.textContent = 'Captures console.log, console.error, etc.';
-        }
-      }
-
       captureModeSelect.addEventListener('change', (e) => {
         const captureStdout = e.target.value === 'terminal';
         if (window.BugRecorder) {
@@ -5367,14 +5351,6 @@ IMPORTANT - Git Workflow:
         if (this.isRecordingBug) {
 
           return;
-        }
-
-        // Sync capture mode with the dropdown selection right before we start
-        const captureModeSelect = this.sidebar.querySelector('#sidebar-capture-mode');
-        if (captureModeSelect && window.BugRecorder) {
-          const captureStdout = captureModeSelect.value === 'terminal';
-          window.BugRecorder.setCaptureStdout(captureStdout);
-          console.log('[Sidebar] Start click: forcing captureStdout to match dropdown:', captureStdout);
         }
 
         // Disable button immediately to prevent double clicks
@@ -5447,13 +5423,11 @@ IMPORTANT - Git Workflow:
     const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
     
     try {
-      console.log('[Sidebar] Checking backend log status for port:', currentPort);
-      const response = await chrome.runtime.sendMessage({ 
+      const response = await chrome.runtime.sendMessage({
         action: 'getBackendLogStatus',
         port: currentPort
       });
-      console.log('[Sidebar] Backend log status response:', response);
-      
+
       if (response && response.success && response.status) {
         const { connected, clientCount } = response.status;
 
@@ -5468,14 +5442,9 @@ IMPORTANT - Git Workflow:
             toggle.parentElement.style.opacity = '1';
             toggle.parentElement.style.cursor = 'pointer';
           }
-          // Auto-enable backend logs in BugRecorder
+          // Auto-enable backend logs in BugRecorder (captureStdout synced at recording start)
           if (window.BugRecorder) {
             window.BugRecorder.setIncludeBackendLogs(true);
-            // Also sync captureStdout to current dropdown selection (default: terminal)
-            const captureModeSelect = this.sidebar?.querySelector('#sidebar-capture-mode');
-            const captureStdout = captureModeSelect ? captureModeSelect.value === 'terminal' : false;
-            window.BugRecorder.setCaptureStdout(captureStdout);
-            console.log('[Sidebar] Backend logs ready: captureStdout set from dropdown:', captureStdout);
           }
           // Visual feedback for auto-enabled state
           const backendLogsSection = this.sidebar?.querySelector('#sidebar-backend-logs-section');
@@ -5489,14 +5458,6 @@ IMPORTANT - Git Workflow:
           const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
           if (captureModeSelector) {
             captureModeSelector.style.display = 'block';
-          }
-          // Read capture mode dropdown value and set captureStdout
-          // This is needed because the initial reading might have run before BugRecorder was available
-          const captureModeSelect = this.sidebar?.querySelector('#sidebar-capture-mode');
-          if (captureModeSelect && window.BugRecorder) {
-            const captureStdout = captureModeSelect.value === 'terminal';
-            console.log('[Sidebar] Backend ready - setting captureStdout from dropdown:', captureModeSelect.value, '->', captureStdout);
-            window.BugRecorder.setCaptureStdout(captureStdout);
           }
         } else {
           // Not available - show help button
@@ -5970,7 +5931,6 @@ IMPORTANT - Git Workflow:
         if (captureModeSelect) {
           const captureStdout = captureModeSelect.value === 'terminal';
           window.BugRecorder.setCaptureStdout(captureStdout);
-          console.log('[Sidebar] Pre-start sync: captureStdout ->', captureStdout);
         }
       }
 

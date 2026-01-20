@@ -862,7 +862,6 @@ class LocalAnnotationsServer {
     // Start backend log recording (called by extension when bug recording starts)
     // Body can include: { captureStdout: boolean } to enable full terminal output capture
     this.app.post('/api/backend-logs/start', (req, res) => {
-      console.log('[Server] /api/backend-logs/start called, body:', req.body);
       const { captureStdout = false } = req.body || {};
       const result = this.startBackendLogRecording({ captureStdout });
       res.json(result);

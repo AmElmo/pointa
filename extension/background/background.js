@@ -302,16 +302,9 @@ class PointaBackground {
 
         // Backend Logs: Start recording
         case 'startBackendLogRecording':
-          console.log('[Background] Received startBackendLogRecording message, captureStdout:', request.captureStdout);
           this.startBackendLogRecording({ captureStdout: request.captureStdout }).
-          then((result) => {
-            console.log('[Background] startBackendLogRecording result:', result);
-            sendResponse({ success: true, ...result });
-          }).
-          catch((error) => {
-            console.error('[Background] startBackendLogRecording error:', error.message);
-            sendResponse({ success: false, error: error.message });
-          });
+          then((result) => sendResponse({ success: true, ...result })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
         // Backend Logs: Stop recording and get logs
@@ -1809,10 +1802,8 @@ class PointaBackground {
    */
   async startBackendLogRecording(options = {}) {
     const { captureStdout = false } = options;
-    console.log('[Background] startBackendLogRecording method called, captureStdout:', captureStdout);
 
     try {
-      console.log('[Background] Calling API:', `${this.apiServerUrl}/api/backend-logs/start`);
       const response = await fetch(`${this.apiServerUrl}/api/backend-logs/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1823,10 +1814,7 @@ class PointaBackground {
         throw new Error(`API error: ${response.status}`);
       }
 
-      const result = await response.json();
-      const mode = result.captureStdout ? 'console + terminal' : 'console only';
-      console.log(`[Background] Backend log recording started (${mode}):`, result);
-      return result;
+      return await response.json();
     } catch (error) {
       console.warn('[Background] Error starting backend log recording:', error.message);
       return {
