@@ -2226,9 +2226,9 @@ ${taskDescription}`;
               </label>
             </div>
             <div id="sidebar-backend-logs-status" style="margin-top: 8px; font-size: 11px; color: var(--theme-text-secondary);">
-              Checking SDK connection...
+              Checking connection...
             </div>
-            <!-- Capture mode selector - shown only when SDK is connected -->
+            <!-- Capture mode selector - shown only when backend logs are available -->
             <div id="sidebar-capture-mode-selector" style="display: none; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--theme-outline);">
               <div style="display: flex; align-items: center; justify-content: space-between;">
                 <span style="font-size: 12px; color: var(--theme-text-secondary);">Capture mode:</span>
@@ -5298,7 +5298,7 @@ IMPORTANT - Git Workflow:
     const backendLogsToggle = this.sidebar.querySelector('#sidebar-backend-logs-toggle');
     const backendLogsStatus = this.sidebar.querySelector('#sidebar-backend-logs-status');
 
-    // Check backend log SDK status
+    // Check backend log status
     if (backendLogsStatus && !this.isRecordingBug) {
       this.checkBackendLogStatus(backendLogsToggle, backendLogsStatus);
     }
@@ -5411,7 +5411,7 @@ IMPORTANT - Git Workflow:
   },
 
   /**
-   * Check backend log SDK connection status and update UI
+   * Check backend log connection status and update UI
    * @param {HTMLElement} toggle - The toggle checkbox element
    * @param {HTMLElement} statusEl - The status text element
    */
@@ -5419,7 +5419,7 @@ IMPORTANT - Git Workflow:
     const helpBtn = this.sidebar?.querySelector('#sidebar-backend-logs-help-btn');
     const helpPanel = this.sidebar?.querySelector('#sidebar-backend-logs-help');
     
-    // Get the current page's port to check for SDK on that specific port
+    // Get the current page's port to check for backend logs on that specific port
     const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
     
     try {
@@ -5438,7 +5438,7 @@ IMPORTANT - Git Workflow:
           `;
           if (toggle) {
             toggle.disabled = false;
-            toggle.checked = true;  // Auto-enable when SDK is connected
+            toggle.checked = true;  // Auto-enable when backend logs are available
             toggle.parentElement.style.opacity = '1';
             toggle.parentElement.style.cursor = 'pointer';
           }
@@ -5454,7 +5454,7 @@ IMPORTANT - Git Workflow:
           }
           if (helpBtn) helpBtn.style.display = 'none';
           if (helpPanel) helpPanel.style.display = 'none';
-          // Show capture mode selector when SDK is connected
+          // Show capture mode selector when backend logs are available
           const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
           if (captureModeSelector) {
             captureModeSelector.style.display = 'block';
@@ -5472,7 +5472,7 @@ IMPORTANT - Git Workflow:
             toggle.parentElement.style.cursor = 'not-allowed';
           }
           if (helpBtn) helpBtn.style.display = 'inline-flex';
-          // Hide capture mode selector when SDK is not connected
+          // Hide capture mode selector when backend logs are not available
           const captureModeSelector = this.sidebar?.querySelector('#sidebar-capture-mode-selector');
           if (captureModeSelector) {
             captureModeSelector.style.display = 'none';
@@ -5583,7 +5583,7 @@ IMPORTANT - Git Workflow:
           <div class="pointa-backend-logs-status" id="backend-modal-status">
             <div class="pointa-backend-logs-status-indicator">
               <div class="pointa-status-dot offline"></div>
-              <span class="pointa-status-text">Checking SDK connection...</span>
+              <span class="pointa-status-text">Checking connection...</span>
             </div>
           </div>
 
@@ -5601,134 +5601,30 @@ IMPORTANT - Git Workflow:
 
           <!-- Setup Steps -->
           <div class="pointa-backend-logs-section">
-            <h3>📦 Quick Setup (2 minutes)</h3>
-            
+            <h3>📦 Quick Setup (30 seconds)</h3>
+            <p class="pointa-setup-intro">No code changes required. Just prefix your dev command with <code>pointa dev</code>:</p>
+
             <div class="pointa-setup-step-card">
               <div class="pointa-step-number">1</div>
               <div class="pointa-step-content">
-                <h4>Install the package</h4>
+                <h4>Run your server with Pointa</h4>
+                <p class="pointa-step-hint">Instead of running your usual dev command, prefix it with <code>pointa dev</code></p>
                 <div class="pointa-command-code">
-                  <code>npm install pointa-server-logger</code>
-                  <button class="pointa-copy-btn" data-command="npm install pointa-server-logger" title="Copy command">
+                  <code>pointa dev npm run dev</code>
+                  <button class="pointa-copy-btn" data-command="pointa dev npm run dev" title="Copy command">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                     </svg>
                   </button>
                 </div>
+                <p class="pointa-step-examples">Works with any Node.js command: <code>npm run dev</code>, <code>yarn dev</code>, <code>pnpm dev</code>, <code>node server.js</code>, etc.</p>
               </div>
             </div>
 
-            <div class="pointa-setup-step-card">
-              <div class="pointa-step-number">2</div>
-              <div class="pointa-step-content">
-                <h4>Add to your server entry file</h4>
-                <p class="pointa-step-hint">Add this import at the very top of your main server file (before other imports)</p>
-                
-                <!-- Framework Tabs -->
-                <div class="pointa-framework-tabs">
-                  <button class="pointa-framework-tab active" data-framework="express">Express</button>
-                  <button class="pointa-framework-tab" data-framework="nextjs">Next.js</button>
-                  <button class="pointa-framework-tab" data-framework="fastify">Fastify</button>
-                  <button class="pointa-framework-tab" data-framework="hono">Hono</button>
-                  <button class="pointa-framework-tab" data-framework="other">Other</button>
-                </div>
-                
-                <!-- Framework Content -->
-                <div class="pointa-framework-content active" data-framework="express">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// server.js or app.js</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-<span class="pointa-code-keyword">import</span> express <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'express'</span>;
-
-<span class="pointa-code-keyword">const</span> app = <span class="pointa-code-function">express</span>();
-<span class="pointa-code-comment">// ... your routes</span></pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="nextjs">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// next.config.js (at the very top)</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-
-<span class="pointa-code-comment">/** @type {import('next').NextConfig} */</span>
-<span class="pointa-code-keyword">const</span> nextConfig = {
-  <span class="pointa-code-comment">// ... your config</span>
-};</pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="fastify">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// server.js</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-<span class="pointa-code-keyword">import</span> Fastify <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'fastify'</span>;
-
-<span class="pointa-code-keyword">const</span> fastify = <span class="pointa-code-function">Fastify</span>();
-<span class="pointa-code-comment">// ... your routes</span></pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="hono">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// server.js</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-<span class="pointa-code-keyword">import</span> { Hono } <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'hono'</span>;
-<span class="pointa-code-keyword">import</span> { serve } <span class="pointa-code-keyword">from</span> <span class="pointa-code-string">'@hono/node-server'</span>;
-
-<span class="pointa-code-keyword">const</span> app = <span class="pointa-code-keyword">new</span> <span class="pointa-code-function">Hono</span>();
-<span class="pointa-code-comment">// ... your routes</span></pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                
-                <div class="pointa-framework-content" data-framework="other">
-                  <div class="pointa-code-block">
-                    <pre><span class="pointa-code-comment">// Add at the TOP of your entry file</span>
-<span class="pointa-code-keyword">import</span> <span class="pointa-code-string">'pointa-server-logger'</span>;
-
-<span class="pointa-code-comment">// Or with CommonJS:</span>
-<span class="pointa-code-function">require</span>(<span class="pointa-code-string">'pointa-server-logger'</span>);</pre>
-                    <button class="pointa-copy-btn" data-command="import 'pointa-server-logger';" title="Copy import">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="pointa-setup-step-card">
-              <div class="pointa-step-number">3</div>
-              <div class="pointa-step-content">
-                <h4>Restart your server</h4>
-                <p>Restart your dev server and the status above will turn green ✓</p>
-              </div>
+            <div class="pointa-setup-done-hint">
+              <span class="pointa-done-icon">✨</span>
+              <span>That's it! The status above will turn green once your server is running.</span>
             </div>
           </div>
 

@@ -24,7 +24,7 @@ const BugRecorder = {
   // Backend logging integration
   includeBackendLogs: false,  // Whether to capture backend logs
   captureStdout: false,       // Whether to capture full terminal output (stdout/stderr)
-  backendLogStatus: null,     // Current SDK connection status
+  backendLogStatus: null,     // Current backend log connection status
 
   // ========== TOKEN OPTIMIZATION HELPERS ==========
   
@@ -198,7 +198,7 @@ const BugRecorder = {
   // ========== END TOKEN OPTIMIZATION HELPERS ==========
 
   /**
-   * Check backend log SDK connection status
+   * Check backend log connection status
    */
   async checkBackendLogStatus() {
     try {

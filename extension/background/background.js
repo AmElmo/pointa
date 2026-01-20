@@ -286,7 +286,7 @@ class PointaBackground {
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
-        // Backend Logs: Get SDK connection status (optionally for a specific port)
+        // Backend Logs: Get connection status (optionally for a specific port)
         case 'getBackendLogStatus':
           console.log('[Background] getBackendLogStatus called with port:', request.port);
           this.getBackendLogStatus(request.port || null).
@@ -1760,11 +1760,11 @@ class PointaBackground {
   }
 
   // ============================================================
-  // Backend Logs: SDK Integration for Server-Side Log Capture
+  // Backend Logs: Server-Side Log Capture (via `pointa dev`)
   // ============================================================
 
   /**
-   * Get backend log SDK connection status from Pointa server
+   * Get backend log connection status from Pointa server
    */
   async getBackendLogStatus(port = null) {
     try {
@@ -1796,7 +1796,7 @@ class PointaBackground {
 
   /**
    * Start backend log recording via Pointa server
-   * This signals the @pointa/server-logger SDK to start sending logs
+   * This signals connected clients (via `pointa dev`) to start sending logs
    * @param {Object} options - Recording options
    * @param {boolean} options.captureStdout - Whether to capture full terminal output
    */
