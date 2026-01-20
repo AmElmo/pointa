@@ -2233,12 +2233,12 @@ ${taskDescription}`;
               <div style="display: flex; align-items: center; justify-content: space-between;">
                 <span style="font-size: 12px; color: var(--theme-text-secondary);">Capture mode:</span>
                 <select id="sidebar-capture-mode" style="font-size: 11px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--theme-outline); background: var(--theme-surface); color: var(--theme-text-primary); cursor: pointer;">
-                  <option value="console">Console logs only</option>
-                  <option value="terminal" selected>Full terminal output</option>
+                  <option value="console" selected>Console logs only</option>
+                  <option value="terminal">Full terminal output</option>
                 </select>
               </div>
               <div id="sidebar-capture-mode-hint" style="margin-top: 4px; font-size: 10px; color: var(--theme-text-secondary);">
-                Captures all terminal output including framework logs
+                Captures console.log, console.error, etc.
               </div>
             </div>
           </div>

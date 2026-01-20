@@ -219,10 +219,7 @@ const BugRecorder = {
    */
   setIncludeBackendLogs(include) {
     this.includeBackendLogs = include;
-    // Default to full terminal output when backend logs are enabled
-    if (include && this.captureStdout === false) {
-      this.captureStdout = true;
-    }
+    // captureStdout is controlled by the dropdown - don't override user's choice
   },
 
   /**
@@ -286,10 +283,7 @@ const BugRecorder = {
 
     // Start backend log recording if enabled
     if (this.includeBackendLogs) {
-      // Fail-safe: ensure we default to full terminal output if not explicitly set
-      if (this.captureStdout === false) {
-        this.captureStdout = true;
-      }
+      // captureStdout is controlled by the dropdown (defaults to false = console-only)
       try {
         const response = await chrome.runtime.sendMessage({
           action: 'startBackendLogRecording',
