@@ -349,8 +349,8 @@ class PointaAnnotationMode {
 
     }
 
-    // Highlight the element if this is an existing annotation
-    if (annotation) {
+    // Highlight the element if this is an existing annotation and element exists
+    if (annotation && element) {
       element.classList.add('pointa-highlight');
       // Store reference to clear highlight later
       pointa.currentHighlightedElement = element;
@@ -384,26 +384,34 @@ class PointaAnnotationMode {
     designTab.type = 'button';
 
     // Design tab click handler - switch to design editor
-    designTab.addEventListener('click', () => {
-      // Store current comment text before switching
-      const currentText = textarea?.value || '';
+    if (element) {
+      designTab.addEventListener('click', () => {
+        // Store current comment text before switching
+        const currentText = textarea?.value || '';
 
-      // Store shared state for design editor
-      pointa.pendingAnnotation = {
-        annotation: annotation,
-        element: element,
-        context: context,
-        commentText: currentText,
-        referenceImages: widget.referenceImages || []
-      };
+        // Store shared state for design editor
+        pointa.pendingAnnotation = {
+          annotation: annotation,
+          element: element,
+          context: context,
+          commentText: currentText,
+          referenceImages: widget.referenceImages || []
+        };
 
-      // Close widget
-      this.closeInlineCommentWidget(pointa);
+        // Close widget
+        this.closeInlineCommentWidget(pointa);
 
-      // Open design editor with annotation scope if editing
-      const restoreScope = annotation?.scope?.edit_scope || null;
-      pointa.showDesignEditor(element, restoreScope);
-    });
+        // Open design editor with annotation scope if editing
+        const restoreScope = annotation?.scope?.edit_scope || null;
+        pointa.showDesignEditor(element, restoreScope);
+      });
+    } else {
+      // Element was removed - disable design tab
+      designTab.disabled = true;
+      designTab.style.opacity = '0.4';
+      designTab.style.cursor = 'not-allowed';
+      designTab.title = 'Element was removed from the page';
+    }
 
     tabBar.appendChild(commentTab);
     tabBar.appendChild(designTab);
@@ -434,6 +442,14 @@ class PointaAnnotationMode {
     }
 
     widget.appendChild(tabBar);
+
+    // Show "element removed" banner when element is missing
+    if (!element && annotation) {
+      const removedBanner = document.createElement('div');
+      removedBanner.className = 'pointa-inline-element-removed';
+      removedBanner.textContent = '⚠️ Element was removed from the page';
+      widget.appendChild(removedBanner);
+    }
 
     // Show conversation history if there are multiple messages OR if in-review (show original message)
     if (hasConversation || isInReview) {
@@ -714,6 +730,17 @@ class PointaAnnotationMode {
     const sidebarHost = document.querySelector('#pointa-sidebar-host');
     const sidebarWidth = sidebarHost ? sidebarHost.offsetWidth : 0;
     const availableWidth = viewportWidth - sidebarWidth;
+
+    // Fallback: center widget when element was removed
+    if (!element && !badge) {
+      const left = Math.max(padding, (availableWidth - widgetWidth) / 2);
+      const top = Math.max(padding, (viewportHeight - widgetHeight) / 2);
+      widget.style.position = 'fixed';
+      widget.style.left = `${left}px`;
+      widget.style.top = `${top}px`;
+      widget.style.zIndex = '2147483647';
+      return;
+    }
 
     // FIGMA-STYLE: If badge exists, position relative to badge; otherwise relative to element
     const referenceRect = badge ? badge.getBoundingClientRect() : element.getBoundingClientRect();
