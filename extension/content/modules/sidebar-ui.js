@@ -6377,16 +6377,19 @@ IMPORTANT - Git Workflow:
     // Find the element using the annotation selector
     const element = pointa.findElementBySelector(annotation);
 
+    // Get the latest annotation data
+    const latestAnnotation = pointa.annotations.find((a) => a.id === annotation.id) || annotation;
+
     if (!element) {
-      console.error('Element not found for annotation:', annotation);
+      // Element was removed - show comment widget centered as fallback
+      pointa.tempDisableAnnotationMode();
+      const context = latestAnnotation.context || { selector: latestAnnotation.selector };
+      pointa.showInlineCommentWidget(null, context, latestAnnotation);
       return;
     }
 
     // Scroll to element
     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    // Get the latest annotation data
-    const latestAnnotation = pointa.annotations.find((a) => a.id === annotation.id) || annotation;
 
     // Wait for scroll to complete
     await new Promise((resolve) => setTimeout(resolve, 500));
