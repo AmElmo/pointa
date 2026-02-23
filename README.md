@@ -5,7 +5,7 @@
 <h1 align="center">Pointa</h1>
 
 <p align="center">
-  <strong>Visual feedback for AI-powered development</strong>
+  <strong>Point at any UI element, leave feedback, and let your AI coding agent implement the changes.</strong>
 </p>
 
 <p align="center">
@@ -29,46 +29,246 @@
 <br />
 
 <p align="center">
-  <img src="docs/images/annotation_feature.png" alt="Pointa in action" width="700" />
+  <img src="docs/images/annotation_feature.png" alt="Pointa annotation interface" width="700" />
 </p>
 
 <br />
 
+## Table of Contents
+
+- [What is Pointa?](#what-is-pointa)
+- [Key Features](#key-features)
+- [Quick Start](#quick-start)
+- [AI Agent Setup](#ai-agent-setup)
+- [Backend Log Capture](#backend-log-capture)
+- [How It Works](#how-it-works)
+- [Server Commands](#server-commands)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## What is Pointa?
 
-Pointa is a browser extension and local server that lets you add visual annotations to your localhost development projects. Click on any element, leave a comment, and your AI coding agent (Cursor, Claude Code, Windsurf, etc.) can automatically implement the changes.
+Pointa is a browser extension and local server that lets you visually annotate your localhost projects. Click on any element, leave a comment, and your AI coding agent (Cursor, Claude Code, Windsurf, etc.) automatically implements the changes via MCP.
 
-Think of it as "visual issue tracking" that your AI can read and act on - no more copying CSS selectors or describing which button you're talking about.
+Think of it as visual issue tracking that your AI can read and act on — no more copying CSS selectors or describing which button you're talking about.
 
-You can also use the extension to...
+Annotate your localhost like you would a Figma screen:
 
-- Report bugs in seconds
+![Annotation flow](docs/images/annotation_flow_feature.gif)
 
-<img src="docs/images/bug_report_screen_feature.png" width="700" alt="Bug report feature">
+Then ask your AI coding agent to implement the changes:
 
-- Get your AI coding tool to bulk fix your annotations (through MCP integration)
+![MCP integration](docs/images/mcp_integration_feature.gif)
 
-<img src="docs/images/ask_ai_screen_feature.png" width="700" alt="Bug report feature">
+You can also use Pointa to...
 
-- Capture UI from other websites with clean screenshots and CSS metadata
+**Report bugs in seconds**
 
-<img src="docs/images/capture_inspiration_feature.png" width="700" alt="Bug report feature">
+<img src="docs/images/bug_report_screen_feature.png" width="700" alt="Bug reporting with timeline capture">
 
+**Bulk-fix annotations with your AI coding tool (via MCP)**
+
+<img src="docs/images/ask_ai_screen_feature.png" width="700" alt="AI bulk-fix annotations via MCP">
+
+**Capture UI inspiration from other websites with clean screenshots and CSS metadata**
+
+<img src="docs/images/capture_inspiration_feature.png" width="700" alt="Capture UI inspiration with CSS metadata">
 
 ## Key Features
 
-- 🎯 **Point and click annotations** - Click any element to leave feedback
-- 🤖 **AI-ready** - Integrates with AI coding agents via MCP protocol
-- 🏠 **Local-first** - Works on localhost, no cloud dependencies
-- 📦 **Multi-page tracking** - Annotate across different routes and pages
-- 🔒 **Privacy-focused** - All data stays on your machine
-- 🐛 **Backend log capture** - Include server logs in bug reports with zero code changes
+- 🎯 **Point and click annotations** — Click any element to leave feedback
+- 🤖 **AI-ready** — Integrates with AI coding agents via MCP protocol
+- 🏠 **Local-first** — Works on localhost, no cloud dependencies
+- 📦 **Multi-page tracking** — Annotate across different routes and pages
+- 🔒 **Privacy-focused** — All data stays on your machine
+- 🐛 **Backend log capture** — Include server logs in bug reports with zero code changes
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- A Chromium-based browser (Chrome, Edge, Brave, etc.)
+- An AI coding agent that supports MCP (Cursor, Claude Code, Windsurf, etc.)
+
+### 1. Install the browser extension
+
+Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane) (recommended), or [load unpacked](docs/DEVELOPMENT.md) for development.
+
+### 2. Connect your AI coding agent
+
+Add the MCP server to your AI agent's configuration:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+This automatically installs the server, starts the HTTP daemon for the extension, and keeps everything up to date. See [AI Agent Setup](#ai-agent-setup) for where to paste this in your specific tool.
+
+### 3. Start annotating
+
+1. Open your localhost app in the browser
+2. Click the Pointa extension icon to activate
+3. Click on any element to annotate
+4. Add your feedback
+5. Ask your AI agent to "implement the Pointa annotations"
+
+## AI Agent Setup
+
+<details>
+<summary><b>Cursor</b></summary>
+
+1. Open Settings → Cursor Settings
+2. Go to Tools & Integrations tab
+3. Click **+ Add new global MCP server**
+4. Paste the MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+5. Save and restart Cursor
+</details>
+
+<details>
+<summary><b>Claude Code</b></summary>
+
+Add to your Claude configuration file (`~/.config/claude/config.json`):
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+Or use the CLI:
+
+```bash
+claude mcp add --transport stdio pointa -- npx -y pointa-server
+```
+</details>
+
+<details>
+<summary><b>Windsurf</b></summary>
+
+1. Navigate to Settings → Advanced Settings
+2. Scroll to the Cascade section
+3. Paste the MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+4. Save and restart Windsurf
+</details>
+
+<details>
+<summary><b>Antigravity</b></summary>
+
+1. Click on **Agent session** in Antigravity
+2. Select the **"..."** dropdown → **MCP Servers** → **Manage MCP Servers**
+3. Click **View raw config**
+4. Add the MCP configuration to `mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+5. Save and restart Antigravity
+</details>
+
+<details>
+<summary><b>Other Editors (VS Code, etc.)</b></summary>
+
+Install an MCP-compatible AI extension and add the MCP configuration:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "command": "npx",
+      "args": ["-y", "pointa-server"]
+    }
+  }
+}
+```
+
+If your tool doesn't support the command/args format, use the HTTP endpoint instead:
+
+```json
+{
+  "mcpServers": {
+    "pointa": {
+      "url": "http://127.0.0.1:4242/mcp"
+    }
+  }
+}
+```
+
+(Requires manually running `pointa-server start` first)
+</details>
+
+## Backend Log Capture
+
+Capture server-side logs in bug reports without any code changes. Wrap your dev command with `pointa dev`:
+
+```bash
+# Instead of:
+npm run dev
+
+# Run:
+pointa dev npm run dev
+```
+
+This intercepts `console.log`, `console.error`, etc. from your Node.js server and includes them in bug report timelines. Works with any Node.js framework (Next.js, Express, Remix, etc.).
+
+```bash
+# Capture console logs only (default)
+pointa dev npm run dev
+
+# Capture full terminal output (stdout/stderr)
+pointa dev --capture-stdout npm run dev
+```
+
+The capture mode can also be toggled in the extension's bug recording UI.
 
 ## How It Works
 
-### Architecture
-
-Pointa consists of two main components:
+Pointa consists of two components:
 
 ```
 ┌─────────────────────────────────────────┐
@@ -88,361 +288,49 @@ Pointa consists of two main components:
 └─────────────────────────────────────────┘
 ```
 
-**1. Browser Extension** (`/extension`)
-- Chromium-based extension (Chrome, Edge, Brave, etc.)
-- Injects UI for creating and viewing annotations
-- Communicates with local server via HTTP
-- Provides visual feedback on annotated elements
-
-**2. Local Server** (`/annotations-server`)
-- Node.js server running on port 4242
-- Exposes MCP protocol for AI coding agents
-- Stores annotations in `~/.pointa` directory
-- RESTful API for extension communication
-
-**3. Data Flow**
+**Data Flow:**
 ```
 User clicks element → Extension captures context → Server stores annotation
                                                             ↓
 AI Agent ← MCP Protocol ← Server provides annotation data
 ```
 
-Annotate visually localhost like you would annotate a Figma screen
-
-![Annotation flow](docs/images/annotation_flow_feature.gif)
-
-Then jump to your AI coding tool of choice and simply ask to work on thos annotations (voila!)
-
-![MCP integration](docs/images/mcp_integration_feature.gif)
-
-## Quick Start
-
-### Prerequisites
-
-- Node.js 18+ 
-- Chromium-based browser (Chrome, Edge, Brave, etc.)
-- An AI coding agent that supports MCP (Cursor, Claude Code, Windsurf, etc.)
-
-### Installation
-
-**1. Install the server (optional)**
-
-The server will be automatically installed when you configure your AI tool with npx. However, if you want to manually install and manage it:
-
-```bash
-npm install -g pointa-server
-pointa-server start
-```
-
-**Note:** With the npx approach (recommended), you can skip this step entirely.
-
-**2. Install the browser extension**
-
-Option A: From Chrome Web Store (recommended)
-- Install from [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane)
-
-Option B: Load unpacked (for development)
-- Clone this repository
-- Open `chrome://extensions/`
-- Enable "Developer mode"
-- Click "Load unpacked" and select the `/extension` directory
-
-**3. Connect your AI coding agent**
-
-Add the MCP server to your AI agent's configuration using npx (recommended):
-
-```json
-{
-  "mcpServers": {
-    "pointa": {
-      "command": "npx",
-      "args": ["-y", "pointa-server"]
-    }
-  }
-}
-```
-
-This approach automatically:
-- Installs the server if not present
-- Starts the HTTP daemon for the Chrome extension (if needed)
-- Keeps the server up-to-date
-
-See the [AI Agent Setup](#ai-agent-setup) section for tool-specific instructions.
-
-### Usage
-
-1. Open your localhost development server in your browser
-2. Click the Pointa extension icon to activate
-3. Click on any element you want to annotate
-4. Add your feedback/instructions
-5. Ask your AI coding agent to "implement the Pointa annotations"
-
-
-## AI Agent Setup
-
-<details>
-<summary><b>Cursor</b></summary>
-
-1. Open Settings → Cursor Settings
-2. Go to Tools & Integrations tab
-3. Click **+ Add new global MCP server**
-4. Add this configuration:
-
-```json
-{
-  "mcpServers": {
-    "pointa": {
-      "command": "npx",
-      "args": ["-y", "pointa-server"]
-    }
-  }
-}
-```
-
-5. Save and restart Cursor
-
-**Note:** The npx command automatically handles server installation and startup. No need to manually run `pointa-server start`.
-</details>
-
-<details>
-<summary><b>Claude Code</b></summary>
-
-Add to your Claude configuration file (`~/.config/claude/config.json` or similar):
-
-```json
-{
-  "mcpServers": {
-    "pointa": {
-      "command": "npx",
-      "args": ["-y", "pointa-server"]
-    }
-  }
-}
-```
-
-Or use the CLI:
-
-```bash
-claude mcp add --transport stdio pointa -- npx -y pointa-server
-```
-
-**Note:** The npx command automatically handles server installation and startup.
-</details>
-
-<details>
-<summary><b>Windsurf</b></summary>
-
-1. Navigate to Settings → Advanced Settings
-2. Scroll to the Cascade section
-3. Add:
-
-```json
-{
-  "mcpServers": {
-    "pointa": {
-      "command": "npx",
-      "args": ["-y", "pointa-server"]
-    }
-  }
-}
-```
-
-4. Save and restart Windsurf
-
-**Note:** The npx command automatically handles server installation and startup. No need to manually run `pointa-server start`.
-</details>
-
-<details>
-<summary><b>Antigravity</b></summary>
-
-1. Click on **Agent session** in Antigravity
-2. Select the **"..."** dropdown → **MCP Servers** → **Manage MCP Servers**
-3. Click **View raw config**
-4. Edit `mcp_config.json` and add:
-
-```json
-{
-  "mcpServers": {
-    "pointa": {
-      "command": "npx",
-      "args": ["-y", "pointa-server"]
-    }
-  }
-}
-```
-
-5. Save and restart Antigravity
-
-**Note:** The npx command automatically handles server installation and startup.
-</details>
-
-<details>
-<summary><b>Other Editors (VS Code, etc.)</b></summary>
-
-Install an MCP-compatible AI extension and add:
-
-```json
-{
-  "mcpServers": {
-    "pointa": {
-      "command": "npx",
-      "args": ["-y", "pointa-server"]
-    }
-  }
-}
-```
-
-**Note:** The npx command automatically handles server installation and startup. If your tool doesn't support the command/args format, you can use the HTTP endpoint approach:
-
-```json
-{
-  "mcpServers": {
-    "pointa": {
-      "url": "http://127.0.0.1:4242/mcp"
-    }
-  }
-}
-```
-
-(Requires manually running `pointa-server start` first)
-</details>
-
 ## Server Commands
 
 ```bash
-# Start the server
-pointa-server start
-
-# Check server status
-pointa-server status
-
-# Stop the server
-pointa-server stop
-
-# Restart the server
-pointa-server restart
+pointa-server start     # Start the server
+pointa-server status    # Check server status
+pointa-server stop      # Stop the server
+pointa-server restart   # Restart the server
 ```
 
-## Backend Log Capture
+If you use the `npx` approach from Quick Start, the server is managed automatically.
 
-Capture server-side logs in your bug reports without any code changes. Just wrap your dev command with `pointa dev`:
+## Troubleshooting
 
-```bash
-# Instead of:
-npm run dev
+**Server not detected**
+- Run `pointa-server status` to check if it's running
+- Make sure port 4242 is not blocked by a firewall
 
-# Run:
-pointa dev npm run dev
-```
+**Extension not working**
+- Verify you're on a local development URL (localhost, 127.0.0.1, *.local, etc.)
+- Check the browser console for errors
+- Try reloading the extension
 
-This intercepts `console.log`, `console.error`, etc. from your Node.js server and includes them in bug report timelines. Works with any Node.js framework (Next.js, Express, Remix, etc.).
+**MCP connection failed**
+- Verify the server is running
+- Check your AI agent's configuration matches the examples above
+- Restart your AI agent after configuration changes
 
-**Options:**
+**Known limitations**
+- Elements inside Shadow DOM (Web Components) cannot be annotated
+- Designed for localhost/local domains only
+- Currently supports Chromium-based browsers only (Chrome, Edge, Brave)
 
-```bash
-# Capture console logs only (default)
-pointa dev npm run dev
+<details>
+<summary><b>Uninstalling</b></summary>
 
-# Capture full terminal output (stdout/stderr)
-pointa dev --capture-stdout npm run dev
-```
-
-The capture mode can also be toggled in the extension's bug recording UI.
-
-## Development
-
-### Repository Structure
-
-```
-pointa-app/
-├── extension/              # Browser extension
-│   ├── manifest.json       # Extension configuration
-│   ├── background/         # Service worker
-│   ├── content/            # Content scripts
-│   │   └── modules/        # Feature modules
-│   ├── popup/              # Extension popup UI
-│   └── assets/             # Icons and fonts
-│
-├── annotations-server/     # MCP server (npm package)
-│   ├── bin/cli.js          # CLI entry point
-│   ├── lib/server.js       # Server implementation
-│   └── package.json        # Server package config
-│
-└── docs/                   # Documentation
-```
-
-### Running Locally
-
-**Extension Development:**
-
-1. Clone the repository
-2. Open `chrome://extensions/`
-3. Enable Developer mode
-4. Click "Load unpacked" → select `/extension` directory
-5. Make changes and reload extension to test
-
-**Server Development:**
-
-```bash
-cd annotations-server
-npm install
-npm run dev  # Auto-restarts on changes
-```
-
-**Testing the Integration:**
-
-1. Start the server (locally or globally)
-2. Load the extension
-3. Open a localhost page (e.g., `http://localhost:3000`)
-4. Create an annotation
-5. Check that it appears in your AI agent's MCP tools
-
-### Code Style
-
-- 2 spaces for indentation
-- Meaningful variable names
-- Comments for complex logic
-- Follow existing patterns in the codebase
-
-### Tech Stack
-
-**Extension:**
-- Vanilla JavaScript (no frameworks)
-- Chrome Extension Manifest V3
-- CSS with custom properties for theming
-
-**Server:**
-- Node.js with Express
-- MCP SDK (`@modelcontextprotocol/sdk`)
-- File-based storage (node-persist)
-
-## Contributing
-
-We welcome contributions! Here's how you can help:
-
-1. **Report bugs** - Open an issue with details about the problem
-2. **Suggest features** - Share your ideas in the issues
-3. **Submit PRs** - Fix bugs or implement features
-4. **Improve docs** - Help make the documentation clearer
-
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
-
-### Good First Issues
-
-Look for issues labeled:
-- `good first issue` - Great for newcomers
-- `help wanted` - Community contributions needed
-
-## Known Limitations
-
-- **Shadow DOM**: Elements inside Shadow DOM (Web Components) cannot be annotated due to DOM isolation
-- **Local development only**: Designed for localhost/local domains only
-- **Chromium browsers**: Currently only supports Chrome-based browsers
-
-## Uninstalling
-
-**Remove the extension:**
-- Go to `chrome://extensions/` and remove Pointa
+**Remove the extension:** Go to `chrome://extensions/` and remove Pointa
 
 **Uninstall the server:**
 ```bash
@@ -450,41 +338,25 @@ npm uninstall -g pointa-server
 rm -rf ~/.pointa  # Remove data directory
 ```
 
-**Remove from AI agent:**
-- Remove the `pointa` entry from your MCP server configuration
+**Remove from AI agent:** Delete the `pointa` entry from your MCP server configuration
+</details>
 
-## Troubleshooting
+For more help, check [GitHub Issues](https://github.com/AmElmo/pointa-app/issues).
 
-**Server not detected**
-- Run `pointa-server status` to check if it's running
-- Make sure port 4242 is not blocked by firewall
+## Contributing
 
-**Extension not working**
-- Verify you're on a local development URL (localhost, 127.0.0.1, *.local, etc.)
-- Check browser console for errors
-- Try reloading the extension
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-**MCP connection failed**
-- Verify server is running
-- Check your AI agent's configuration matches the examples
-- Restart your AI agent after configuration changes
+Look for issues labeled `good first issue` or `help wanted` to get started.
 
-For more issues, check [GitHub Issues](https://github.com/AmElmo/pointa-app/issues).
+## Development
 
-## Documentation
-
-- [Development Guide](docs/DEVELOPMENT.md)
-- [Update System](docs/UPDATE_SYSTEM.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+See the [Development Guide](docs/DEVELOPMENT.md) for local setup, repo structure, and tech stack details.
 
 ## License
 
-MIT - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-Built with ❤️ by [Julien Berthomier](https://github.com/amelmo) at [Argil.io](https://argil.io)
+MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-**Star this repo** if you find it useful! ⭐
+Built by [Julien Berthomier](https://github.com/amelmo) at [Argil.io](https://argil.io)
