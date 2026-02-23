@@ -1,5 +1,37 @@
 # Development Guide
 
+## Repository Structure
+
+```
+pointa-app/
+├── extension/              # Browser extension
+│   ├── manifest.json       # Extension configuration
+│   ├── background/         # Service worker
+│   ├── content/            # Content scripts
+│   │   └── modules/        # Feature modules
+│   ├── popup/              # Extension popup UI
+│   └── assets/             # Icons and fonts
+│
+├── annotations-server/     # MCP server (npm package)
+│   ├── bin/cli.js          # CLI entry point
+│   ├── lib/server.js       # Server implementation
+│   └── package.json        # Server package config
+│
+└── docs/                   # Documentation
+```
+
+## Tech Stack
+
+**Extension:**
+- Vanilla JavaScript (no frameworks)
+- Chrome Extension Manifest V3
+- CSS with custom properties for theming
+
+**Server:**
+- Node.js with Express
+- MCP SDK (`@modelcontextprotocol/sdk`)
+- File-based storage (node-persist)
+
 ## Extension Development
 
 ### Initial Setup
