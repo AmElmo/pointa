@@ -5,6 +5,7 @@ npm-debug.log*
 # Extension build artifacts
 extension/dist/
 extension/*.zip
+pointa-extension.zip
 
 # MCP Server
 mcp-server/logs/
