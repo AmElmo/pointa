@@ -1,0 +1,305 @@
+[
+  {
+    "id": "BUG-1708500600001",
+    "created": "2026-02-24T10:10:00.000Z",
+    "updated": "2026-02-24T10:10:00.000Z",
+    "status": "active",
+    "report": {
+      "expectedBehavior": "Clicking the pricing toggle should switch between monthly and annual pricing without errors"
+    },
+    "recordings": [
+      {
+        "iteration": 1,
+        "timestamp": "2026-02-24T10:10:00.000Z",
+        "timeline": {
+          "events": [
+            {
+              "timestamp": "2026-02-24T10:09:50.000Z",
+              "relativeTime": 0,
+              "type": "user-interaction",
+              "severity": "info",
+              "source": "user",
+              "data": {
+                "action": "click",
+                "target": {
+                  "tag": "button",
+                  "text": "Annual",
+                  "selector": ".pricing-toggle-btn"
+                },
+                "position": { "x": 720, "y": 1250 }
+              }
+            },
+            {
+              "timestamp": "2026-02-24T10:09:51.000Z",
+              "relativeTime": 1000,
+              "type": "console-error",
+              "severity": "error",
+              "source": "console",
+              "data": {
+                "message": "Uncaught TypeError: Cannot read properties of undefined (reading 'price')",
+                "source": "http://localhost:8080/testing/demo-app/index.html",
+                "line": 142,
+                "column": 15
+              }
+            },
+            {
+              "timestamp": "2026-02-24T10:09:51.500Z",
+              "relativeTime": 1500,
+              "type": "console-error",
+              "severity": "error",
+              "source": "console",
+              "data": {
+                "message": "Error in pricing toggle handler: pricingData.annual is not defined",
+                "source": "http://localhost:8080/testing/demo-app/index.html",
+                "line": 145,
+                "column": 20
+              }
+            }
+          ],
+          "summary": {
+            "totalEvents": 3,
+            "userInteractions": 1,
+            "networkRequests": 0,
+            "networkFailures": 0,
+            "consoleErrors": 2,
+            "consoleWarnings": 0,
+            "consoleLogs": 0,
+            "backendLogs": 0,
+            "backendErrors": 0
+          }
+        },
+        "screenshot": { "captured": false },
+        "replayed": false,
+        "metadata": {
+          "startTime": "2026-02-24T10:09:45.000Z",
+          "endTime": "2026-02-24T10:10:00.000Z",
+          "duration": 15000
+        }
+      }
+    ],
+    "ai_actions": [],
+    "context": {
+      "page": {
+        "url": "http://localhost:8080/testing/demo-app/index.html",
+        "title": "Nexus AI - Intelligent Development Platform",
+        "viewport": { "width": 1440, "height": 900 }
+      },
+      "browser": "Chrome 133 / macOS"
+    },
+    "keyIssues": [
+      {
+        "type": "console-error",
+        "description": "Uncaught TypeError: Cannot read properties of undefined (reading 'price')",
+        "timestamp": "2026-02-24T10:09:51.000Z",
+        "relativeTime": 1000,
+        "severity": "error"
+      }
+    ]
+  },
+  {
+    "id": "BUG-1708501200002",
+    "created": "2026-02-24T10:20:00.000Z",
+    "updated": "2026-02-24T10:20:00.000Z",
+    "status": "active",
+    "report": {
+      "expectedBehavior": "Contact form should submit successfully and show a confirmation message"
+    },
+    "recordings": [
+      {
+        "iteration": 1,
+        "timestamp": "2026-02-24T10:20:00.000Z",
+        "timeline": {
+          "events": [
+            {
+              "timestamp": "2026-02-24T10:19:40.000Z",
+              "relativeTime": 0,
+              "type": "user-interaction",
+              "severity": "info",
+              "source": "user",
+              "data": {
+                "action": "click",
+                "target": {
+                  "tag": "a",
+                  "text": "Contact sales",
+                  "selector": ".pricing-card:last-child .btn-secondary"
+                },
+                "position": { "x": 880, "y": 1720 }
+              }
+            },
+            {
+              "timestamp": "2026-02-24T10:19:42.000Z",
+              "relativeTime": 2000,
+              "type": "network",
+              "subtype": "failed",
+              "severity": "error",
+              "source": "network",
+              "data": {
+                "url": "http://localhost:8080/api/contact",
+                "method": "POST",
+                "status": 404,
+                "statusText": "Not Found",
+                "mimeType": "text/html",
+                "resourceType": "fetch",
+                "type": "cdp"
+              }
+            },
+            {
+              "timestamp": "2026-02-24T10:19:42.200Z",
+              "relativeTime": 2200,
+              "type": "console-error",
+              "severity": "error",
+              "source": "console",
+              "data": {
+                "message": "Failed to submit contact form: POST /api/contact returned 404",
+                "source": "http://localhost:8080/testing/demo-app/index.html",
+                "line": 210,
+                "column": 8
+              }
+            }
+          ],
+          "summary": {
+            "totalEvents": 3,
+            "userInteractions": 1,
+            "networkRequests": 1,
+            "networkFailures": 1,
+            "consoleErrors": 1,
+            "consoleWarnings": 0,
+            "consoleLogs": 0,
+            "backendLogs": 0,
+            "backendErrors": 0
+          }
+        },
+        "screenshot": { "captured": false },
+        "replayed": false,
+        "metadata": {
+          "startTime": "2026-02-24T10:19:35.000Z",
+          "endTime": "2026-02-24T10:20:00.000Z",
+          "duration": 25000
+        }
+      }
+    ],
+    "ai_actions": [],
+    "context": {
+      "page": {
+        "url": "http://localhost:8080/testing/demo-app/index.html",
+        "title": "Nexus AI - Intelligent Development Platform",
+        "viewport": { "width": 1440, "height": 900 }
+      },
+      "browser": "Chrome 133 / macOS"
+    },
+    "keyIssues": [
+      {
+        "type": "network-error",
+        "description": "POST /api/contact returned 404 — contact form endpoint is missing",
+        "timestamp": "2026-02-24T10:19:42.000Z",
+        "relativeTime": 2000,
+        "severity": "error"
+      }
+    ]
+  },
+  {
+    "id": "BUG-1708501800003",
+    "created": "2026-02-24T10:30:00.000Z",
+    "updated": "2026-02-24T10:30:00.000Z",
+    "status": "active",
+    "report": {
+      "expectedBehavior": "Page should scroll smoothly without jank or dropped frames"
+    },
+    "recordings": [
+      {
+        "iteration": 1,
+        "timestamp": "2026-02-24T10:30:00.000Z",
+        "timeline": {
+          "events": [
+            {
+              "timestamp": "2026-02-24T10:29:45.000Z",
+              "relativeTime": 0,
+              "type": "user-interaction",
+              "severity": "info",
+              "source": "user",
+              "data": {
+                "action": "scroll",
+                "target": { "tag": "window", "text": "", "selector": "" },
+                "position": { "x": 720, "y": 400 }
+              }
+            },
+            {
+              "timestamp": "2026-02-24T10:29:46.000Z",
+              "relativeTime": 1000,
+              "type": "console-warning",
+              "severity": "warning",
+              "source": "console",
+              "data": {
+                "message": "[Violation] Forced reflow while executing JavaScript took 68ms",
+                "source": "http://localhost:8080/testing/demo-app/index.html",
+                "line": 0,
+                "column": 0
+              }
+            },
+            {
+              "timestamp": "2026-02-24T10:29:47.000Z",
+              "relativeTime": 2000,
+              "type": "user-interaction",
+              "severity": "info",
+              "source": "user",
+              "data": {
+                "action": "scroll",
+                "target": { "tag": "window", "text": "", "selector": "" },
+                "position": { "x": 720, "y": 800 }
+              }
+            },
+            {
+              "timestamp": "2026-02-24T10:29:48.000Z",
+              "relativeTime": 3000,
+              "type": "console-warning",
+              "severity": "warning",
+              "source": "console",
+              "data": {
+                "message": "[Violation] 'scroll' handler took 124ms",
+                "source": "http://localhost:8080/testing/demo-app/index.html",
+                "line": 0,
+                "column": 0
+              }
+            }
+          ],
+          "summary": {
+            "totalEvents": 4,
+            "userInteractions": 2,
+            "networkRequests": 0,
+            "networkFailures": 0,
+            "consoleErrors": 0,
+            "consoleWarnings": 2,
+            "consoleLogs": 0,
+            "backendLogs": 0,
+            "backendErrors": 0
+          }
+        },
+        "screenshot": { "captured": false },
+        "replayed": false,
+        "metadata": {
+          "startTime": "2026-02-24T10:29:40.000Z",
+          "endTime": "2026-02-24T10:30:00.000Z",
+          "duration": 20000
+        }
+      }
+    ],
+    "ai_actions": [],
+    "context": {
+      "page": {
+        "url": "http://localhost:8080/testing/demo-app/index.html",
+        "title": "Nexus AI - Intelligent Development Platform",
+        "viewport": { "width": 1440, "height": 900 }
+      },
+      "browser": "Chrome 133 / macOS"
+    },
+    "keyIssues": [
+      {
+        "type": "performance",
+        "description": "Scroll handler taking 124ms — forced reflow causing jank during scroll",
+        "timestamp": "2026-02-24T10:29:48.000Z",
+        "relativeTime": 3000,
+        "severity": "warning"
+      }
+    ]
+  }
+]
