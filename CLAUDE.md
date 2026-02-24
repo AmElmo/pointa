@@ -24,7 +24,13 @@ pointa-app/
 ├── package.json            # Root workspace (VERSION synced here)
 ├── .releaserc.json         # Semantic-release config
 ├── scripts/
-│   └── sync-versions.js    # Updates versions in all 3 files
+│   ├── sync-versions.js    # Updates versions in all 3 files
+│   ├── load-demo.sh        # Load demo fixtures into ~/.pointa/
+│   └── clear-demo.sh       # Restore original data after demo
+├── testing/
+│   ├── demo-app/index.html # Demo landing page for fixtures
+│   ├── fixtures/demo/      # Pre-built annotation & bug report JSON
+│   └── DEMO.md             # Demo setup documentation
 └── CHANGELOG.md            # Auto-generated release notes
 ```
 
@@ -110,6 +116,20 @@ npm run dev
 npm run lint
 npm run lint:fix
 ```
+
+## Demo & QA Fixtures
+
+Pre-built annotations and bug reports for demos and testing. See `testing/DEMO.md` for full docs.
+
+```bash
+./scripts/load-demo.sh                    # Load fixtures into ~/.pointa/
+cd annotations-server && npm run dev      # Start MCP server
+python3 -m http.server 8080               # Serve demo page (from repo root)
+# Open http://localhost:8080/testing/demo-app/index.html with Pointa extension
+./scripts/clear-demo.sh                   # Restore original data
+```
+
+**Fixtures live in** `testing/fixtures/demo/` (annotations + bug reports targeting the demo landing page).
 
 ## Git Workflow
 
