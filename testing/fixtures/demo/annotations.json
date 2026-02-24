@@ -1,0 +1,140 @@
+[
+  {
+    "id": "pointa_1708500000001_d3m01abc",
+    "url": "http://localhost:8080/testing/demo-app/index.html",
+    "selector": "#hero-cta-primary",
+    "comment": "Change CTA copy from 'Start building' to something more compelling like 'Try Nexus Free' — the current text is too generic and doesn't convey the value proposition",
+    "element_context": {
+      "tag": "a",
+      "classes": ["btn", "btn-primary", "btn-large"],
+      "text": "Start building",
+      "styles": {
+        "display": "inline-flex",
+        "position": "relative"
+      },
+      "position": { "x": 520, "y": 490, "width": 184, "height": 48 }
+    },
+    "parent_chain": [
+      { "tag": "div", "classes": ["hero-cta"], "id": null }
+    ],
+    "status": "pending",
+    "created_at": "2026-02-24T10:00:00.000Z",
+    "updated_at": "2026-02-24T10:00:00.000Z",
+    "data_format": "lean"
+  },
+  {
+    "id": "pointa_1708500000002_d3m02def",
+    "url": "http://localhost:8080/testing/demo-app/index.html",
+    "selector": "#hero-subtitle",
+    "comment": "Spacing feels off — add more breathing room below the subtitle. The gap between subtitle and CTA buttons should be at least 48px instead of the current 40px",
+    "element_context": {
+      "tag": "p",
+      "classes": ["hero-subtitle"],
+      "text": "Nexus connects to your codebase, understands your architecture, and helps your team build faster without sacrificing quality.",
+      "styles": {
+        "display": "block",
+        "position": "static"
+      },
+      "position": { "x": 290, "y": 410, "width": 540, "height": 56 }
+    },
+    "parent_chain": [
+      { "tag": "div", "classes": ["container"], "id": null }
+    ],
+    "status": "pending",
+    "created_at": "2026-02-24T10:04:00.000Z",
+    "updated_at": "2026-02-24T10:04:00.000Z",
+    "data_format": "lean"
+  },
+  {
+    "id": "pointa_1708500000003_d3m03ghi",
+    "url": "http://localhost:8080/testing/demo-app/index.html",
+    "selector": "#feature-heading-1",
+    "comment": "Font weight should be bolder here — use 700 or 800 to create better visual hierarchy against the description text below",
+    "element_context": {
+      "tag": "h3",
+      "classes": ["feature-title"],
+      "text": "Codebase understanding",
+      "styles": {
+        "display": "block",
+        "position": "static"
+      },
+      "position": { "x": 52, "y": 820, "width": 320, "height": 24 }
+    },
+    "parent_chain": [
+      { "tag": "div", "classes": ["feature-card"], "id": null }
+    ],
+    "status": "pending",
+    "created_at": "2026-02-24T10:08:00.000Z",
+    "updated_at": "2026-02-24T10:08:00.000Z",
+    "data_format": "lean"
+  },
+  {
+    "id": "pointa_1708500000004_d3m04jkl",
+    "url": "http://localhost:8080/testing/demo-app/index.html",
+    "selector": "#pricing-pro",
+    "comment": "The Pro card should stand out more as the recommended plan — add a subtle purple glow (box-shadow) and increase the border width to 2px",
+    "element_context": {
+      "tag": "div",
+      "classes": ["pricing-card", "featured"],
+      "text": "",
+      "styles": {
+        "display": "flex",
+        "position": "relative"
+      },
+      "position": { "x": 373, "y": 1480, "width": 293, "height": 420 }
+    },
+    "parent_chain": [
+      { "tag": "div", "classes": ["pricing-grid"], "id": null }
+    ],
+    "status": "pending",
+    "created_at": "2026-02-24T10:12:00.000Z",
+    "updated_at": "2026-02-24T10:12:00.000Z",
+    "data_format": "lean"
+  },
+  {
+    "id": "pointa_1708500000005_d3m05mno",
+    "url": "http://localhost:8080/testing/demo-app/index.html",
+    "selector": "#stat-accuracy",
+    "comment": "This number should use the brand gradient text effect (like the hero heading) instead of plain white — it would tie the visual language together",
+    "element_context": {
+      "tag": "span",
+      "classes": ["stat-value"],
+      "text": "99.2%",
+      "styles": {
+        "display": "block",
+        "position": "static"
+      },
+      "position": { "x": 52, "y": 1120, "width": 200, "height": 50 }
+    },
+    "parent_chain": [
+      { "tag": "div", "classes": ["stat-item"], "id": null }
+    ],
+    "status": "pending",
+    "created_at": "2026-02-24T10:16:00.000Z",
+    "updated_at": "2026-02-24T10:16:00.000Z",
+    "data_format": "lean"
+  },
+  {
+    "id": "pointa_1708500000006_d3m06pqr",
+    "url": "http://localhost:8080/testing/demo-app/index.html",
+    "selector": "#nav-logo",
+    "comment": "Logo text needs letter-spacing: 0.05em and slightly larger font-size (24px) for better brand presence in the nav bar",
+    "element_context": {
+      "tag": "a",
+      "classes": ["logo"],
+      "text": "nexusai",
+      "styles": {
+        "display": "inline",
+        "position": "static"
+      },
+      "position": { "x": 24, "y": 16, "width": 90, "height": 24 }
+    },
+    "parent_chain": [
+      { "tag": "div", "classes": ["nav-inner"], "id": null }
+    ],
+    "status": "pending",
+    "created_at": "2026-02-24T10:20:00.000Z",
+    "updated_at": "2026-02-24T10:20:00.000Z",
+    "data_format": "lean"
+  }
+]

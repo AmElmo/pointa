@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nexus AI - Intelligent Development Platform</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg-primary: #09090b;
+        --bg-elevated: #111114;
+        --bg-card: #18181b;
+        --text-primary: #fafafa;
+        --text-secondary: #a1a1aa;
+        --text-muted: #71717a;
+        --accent: #8b5cf6;
+        --accent-blue: #3b82f6;
+        --border: rgba(255, 255, 255, 0.08);
+        --border-hover: rgba(255, 255, 255, 0.15);
+        --radius: 12px;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
+          "Helvetica Neue", Arial, sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      .container {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* Navigation */
+      nav {
+        position: fixed;
+        top: 0;
+        width: 100%;
+        z-index: 1000;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        background: rgba(9, 9, 11, 0.85);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 24px;
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+
+      .logo {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+        text-decoration: none;
+      }
+
+      .logo span {
+        color: var(--accent);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 32px;
+        list-style: none;
+        align-items: center;
+      }
+
+      .nav-links a {
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 450;
+        transition: color 0.2s;
+      }
+
+      .nav-links a:hover {
+        color: var(--text-primary);
+      }
+
+      .nav-cta {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+      }
+
+      .btn-primary {
+        background: var(--accent);
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #7c4ddb;
+        transform: translateY(-1px);
+      }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--text-primary);
+        border: 1px solid var(--border-hover);
+      }
+
+      .btn-secondary:hover {
+        border-color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .btn-large {
+        padding: 14px 28px;
+        font-size: 15px;
+        border-radius: 10px;
+      }
+
+      /* Hero */
+      .hero {
+        padding: 160px 0 100px;
+        text-align: center;
+        position: relative;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 600px;
+        height: 400px;
+        background: radial-gradient(
+          ellipse,
+          rgba(139, 92, 246, 0.08) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 14px;
+        border-radius: 100px;
+        border: 1px solid var(--border);
+        background: var(--bg-elevated);
+        font-size: 13px;
+        color: var(--text-secondary);
+        margin-bottom: 32px;
+      }
+
+      .hero-badge .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22c55e;
+      }
+
+      .hero h1 {
+        font-size: 56px;
+        font-weight: 650;
+        letter-spacing: -0.035em;
+        line-height: 1.1;
+        margin-bottom: 24px;
+        max-width: 720px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .hero h1 .gradient-text {
+        background: linear-gradient(135deg, var(--accent), var(--accent-blue));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .hero-subtitle {
+        font-size: 18px;
+        color: var(--text-secondary);
+        max-width: 540px;
+        margin: 0 auto 40px;
+        line-height: 1.7;
+      }
+
+      .hero-cta {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        align-items: center;
+      }
+
+      /* Features */
+      .features {
+        padding: 80px 0;
+      }
+
+      .section-label {
+        font-size: 13px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+        margin-bottom: 16px;
+      }
+
+      .section-heading {
+        font-size: 36px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        margin-bottom: 16px;
+      }
+
+      .section-desc {
+        font-size: 16px;
+        color: var(--text-secondary);
+        max-width: 520px;
+        margin-bottom: 56px;
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+      }
+
+      .feature-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 32px 28px;
+        transition: border-color 0.2s;
+      }
+
+      .feature-card:hover {
+        border-color: var(--border-hover);
+      }
+
+      .feature-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+        font-size: 20px;
+        background: rgba(139, 92, 246, 0.1);
+        border: 1px solid rgba(139, 92, 246, 0.15);
+      }
+
+      .feature-title {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        letter-spacing: -0.01em;
+      }
+
+      .feature-desc {
+        font-size: 14px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+
+      /* Stats */
+      .stats {
+        padding: 60px 0;
+        border-top: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 40px;
+        text-align: center;
+      }
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .stat-value {
+        font-size: 42px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+      }
+
+      .stat-label {
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+
+      /* Pricing */
+      .pricing {
+        padding: 100px 0;
+      }
+
+      .pricing-header {
+        text-align: center;
+        margin-bottom: 56px;
+      }
+
+      .pricing-header .section-desc {
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        max-width: 960px;
+        margin: 0 auto;
+      }
+
+      .pricing-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 36px 28px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .pricing-card.featured {
+        border-color: var(--accent);
+        position: relative;
+      }
+
+      .pricing-badge {
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--accent);
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 4px 14px;
+        border-radius: 100px;
+        white-space: nowrap;
+      }
+
+      .pricing-name {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      .pricing-desc {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-bottom: 24px;
+      }
+
+      .pricing-amount {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        margin-bottom: 28px;
+      }
+
+      .pricing-currency {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .pricing-number {
+        font-size: 42px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+
+      .pricing-period {
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+
+      .pricing-features {
+        list-style: none;
+        margin-bottom: 28px;
+        flex: 1;
+      }
+
+      .pricing-features li {
+        font-size: 14px;
+        color: var(--text-secondary);
+        padding: 8px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .pricing-features li::before {
+        content: "";
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: rgba(139, 92, 246, 0.15);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .pricing-card .btn {
+        width: 100%;
+      }
+
+      /* Footer */
+      footer {
+        padding: 48px 0;
+        border-top: 1px solid var(--border);
+      }
+
+      .footer-inner {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .footer-text {
+        font-size: 13px;
+        color: var(--text-muted);
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 24px;
+        list-style: none;
+      }
+
+      .footer-links a {
+        font-size: 13px;
+        color: var(--text-muted);
+        text-decoration: none;
+        transition: color 0.2s;
+      }
+
+      .footer-links a:hover {
+        color: var(--text-secondary);
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .hero h1 {
+          font-size: 36px;
+        }
+
+        .hero-subtitle {
+          font-size: 16px;
+        }
+
+        .features-grid,
+        .pricing-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 32px;
+        }
+
+        .nav-links {
+          display: none;
+        }
+
+        .footer-inner {
+          flex-direction: column;
+          gap: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav>
+      <div class="nav-inner">
+        <a href="#" id="nav-logo" class="logo">nexus<span>ai</span></a>
+        <ul class="nav-links">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="https://docs.nexus-ai.dev">Docs</a></li>
+          <li><a href="https://github.com/nexus-ai">GitHub</a></li>
+        </ul>
+        <div class="nav-cta">
+          <a href="#" class="btn btn-secondary">Sign in</a>
+          <a href="#" class="btn btn-primary">Get started</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-badge">
+          <span class="dot"></span>
+          Now in public beta
+        </div>
+        <h1>
+          Ship code with<br />
+          <span class="gradient-text">AI that understands</span>
+        </h1>
+        <p id="hero-subtitle" class="hero-subtitle">
+          Nexus connects to your codebase, understands your architecture, and
+          helps your team build faster without sacrificing quality.
+        </p>
+        <div class="hero-cta">
+          <a href="#" id="hero-cta-primary" class="btn btn-primary btn-large"
+            >Start building</a
+          >
+          <a href="#" class="btn btn-secondary btn-large">View demo</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="features">
+      <div class="container">
+        <p class="section-label">Capabilities</p>
+        <h2 class="section-heading">Built for how teams actually work</h2>
+        <p class="section-desc">
+          Not another copilot. Nexus understands your entire codebase and fits
+          into your existing workflow.
+        </p>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">&#128270;</div>
+            <h3 id="feature-heading-1" class="feature-title">
+              Codebase understanding
+            </h3>
+            <p class="feature-desc">
+              Deep semantic indexing across your entire repo. Nexus knows your
+              types, patterns, and conventions.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#9889;</div>
+            <h3 class="feature-title">Instant code review</h3>
+            <p class="feature-desc">
+              Automated review that catches bugs, security issues, and style
+              violations before they reach your team.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128736;</div>
+            <h3 class="feature-title">Refactoring at scale</h3>
+            <p class="feature-desc">
+              Rename, restructure, and migrate across hundreds of files with
+              confidence. Type-safe by default.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128172;</div>
+            <h3 class="feature-title">Natural language queries</h3>
+            <p class="feature-desc">
+              Ask questions about your codebase in plain English. Get precise
+              answers with file references.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128274;</div>
+            <h3 class="feature-title">Privacy first</h3>
+            <p class="feature-desc">
+              Your code never leaves your infrastructure. Self-hosted option
+              available for enterprise teams.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">&#128640;</div>
+            <h3 class="feature-title">CI/CD integration</h3>
+            <p class="feature-desc">
+              Plugs into GitHub Actions, GitLab CI, and Jenkins. Automated
+              checks on every pull request.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats">
+      <div class="container">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span id="stat-accuracy" class="stat-value">99.2%</span>
+            <span class="stat-label">Suggestion accuracy</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">3.4x</span>
+            <span class="stat-label">Faster code review</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">12k+</span>
+            <span class="stat-label">Teams using Nexus</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">42ms</span>
+            <span class="stat-label">Avg response time</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="pricing">
+      <div class="container">
+        <div class="pricing-header">
+          <p class="section-label">Pricing</p>
+          <h2 class="section-heading">Simple, transparent pricing</h2>
+          <p class="section-desc">
+            Start free, scale as your team grows. No hidden fees.
+          </p>
+        </div>
+        <div class="pricing-grid">
+          <!-- Starter -->
+          <div class="pricing-card">
+            <h3 class="pricing-name">Starter</h3>
+            <p class="pricing-desc">For individual developers</p>
+            <div class="pricing-amount">
+              <span class="pricing-currency">$</span>
+              <span class="pricing-number">0</span>
+              <span class="pricing-period">/month</span>
+            </div>
+            <ul class="pricing-features">
+              <li>1 repository</li>
+              <li>Basic code review</li>
+              <li>Community support</li>
+              <li>5 queries per day</li>
+            </ul>
+            <a href="#" class="btn btn-secondary">Get started free</a>
+          </div>
+          <!-- Pro -->
+          <div id="pricing-pro" class="pricing-card featured">
+            <span class="pricing-badge">Most popular</span>
+            <h3 class="pricing-name">Pro</h3>
+            <p class="pricing-desc">For growing teams</p>
+            <div class="pricing-amount">
+              <span class="pricing-currency">$</span>
+              <span class="pricing-number">29</span>
+              <span class="pricing-period">/seat/month</span>
+            </div>
+            <ul class="pricing-features">
+              <li>Unlimited repositories</li>
+              <li>Advanced code review</li>
+              <li>Priority support</li>
+              <li>Unlimited queries</li>
+              <li>Team analytics</li>
+            </ul>
+            <a href="#" class="btn btn-primary">Start free trial</a>
+          </div>
+          <!-- Enterprise -->
+          <div class="pricing-card">
+            <h3 class="pricing-name">Enterprise</h3>
+            <p class="pricing-desc">For large organizations</p>
+            <div class="pricing-amount">
+              <span class="pricing-number" style="font-size: 28px">
+                Custom
+              </span>
+            </div>
+            <ul class="pricing-features">
+              <li>Self-hosted deployment</li>
+              <li>SSO & SAML</li>
+              <li>Dedicated support</li>
+              <li>Custom integrations</li>
+              <li>SLA guarantee</li>
+            </ul>
+            <a href="#" class="btn btn-secondary">Contact sales</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <div class="footer-inner">
+          <span class="footer-text">&copy; 2026 Nexus AI, Inc.</span>
+          <ul class="footer-links">
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Terms</a></li>
+            <li><a href="#">Security</a></li>
+            <li><a href="#">Status</a></li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      // Smooth scroll for anchor links
+      document.querySelectorAll('a[href^="#"]').forEach((a) => {
+        a.addEventListener("click", (e) => {
+          const target = document.querySelector(a.getAttribute("href"));
+          if (target) {
+            e.preventDefault();
+            target.scrollIntoView({ behavior: "smooth" });
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
