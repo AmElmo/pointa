@@ -517,6 +517,9 @@ class PointaBackground {
       'content/modules/performance-recorder.js',
       'content/modules/performance-report-ui.js',
       'content/modules/sidebar-ui.js',
+      'content/modules/toolbar-drag.js',
+      'content/modules/toolbar-panels.js',
+      'content/modules/floating-toolbar.js',
       'content/content.js'];
 
 

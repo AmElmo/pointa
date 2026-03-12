@@ -1040,12 +1040,15 @@ const ToolbarPanels = {
           PointaThemeManager.apply(value);
         }
 
-        // Update toolbar theme attribute
+        // Update theme attribute on wrapper (parent of both pill and panel)
         if (toolbar.toolbar) {
           const effective = (typeof PointaThemeManager !== 'undefined')
             ? PointaThemeManager.getEffective()
             : value;
-          toolbar.toolbar.setAttribute('data-pointa-theme', effective);
+          const wrapper = toolbar.toolbar.closest('.toolbar-wrapper');
+          if (wrapper) {
+            wrapper.setAttribute('data-pointa-theme', effective);
+          }
         }
       });
     }

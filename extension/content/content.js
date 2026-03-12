@@ -196,8 +196,13 @@ class Pointa {
           break;
 
         case 'toggleSidebar':
-          PointaSidebar.toggle(this);
-          sendResponse({ success: true, message: 'Sidebar toggled' });
+          // Use floating toolbar on localhost, sidebar on external sites
+          if (PointaUtils.isLocalhostUrl() && window.PointaToolbar) {
+            PointaToolbar.toggle(this);
+          } else {
+            PointaSidebar.toggle(this);
+          }
+          sendResponse({ success: true, message: 'Toolbar toggled' });
           break;
 
         case 'showOnboarding':
@@ -288,40 +293,58 @@ class Pointa {
   async checkAndReopenSidebar() {
     try {
       const result = await chrome.storage.local.get([
-        'reopenSidebarAfterNavigation', 
-        'reopenSidebarTimestamp', 
+        'reopenSidebarAfterNavigation',
+        'reopenSidebarTimestamp',
         'scrollToAnnotationId',
-        'reopenInNotificationCenter'
+        'reopenInNotificationCenter',
+        'reopenToolbar'
       ]);
-      
+
+      // Handle toolbar reopen (floating toolbar on localhost)
+      if (result.reopenToolbar) {
+        await chrome.storage.local.remove(['reopenToolbar']);
+        const isLocalhost = PointaUtils.isLocalhostUrl();
+        if (isLocalhost && window.PointaToolbar && !PointaToolbar.isVisible) {
+          setTimeout(async () => {
+            await PointaToolbar.show(this);
+            // Reopen annotations panel if notification center was active
+            if (result.reopenInNotificationCenter) {
+              PointaToolbar.notificationCenterOpen = true;
+              await PointaToolbar.openPanel('annotations', this);
+            }
+          }, 300);
+        }
+        return;
+      }
+
       if (result.reopenSidebarAfterNavigation) {
         // Check timestamp - only reopen if flag was set within last 10 seconds
         const timestamp = result.reopenSidebarTimestamp || 0;
         const age = Date.now() - timestamp;
-        
+
         if (age < 10000) {
           const scrollToAnnotationId = result.scrollToAnnotationId;
           const reopenInNotificationCenter = result.reopenInNotificationCenter || false;
-          
+
           // Clear the flags immediately
           await chrome.storage.local.remove([
-            'reopenSidebarAfterNavigation', 
-            'reopenSidebarTimestamp', 
+            'reopenSidebarAfterNavigation',
+            'reopenSidebarTimestamp',
             'scrollToAnnotationId',
             'reopenInNotificationCenter'
           ]);
-          
+
           // Wait a bit for page to fully initialize, then open sidebar
           setTimeout(async () => {
             // Restore notification center state BEFORE opening sidebar
             if (reopenInNotificationCenter) {
               PointaSidebar.notificationCenterOpen = true;
             }
-            
+
             if (!PointaSidebar.isOpen) {
               await PointaSidebar.open(this);
             }
-            
+
             // If we have an annotation ID to scroll to, scroll the sidebar to show it
             if (scrollToAnnotationId) {
               setTimeout(() => {
@@ -334,8 +357,8 @@ class Pointa {
         } else {
           // Flag is too old, clear it
           await chrome.storage.local.remove([
-            'reopenSidebarAfterNavigation', 
-            'reopenSidebarTimestamp', 
+            'reopenSidebarAfterNavigation',
+            'reopenSidebarTimestamp',
             'scrollToAnnotationId',
             'reopenInNotificationCenter'
           ]);
