@@ -667,14 +667,24 @@ const ToolbarPanels = {
         const annotation = annotations.find(a => a.id === annotationId);
 
         if (annotation) {
-          // Navigate to the annotation on the current page
-          if (typeof PointaSidebar !== 'undefined' && PointaSidebar.navigateToAnnotation) {
-            await PointaSidebar.navigateToAnnotation(pointa, annotation);
-          } else {
-            // Fallback: scroll to element
-            const element = pointa.findElementBySelector(annotation);
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Navigate to the annotation element on the current page
+          // Close editors/widgets first to prevent UI conflicts
+          if (pointa.currentDesignEditor) {
+            pointa.closeDesignEditor();
+          }
+          const existingWidget = document.querySelector('.pointa-inline-widget');
+          if (existingWidget) {
+            pointa.closeInlineCommentWidget();
+          }
+
+          const element = pointa.findElementBySelector(annotation);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Flash the badge to highlight
+            const badge = document.querySelector(`.pointa-badge[data-annotation-id="${annotation.id}"]`);
+            if (badge) {
+              badge.classList.add('sidebar-hover-highlight');
+              setTimeout(() => badge.classList.remove('sidebar-hover-highlight'), 1500);
             }
           }
           toolbar.closePanel();
@@ -1006,15 +1016,11 @@ const ToolbarPanels = {
       });
     });
 
-    // Bug reports link
+    // Bug reports link — open bug report panel in toolbar
     const bugReportsBtn = panel.querySelector('#toolbar-show-bug-reports');
     if (bugReportsBtn) {
       bugReportsBtn.addEventListener('click', () => {
-        // Open sidebar to bug reports view if available
-        if (typeof PointaSidebar !== 'undefined' && PointaSidebar.open) {
-          toolbar.closePanel();
-          PointaSidebar.open(pointa);
-        }
+        toolbar.openPanel('bug-report', pointa);
       });
     }
   },
@@ -1111,13 +1117,13 @@ const ToolbarPanels = {
       });
     }
 
-    // Setup guide button
+    // Setup guide button — trigger onboarding overlay directly
     const setupGuideBtn = panel.querySelector('#toolbar-setup-guide-btn');
     if (setupGuideBtn) {
-      setupGuideBtn.addEventListener('click', async () => {
+      setupGuideBtn.addEventListener('click', () => {
         toolbar.closePanel();
-        if (typeof PointaSidebar !== 'undefined' && PointaSidebar.showSetupInstructionsOverlay) {
-          await PointaSidebar.showSetupInstructionsOverlay();
+        if (window.VibeOnboarding) {
+          window.VibeOnboarding.show();
         }
       });
     }

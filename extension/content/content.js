@@ -2247,20 +2247,19 @@ class Pointa {
       if (response && response.success) {
 
 
-        // CRITICAL: Refresh sidebar immediately to show updated bug report count
-        // This ensures the dropdown badge updates without requiring the user to close the confirmation modal
-        if (window.PointaSidebar && window.PointaSidebar.isOpen) {
-
+        // Reset recording state on whichever UI is active
+        if (window.PointaToolbar && window.PointaToolbar.isVisible) {
+          window.PointaToolbar.isRecordingBug = false;
+          window.PointaToolbar.currentView = null;
+          window.PointaToolbar.closePanel();
+        } else if (window.PointaSidebar && window.PointaSidebar.isOpen) {
           window.PointaSidebar.isRecordingBug = false;
           window.PointaSidebar.currentView = null;
           const serverOnline = await window.PointaSidebar.checkServerStatus();
           await window.PointaSidebar.updateContent(this, serverOnline);
-
-        } else {
-
         }
 
-        // Show confirmation modal (will also refresh sidebar when closed for extra safety)
+        // Show confirmation modal
         BugReportUI.showConfirmation(bugReportId);
       } else {
         throw new Error(response?.error || 'Failed to save bug report');
@@ -2367,20 +2366,19 @@ class Pointa {
       if (response && response.success) {
 
 
-        // CRITICAL: Refresh sidebar immediately to show updated performance report count
-        // This ensures the dropdown badge updates without requiring the user to close the confirmation modal
-        if (window.PointaSidebar && window.PointaSidebar.isOpen) {
-
+        // Reset recording state on whichever UI is active
+        if (window.PointaToolbar && window.PointaToolbar.isVisible) {
+          window.PointaToolbar.isRecordingBug = false;
+          window.PointaToolbar.currentView = null;
+          window.PointaToolbar.closePanel();
+        } else if (window.PointaSidebar && window.PointaSidebar.isOpen) {
           window.PointaSidebar.isRecordingBug = false;
           window.PointaSidebar.currentView = null;
           const serverOnline = await window.PointaSidebar.checkServerStatus();
           await window.PointaSidebar.updateContent(this, serverOnline);
-
-        } else {
-
         }
 
-        // Show confirmation modal (will also refresh sidebar when closed for extra safety)
+        // Show confirmation modal
         PerformanceReportUI.showConfirmation(perfReportId);
       } else {
         throw new Error(response?.error || 'Failed to save performance report');
