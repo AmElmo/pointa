@@ -21,19 +21,20 @@ const ToolbarDrag = {
     this.toolbarElement = toolbarElement;
     this.shadowHost = shadowHost;
 
-    const dragHandle = toolbarElement.querySelector('.toolbar-drag-handle');
-    if (dragHandle) {
-      dragHandle.addEventListener('mousedown', (e) => this.onMouseDown(e));
-    }
+    // Attach drag to the entire pill — not just the logo handle
+    toolbarElement.addEventListener('mousedown', (e) => this.onMouseDown(e));
 
     this.setupResizeListener();
   },
 
   /**
-   * Handle mousedown on the drag handle
+   * Handle mousedown on the toolbar pill
    * @param {MouseEvent} e
    */
   onMouseDown(e) {
+    // Only left mouse button
+    if (e.button !== 0) return;
+
     e.preventDefault();
 
     this.isDragging = true;
@@ -59,6 +60,10 @@ const ToolbarDrag = {
     const deltaX = e.clientX - this.startX;
     const deltaY = e.clientY - this.startY;
 
+    // Only start visual drag after threshold
+    const totalMovement = Math.abs(deltaX) + Math.abs(deltaY);
+    if (totalMovement < 5) return;
+
     const newX = this.startLeft + deltaX;
     const newY = this.startTop + deltaY;
 
@@ -81,9 +86,11 @@ const ToolbarDrag = {
     const totalMovement = Math.abs(e.clientX - this.startX) + Math.abs(e.clientY - this.startY);
     this.wasDrag = totalMovement >= 5;
 
-    const finalX = parseInt(this.shadowHost.style.left, 10) || 0;
-    const finalY = parseInt(this.shadowHost.style.top, 10) || 0;
-    this.savePosition(finalX, finalY);
+    if (this.wasDrag) {
+      const finalX = parseInt(this.shadowHost.style.left, 10) || 0;
+      const finalY = parseInt(this.shadowHost.style.top, 10) || 0;
+      this.savePosition(finalX, finalY);
+    }
 
     this.isDragging = false;
     this.shadowHost.style.cursor = '';

@@ -23,8 +23,6 @@ const ToolbarPanels = {
         return await this.buildAnnotationsPanel(pointa, toolbar);
       case 'bug-report':
         return this.buildBugReportPanel(toolbar);
-      case 'more':
-        return await this.buildMorePanel(pointa, toolbar);
       case 'settings':
         return this.buildSettingsPanel(toolbar);
       default:
@@ -47,9 +45,6 @@ const ToolbarPanels = {
       case 'bug-report':
         this.setupBugReportPanelListeners(panelContainer, pointa, toolbar);
         break;
-      case 'more':
-        this.setupMorePanelListeners(panelContainer, pointa, toolbar);
-        break;
       case 'settings':
         this.setupSettingsPanelListeners(panelContainer, pointa, toolbar);
         break;
@@ -59,7 +54,7 @@ const ToolbarPanels = {
   // ─── Annotations Panel ───────────────────────────────────────────────
 
   /**
-   * Build the annotations panel showing current-page annotations with quick actions
+   * Build the annotations panel showing current-page annotations + page navigation
    * @param {Pointa} pointa - Reference to main Pointa instance
    * @param {Object} toolbar - Reference to PointaToolbar
    * @returns {Promise<string>} HTML string
@@ -147,6 +142,53 @@ const ToolbarPanels = {
       `;
     }
 
+    // Build page navigation section (other pages with annotations)
+    let pageNavHTML = '';
+    if (!toolbar.notificationCenterOpen) {
+      const allActive = allAnnotations.filter(a => a.status === 'pending' || !a.status);
+      const currentUrl = window.location.href;
+      const pageGroups = new Map();
+      allActive.forEach(annotation => {
+        const url = annotation.url || currentUrl;
+        if (!pageGroups.has(url)) {
+          pageGroups.set(url, []);
+        }
+        pageGroups.get(url).push(annotation);
+      });
+
+      // Only show page nav if there are other pages
+      const otherPages = Array.from(pageGroups.entries()).filter(([url]) => url !== currentUrl);
+      if (otherPages.length > 0) {
+        const pageItems = otherPages.map(([url, pageAnnotations]) => {
+          let path, host;
+          try {
+            const urlObj = new URL(url);
+            path = urlObj.pathname + (urlObj.hash || '') || '/';
+            host = urlObj.host;
+          } catch (_) {
+            path = url;
+            host = '';
+          }
+
+          return `
+            <div class="toolbar-panel-page-item" data-page-url="${PointaUtils.escapeHtml(url)}">
+              <div class="toolbar-panel-page-info">
+                <div class="toolbar-panel-page-path">${PointaUtils.escapeHtml(path)}</div>
+                <div class="toolbar-panel-page-host">${PointaUtils.escapeHtml(host)}</div>
+              </div>
+              <div class="toolbar-panel-page-badge">${pageAnnotations.length}</div>
+            </div>
+          `;
+        }).join('');
+
+        pageNavHTML = `
+          <div class="toolbar-panel-divider"></div>
+          <div class="toolbar-panel-section-label">Other Pages</div>
+          ${pageItems}
+        `;
+      }
+    }
+
     return `
       <div class="toolbar-panel-content" data-panel="annotations">
         <div class="toolbar-panel-header">
@@ -162,6 +204,7 @@ const ToolbarPanels = {
         ${subHeaderHTML}
         <div class="toolbar-panel-list">
           ${annotationItemsHTML || '<div class="toolbar-panel-empty">No annotations on this page</div>'}
+          ${pageNavHTML}
         </div>
       </div>
     `;
@@ -214,9 +257,9 @@ const ToolbarPanels = {
     // Tags
     let tags = '';
     if (isDesign) tags += '<span class="toolbar-panel-item-tag">Design</span>';
-    if (hasPositionChange) tags += '<span class="toolbar-panel-item-tag" title="Element position was changed">📍 Position</span>';
-    if (hasImages) tags += `<span class="toolbar-panel-item-tag" title="${annotation.reference_images.length} reference image${annotation.reference_images.length > 1 ? 's' : ''}">📷 ${annotation.reference_images.length}</span>`;
-    if (elementMissing) tags += '<span class="toolbar-panel-item-warning" title="Element no longer exists on the page">⚠️ Element was removed</span>';
+    if (hasPositionChange) tags += '<span class="toolbar-panel-item-tag" title="Element position was changed">Position</span>';
+    if (hasImages) tags += `<span class="toolbar-panel-item-tag" title="${annotation.reference_images.length} reference image${annotation.reference_images.length > 1 ? 's' : ''}">Ref ${annotation.reference_images.length}</span>`;
+    if (elementMissing) tags += '<span class="toolbar-panel-item-warning" title="Element no longer exists on the page">Element removed</span>';
 
     // Action button
     const actionButton = isInReview
@@ -400,10 +443,10 @@ const ToolbarPanels = {
             <div class="toolbar-panel-recording-timer" id="toolbar-bug-timer">00:00</div>
             <p class="toolbar-panel-hint">Max 30 seconds</p>
             <ul class="toolbar-panel-capture-list">
-              <li>✓ Console & errors</li>
-              <li>✓ Network activity</li>
-              <li>✓ Interactions</li>
-              ${window.BugRecorder?.includeBackendLogs ? '<li>✓ Backend logs</li>' : ''}
+              <li>Console & errors</li>
+              <li>Network activity</li>
+              <li>Interactions</li>
+              ${window.BugRecorder?.includeBackendLogs ? '<li>Backend logs</li>' : ''}
             </ul>
             <button id="toolbar-stop-recording-btn" class="toolbar-panel-danger-btn">
               Stop Recording
@@ -470,108 +513,6 @@ const ToolbarPanels = {
               <div class="toolbar-panel-option-desc">Report slowness or performance issues</div>
             </div>
           </button>
-        </div>
-      </div>
-    `;
-  },
-
-  // ─── More Panel ──────────────────────────────────────────────────────
-
-  /**
-   * Build the "Pages & Reports" panel
-   * @param {Pointa} pointa - Reference to main Pointa instance
-   * @param {Object} toolbar - Reference to PointaToolbar
-   * @returns {Promise<string>} HTML string
-   */
-  async buildMorePanel(pointa, toolbar) {
-    // Fetch all annotations for page grouping
-    let allAnnotations = [];
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'getAnnotations',
-        limit: 1000
-      });
-      allAnnotations = response.success ? response.annotations || [] : [];
-    } catch (_) { /* ignore */ }
-
-    // Only include active annotations for page navigation
-    const activeAnnotations = allAnnotations.filter(a => a.status === 'pending' || !a.status);
-
-    // Group by URL
-    const currentUrl = window.location.href;
-    const pageGroups = new Map();
-    activeAnnotations.forEach(annotation => {
-      const url = annotation.url || currentUrl;
-      if (!pageGroups.has(url)) {
-        pageGroups.set(url, []);
-      }
-      pageGroups.get(url).push(annotation);
-    });
-
-    // Build page nav items
-    let pageNavItems = '';
-    if (pageGroups.size === 0) {
-      pageNavItems = '<div class="toolbar-panel-empty">No annotated pages</div>';
-    } else {
-      pageNavItems = Array.from(pageGroups.entries()).map(([url, annotations]) => {
-        let path, host;
-        try {
-          const urlObj = new URL(url);
-          path = urlObj.pathname + (urlObj.hash || '') || '/';
-          host = urlObj.host;
-        } catch (_) {
-          path = url;
-          host = '';
-        }
-        const isCurrent = url === currentUrl;
-        const count = annotations.length;
-
-        return `
-          <div class="toolbar-panel-page-item ${isCurrent ? 'current' : ''}" data-page-url="${PointaUtils.escapeHtml(url)}">
-            <div class="toolbar-panel-page-info">
-              <div class="toolbar-panel-page-path">${PointaUtils.escapeHtml(path)}${isCurrent ? ' (current)' : ''}</div>
-              <div class="toolbar-panel-page-host">${PointaUtils.escapeHtml(host)}</div>
-            </div>
-            <div class="toolbar-panel-page-badge">${count}</div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    // Load bug reports count
-    let bugReportsCount = 0;
-    try {
-      const response = await chrome.runtime.sendMessage({
-        action: 'getBugReports',
-        status: 'all'
-      });
-      if (response.success) {
-        const reports = response.issueReports || [];
-        bugReportsCount = reports.filter(r =>
-          r.status === 'active' || r.status === 'debugging' || r.status === 'in-review'
-        ).length;
-      }
-    } catch (_) { /* ignore */ }
-
-    const bugReportsHTML = bugReportsCount > 0 ? `
-      <div class="toolbar-panel-divider"></div>
-      <button class="toolbar-panel-option" id="toolbar-show-bug-reports">
-        <span class="toolbar-panel-option-icon">🐛</span>
-        <div>
-          <div class="toolbar-panel-option-title">Issue Reports</div>
-          <div class="toolbar-panel-option-desc">${bugReportsCount} active</div>
-        </div>
-      </button>
-    ` : '';
-
-    return `
-      <div class="toolbar-panel-content" data-panel="more">
-        <div class="toolbar-panel-header">
-          <h3 class="toolbar-panel-title">Pages & Reports</h3>
-        </div>
-        <div class="toolbar-panel-list">
-          ${pageNavItems}
-          ${bugReportsHTML}
         </div>
       </div>
     `;
@@ -705,13 +646,12 @@ const ToolbarPanels = {
       });
     });
 
-    // Delete buttons
+    // Delete buttons — with visible confirmation
     panel.querySelectorAll('.toolbar-panel-item-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const annotationId = btn.dataset.annotationId;
 
-        // Inline confirmation: change to "Sure?" on first click
         if (btn.dataset.confirming) {
           // Second click: actually delete
           await chrome.runtime.sendMessage({
@@ -725,23 +665,18 @@ const ToolbarPanels = {
           }
           await toolbar.openPanel('annotations', pointa);
         } else {
-          // First click: show confirmation
+          // First click: show "Delete?" confirmation text
           btn.dataset.confirming = 'true';
-          btn.title = 'Click again to confirm';
-          btn.innerHTML = `
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: #ef4444;">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          `;
           btn.classList.add('confirming');
+          btn.innerHTML = '<span class="toolbar-delete-confirm-text">Delete?</span>';
+          btn.title = 'Click again to confirm';
 
-          // Reset after 2 seconds
+          // Reset after 3 seconds
           setTimeout(() => {
             if (btn.dataset.confirming) {
               delete btn.dataset.confirming;
-              btn.title = 'Delete';
               btn.classList.remove('confirming');
+              btn.title = 'Delete';
               btn.innerHTML = `
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="3 6 5 6 21 6"></polyline>
@@ -749,7 +684,7 @@ const ToolbarPanels = {
                 </svg>
               `;
             }
-          }, 2000);
+          }, 3000);
         }
       });
     });
@@ -822,6 +757,18 @@ const ToolbarPanels = {
         await toolbar.openPanel('annotations', pointa);
       });
     }
+
+    // Page navigation items (merged from "More" panel)
+    panel.querySelectorAll('.toolbar-panel-page-item').forEach(item => {
+      item.addEventListener('click', async () => {
+        const url = item.dataset.pageUrl;
+        if (!url) return;
+
+        // Set flag to reopen toolbar after navigation
+        await chrome.storage.local.set({ reopenToolbar: true });
+        window.location.href = url;
+      });
+    });
   },
 
   /**
@@ -992,37 +939,6 @@ const ToolbarPanels = {
         toolbar.closePanel();
       }
     }, 1000);
-  },
-
-  /**
-   * Set up listeners for the more panel (pages & reports)
-   * @param {HTMLElement} panel - Panel container element
-   * @param {Pointa} pointa - Reference to main Pointa instance
-   * @param {Object} toolbar - Reference to PointaToolbar
-   */
-  setupMorePanelListeners(panel, pointa, toolbar) {
-    // Page navigation items
-    panel.querySelectorAll('.toolbar-panel-page-item').forEach(item => {
-      item.addEventListener('click', async () => {
-        const url = item.dataset.pageUrl;
-        if (!url) return;
-
-        // Don't navigate if already on this page
-        if (item.classList.contains('current')) return;
-
-        // Set flag to reopen toolbar after navigation
-        await chrome.storage.local.set({ reopenToolbar: true });
-        window.location.href = url;
-      });
-    });
-
-    // Bug reports link — open bug report panel in toolbar
-    const bugReportsBtn = panel.querySelector('#toolbar-show-bug-reports');
-    if (bugReportsBtn) {
-      bugReportsBtn.addEventListener('click', () => {
-        toolbar.openPanel('bug-report', pointa);
-      });
-    }
   },
 
   /**
@@ -1198,20 +1114,24 @@ const ToolbarPanels = {
   },
 
   /**
-   * Fallback annotation formatter for clipboard
-   * @param {Object} annotation - Annotation object
-   * @returns {string} Formatted text
+   * Fallback annotation clipboard format
+   * @param {Object} annotation - Annotation data
+   * @returns {string} Formatted clipboard text
    */
   formatAnnotationForClipboard(annotation) {
     const messages = annotation.messages || (annotation.comment ? [{ text: annotation.comment }] : []);
-    const latestMessage = messages.length > 0 ? messages[messages.length - 1].text : '';
+    let text = `Please address this annotation:\n\n`;
+    text += `Annotation ID: ${annotation.id}\n`;
 
-    let text = `Annotation #${annotation.id}\n`;
-    if (latestMessage) text += `Comment: ${latestMessage}\n`;
-    if (annotation.selector) text += `Element: ${annotation.selector}\n`;
-    if (annotation.url) text += `Page: ${annotation.url}\n`;
+    if (messages.length > 0) {
+      text += `Latest comment: ${messages[messages.length - 1].text}\n`;
+    }
+
+    text += `\nUse the Pointa MCP tools to get full context:\n`;
+    text += `- read_annotation_by_id(id: "${annotation.id}")\n`;
+
     return text;
-  }
+  },
 };
 
 window.ToolbarPanels = ToolbarPanels;

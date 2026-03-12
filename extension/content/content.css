@@ -125,7 +125,7 @@
   align-items: center !important;
   justify-content: flex-start !important;
   cursor: pointer !important;
-  z-index: 2147483647 !important;
+  z-index: 2147483645 !important;
   pointer-events: auto !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 2px white !important;
   transition: width 0.25s cubic-bezier(0.4, 0.0, 0.2, 1), 
@@ -11148,12 +11148,12 @@ body.sidebar-resizing * {
   color: #ffffff;
 }
 
-/* Drag handle (logo area) */
-.toolbar-drag-handle {
+/* Pill is draggable from anywhere */
+.toolbar-pill {
   cursor: grab;
 }
 
-.toolbar-drag-handle:active {
+.toolbar-pill:active {
   cursor: grabbing;
 }
 
@@ -11585,6 +11585,36 @@ body.sidebar-resizing * {
 [data-pointa-theme="light"] .toolbar-panel-item-delete:hover {
   background: rgba(239, 68, 68, 0.08);
   color: #ef4444;
+}
+
+/* Delete confirmation state */
+.toolbar-panel-item-delete.confirming {
+  width: auto;
+  min-width: 26px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  padding: 0 8px;
+}
+
+.toolbar-delete-confirm-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ef4444;
+  white-space: nowrap;
+}
+
+/* Section label for "Other Pages" */
+.toolbar-panel-section-label {
+  padding: 8px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-section-label {
+  color: rgba(0, 0, 0, 0.4);
 }
 
 /* ============================================================

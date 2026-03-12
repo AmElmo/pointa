@@ -20,6 +20,7 @@ const PointaToolbar = {
   currentView: null,
   storageListener: null,
   clickOutsideHandler: null,
+  _closePanelTimeout: null,
 
   /**
    * Toggle toolbar visibility
@@ -132,6 +133,12 @@ const PointaToolbar = {
       this.clickOutsideHandler = null;
     }
 
+    // Cancel any pending panel close timeout
+    if (this._closePanelTimeout) {
+      clearTimeout(this._closePanelTimeout);
+      this._closePanelTimeout = null;
+    }
+
     // Destroy drag
     ToolbarDrag.destroy();
 
@@ -182,7 +189,7 @@ const PointaToolbar = {
 
     return `
       <div class="toolbar-pill" data-pointa-theme="${theme}">
-        <div class="toolbar-drag-handle toolbar-btn" title="Drag to move">
+        <div class="toolbar-drag-handle toolbar-btn" title="Pointa">
           <img src="${chrome.runtime.getURL('assets/icons/pointa-icon128.png')}" alt="Pointa" class="toolbar-logo" />
         </div>
         <button class="toolbar-btn" data-action="annotate" title="Annotate">
@@ -206,11 +213,10 @@ const PointaToolbar = {
             <path d="M8 2v4M16 2v4M9 9h6M9 13h6M9 17h6M3 9l1.5-1.5M3 21l1.5-1.5M21 9l-1.5-1.5M21 21l-1.5-1.5M6 4h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path>
           </svg>
         </button>
-        <button class="toolbar-btn" data-panel="more" title="More">
+        <button class="toolbar-btn" data-action="copy-all" title="Copy All Annotations">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="5" r="1" fill="currentColor"></circle>
-            <circle cx="12" cy="12" r="1" fill="currentColor"></circle>
-            <circle cx="12" cy="19" r="1" fill="currentColor"></circle>
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
           </svg>
         </button>
         <button class="toolbar-btn" data-panel="settings" title="Settings">
@@ -231,7 +237,7 @@ const PointaToolbar = {
   setupEventListeners(pointa) {
     if (!this.toolbar) return;
 
-    this.toolbar.addEventListener('click', (e) => {
+    this.toolbar.addEventListener('click', async (e) => {
       // Check if this was a drag — ignore clicks after drags
       if (ToolbarDrag.wasDrag) {
         ToolbarDrag.wasDrag = false;
@@ -241,18 +247,18 @@ const PointaToolbar = {
       // Find the closest actionable element
       const actionBtn = e.target.closest('[data-action]');
       const panelBtn = e.target.closest('[data-panel]');
-      const dragHandle = e.target.closest('.toolbar-drag-handle');
 
       if (actionBtn) {
         const action = actionBtn.dataset.action;
         if (action === 'annotate') {
           this.closePanel();
           PointaAnnotationMode.startAnnotationMode(pointa);
+        } else if (action === 'copy-all') {
+          this.closePanel();
+          await this.copyAllAnnotations(pointa);
         }
       } else if (panelBtn) {
         this.togglePanel(panelBtn.dataset.panel, pointa);
-      } else if (dragHandle) {
-        // Logo/drag handle click with no drag — do nothing
       }
     });
   },
@@ -292,8 +298,18 @@ const PointaToolbar = {
    * @param {Pointa} pointa - Reference to main Pointa instance
    */
   async openPanel(panelId, pointa) {
-    // Close existing panel first
-    this.closePanel();
+    // Cancel any pending close animation clear to prevent race condition
+    if (this._closePanelTimeout) {
+      clearTimeout(this._closePanelTimeout);
+      this._closePanelTimeout = null;
+    }
+
+    // Reset previous panel state immediately (no animation when switching)
+    if (this.activePanel) {
+      this.panelContainer.classList.remove('visible');
+      this.panelContainer.innerHTML = '';
+      this.activePanel = null;
+    }
 
     // Build panel content
     const html = await ToolbarPanels.buildPanel(panelId, pointa, this);
@@ -326,11 +342,17 @@ const PointaToolbar = {
 
     this.panelContainer.classList.remove('visible');
 
+    // Cancel any existing close timeout
+    if (this._closePanelTimeout) {
+      clearTimeout(this._closePanelTimeout);
+    }
+
     // Clear content after animation
-    setTimeout(() => {
-      if (this.panelContainer) {
+    this._closePanelTimeout = setTimeout(() => {
+      if (this.panelContainer && !this.activePanel) {
         this.panelContainer.innerHTML = '';
       }
+      this._closePanelTimeout = null;
     }, 150);
 
     this.activePanel = null;
@@ -339,6 +361,71 @@ const PointaToolbar = {
     if (this.toolbar) {
       const btns = this.toolbar.querySelectorAll('.toolbar-btn');
       btns.forEach((btn) => btn.classList.remove('active'));
+    }
+  },
+
+  /**
+   * Copy all annotations across all pages to clipboard
+   * @param {Pointa} pointa - Reference to main Pointa instance
+   */
+  async copyAllAnnotations(pointa) {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'getAnnotations',
+        limit: 1000
+      });
+
+      const allAnnotations = response.success ? response.annotations || [] : [];
+      const active = allAnnotations.filter(a => a.status === 'pending' || !a.status || a.status === 'in-review');
+
+      if (active.length === 0) {
+        if (typeof PointaUtils !== 'undefined' && PointaUtils.showToast) {
+          PointaUtils.showToast('No annotations to copy', 'info');
+        }
+        return;
+      }
+
+      // Group by URL
+      const pageGroups = new Map();
+      active.forEach(a => {
+        const url = a.url || window.location.href;
+        if (!pageGroups.has(url)) pageGroups.set(url, []);
+        pageGroups.get(url).push(a);
+      });
+
+      // Build clipboard text
+      let text = `I have ${active.length} Pointa annotation${active.length > 1 ? 's' : ''} across ${pageGroups.size} page${pageGroups.size > 1 ? 's' : ''}. Please read all my annotations using the read_annotations tool and implement the requested changes.\n\n`;
+
+      for (const [url, annotations] of pageGroups) {
+        let pagePath;
+        try {
+          pagePath = new URL(url).pathname || '/';
+        } catch (_) {
+          pagePath = url;
+        }
+        text += `${pagePath} (${annotations.length} annotation${annotations.length > 1 ? 's' : ''}):\n`;
+        annotations.forEach((a, i) => {
+          const messages = a.messages || (a.comment ? [{ text: a.comment }] : []);
+          const latest = messages.length > 0 ? messages[messages.length - 1].text : 'No description';
+          text += `  ${i + 1}. [${a.id}] ${latest.substring(0, 80)}${latest.length > 80 ? '...' : ''}\n`;
+        });
+        text += `  -> read_annotations(url: "${url}")\n\n`;
+      }
+
+      if (typeof PointaUtils !== 'undefined' && PointaUtils.copyToClipboard) {
+        await PointaUtils.copyToClipboard(text, `Copied ${active.length} annotation${active.length > 1 ? 's' : ''}! Paste into your AI coding tool.`);
+      } else {
+        await navigator.clipboard.writeText(text);
+      }
+
+      // Flash the copy button to show success
+      const copyBtn = this.toolbar?.querySelector('[data-action="copy-all"]');
+      if (copyBtn) {
+        copyBtn.classList.add('active');
+        setTimeout(() => copyBtn.classList.remove('active'), 1000);
+      }
+    } catch (error) {
+      console.error('Pointa: Failed to copy annotations:', error);
     }
   },
 
