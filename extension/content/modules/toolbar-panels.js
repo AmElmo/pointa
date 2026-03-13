@@ -533,8 +533,20 @@ const ToolbarPanels = {
 
           <div class="toolbar-panel-setting-group">
             <label class="toolbar-panel-setting-label">Help</label>
-            <button id="toolbar-setup-guide-btn" class="toolbar-panel-secondary-btn">Setup Guide</button>
-            <button id="toolbar-feedback-btn" class="toolbar-panel-secondary-btn" style="margin-top: 4px;">Send Feedback</button>
+            <button id="toolbar-setup-guide-btn" class="toolbar-panel-nav-row">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+              <span>See how it works</span>
+              <svg class="toolbar-panel-nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
+            <button id="toolbar-docs-btn" class="toolbar-panel-nav-row">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+              <span>Documentation</span>
+              <svg class="toolbar-panel-nav-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </button>
           </div>
 
           <div class="toolbar-panel-setting-group">
@@ -944,7 +956,7 @@ const ToolbarPanels = {
       });
     }
 
-    // Setup guide button — trigger onboarding overlay directly
+    // "See how it works" — trigger onboarding overlay
     const setupGuideBtn = panel.querySelector('#toolbar-setup-guide-btn');
     if (setupGuideBtn) {
       setupGuideBtn.addEventListener('click', () => {
@@ -955,11 +967,11 @@ const ToolbarPanels = {
       });
     }
 
-    // Feedback button
-    const feedbackBtn = panel.querySelector('#toolbar-feedback-btn');
-    if (feedbackBtn) {
-      feedbackBtn.addEventListener('click', () => {
-        window.open('https://github.com/pointa-app/pointa/issues', '_blank');
+    // Documentation — open GitHub repo
+    const docsBtn = panel.querySelector('#toolbar-docs-btn');
+    if (docsBtn) {
+      docsBtn.addEventListener('click', () => {
+        window.open('https://github.com/pointa-app/pointa', '_blank');
       });
     }
 
