@@ -204,6 +204,7 @@ class PointaAnnotationMode {
     // Don't prevent default or stop propagation - allow normal hover effects to work
     // Skip all extension UI elements
     if (e.target.closest('#pointa-sidebar-host') ||
+    e.target.closest('#pointa-toolbar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -239,6 +240,7 @@ class PointaAnnotationMode {
     // Don't prevent default or stop propagation - allow normal hover effects to work
     // Skip all extension UI elements
     if (e.target.closest('#pointa-sidebar-host') ||
+    e.target.closest('#pointa-toolbar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -265,6 +267,7 @@ class PointaAnnotationMode {
     // Check if click is on extension UI elements - allow normal interaction
     // Don't prevent default or stop propagation for these elements
     if (e.target.closest('#pointa-sidebar-host') ||
+    e.target.closest('#pointa-toolbar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -434,8 +437,22 @@ class PointaAnnotationMode {
         // Immediately close the widget for instant feedback
         this.closeInlineCommentWidget(pointa);
 
-        // Use the sidebar's markAnnotationDone which handles everything
-        await PointaSidebar.markAnnotationDone(pointa, annotation.id);
+        // Mark annotation as done via background script
+        try {
+          await chrome.runtime.sendMessage({
+            action: 'updateAnnotation',
+            id: annotation.id,
+            updates: { status: 'done', updated_at: new Date().toISOString() }
+          });
+          const getResponse = await chrome.runtime.sendMessage({
+            action: 'getAnnotations',
+            url: window.location.href
+          });
+          pointa.annotations = getResponse.success ? getResponse.annotations || [] : [];
+          pointa.badgeManager.removeBadge(annotation.id);
+        } catch (error) {
+          console.error('Error marking annotation as done:', error);
+        }
       });
 
       tabBar.appendChild(markDoneBtn);

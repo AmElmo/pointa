@@ -140,6 +140,11 @@ class Pointa {
       });
       this.annotations = Array.from(annotationsMap.values());
 
+      // Update toolbar badge if visible
+      if (window.PointaToolbar && PointaToolbar.isVisible) {
+        PointaToolbar.updateBadges(this);
+      }
+
       const loadEndTime = Date.now();
       const loadDuration = loadEndTime - loadStartTime;
 
@@ -196,8 +201,13 @@ class Pointa {
           break;
 
         case 'toggleSidebar':
-          PointaSidebar.toggle(this);
-          sendResponse({ success: true, message: 'Sidebar toggled' });
+          if (PointaUtils.isLocalhostUrl() && window.PointaToolbar) {
+            PointaToolbar.toggle(this);
+          } else {
+            // Show a brief toast on non-localhost pages
+            this.showLocalhostOnlyToast();
+          }
+          sendResponse({ success: true, message: 'Toolbar toggled' });
           break;
 
         case 'showOnboarding':
@@ -215,6 +225,38 @@ class Pointa {
 
       return true; // Keep the message channel open for async response
     });
+  }
+
+  showLocalhostOnlyToast() {
+    // Remove existing toast if any
+    const existing = document.querySelector('.pointa-localhost-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'pointa-localhost-toast';
+    toast.setAttribute('data-pointa-theme', window.PointaThemeManager ? PointaThemeManager.getEffective() : 'dark');
+    toast.innerHTML = `
+      <span style="font-size: 18px;">&#x1F4CD;</span>
+      <div>
+        <strong>Pointa works on localhost</strong>
+        <p style="margin: 4px 0 0; opacity: 0.8; font-size: 12px;">Start your dev server and navigate to localhost to use Pointa.</p>
+      </div>
+    `;
+    toast.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 2147483647;
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: 10px;
+      background: #1e1e2e; color: #e0e0e0; border: 1px solid #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      animation: pointa-toast-in 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
   }
 
   setupGlobalListeners() {
@@ -288,40 +330,107 @@ class Pointa {
   async checkAndReopenSidebar() {
     try {
       const result = await chrome.storage.local.get([
-        'reopenSidebarAfterNavigation', 
-        'reopenSidebarTimestamp', 
+        'reopenSidebarAfterNavigation',
+        'reopenSidebarTimestamp',
         'scrollToAnnotationId',
-        'reopenInNotificationCenter'
+        'reopenInNotificationCenter',
+        'reopenToolbar',
+        'toolbarVisible',
+        'bugRecordingActive',
+        'bugRecordingStartTime'
       ]);
-      
+
+      // Handle toolbar reopen (floating toolbar on localhost)
+      // Either from explicit navigation flag OR from persistent visibility state
+      const shouldReopenToolbar = result.reopenToolbar || result.toolbarVisible;
+      if (shouldReopenToolbar) {
+        if (result.reopenToolbar) {
+          await chrome.storage.local.remove(['reopenToolbar']);
+        }
+        const isLocalhost = PointaUtils.isLocalhostUrl();
+        if (isLocalhost && window.PointaToolbar && !PointaToolbar.isVisible) {
+          const pointa = this;
+          setTimeout(async () => {
+            await PointaToolbar.show(pointa);
+
+            // Restore bug recording state if recording was active
+            if (result.bugRecordingActive) {
+              const startTime = result.bugRecordingStartTime || Date.now();
+              const elapsed = Math.floor((Date.now() - startTime) / 1000);
+              const maxSeconds = 30;
+
+              if (elapsed < maxSeconds) {
+                // Recording is still within time limit — restore recording state
+                PointaToolbar.isRecordingBug = true;
+                PointaToolbar.currentView = 'bug-report';
+
+                // Restore BugRecorder state so stopRecording() works
+                if (window.BugRecorder) {
+                  BugRecorder.isRecording = true;
+                  BugRecorder.startTime = startTime;
+                  BugRecorder.recordingData = {
+                    console: [],
+                    network: [],
+                    interactions: [],
+                    errors: [],
+                    metadata: {
+                      startTime: new Date(startTime).toISOString(),
+                      url: window.location.href,
+                      userAgent: navigator.userAgent,
+                      viewport: { width: window.innerWidth, height: window.innerHeight }
+                    }
+                  };
+                }
+
+                // Show the full-screen recording indicator (red border + stop button)
+                if (window.BugReportUI) {
+                  BugReportUI.showRecordingIndicator();
+                }
+              } else {
+                // Recording timed out during navigation — clean up
+                chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
+                if (window.BugRecorder && BugRecorder.isRecording) {
+                  BugRecorder.isRecording = true;
+                  await BugRecorder.stopRecording(pointa);
+                }
+              }
+            } else if (result.reopenInNotificationCenter) {
+              PointaToolbar.notificationCenterOpen = true;
+              await PointaToolbar.openPanel('annotations', pointa);
+            }
+          }, 300);
+        }
+        return;
+      }
+
       if (result.reopenSidebarAfterNavigation) {
         // Check timestamp - only reopen if flag was set within last 10 seconds
         const timestamp = result.reopenSidebarTimestamp || 0;
         const age = Date.now() - timestamp;
-        
+
         if (age < 10000) {
           const scrollToAnnotationId = result.scrollToAnnotationId;
           const reopenInNotificationCenter = result.reopenInNotificationCenter || false;
-          
+
           // Clear the flags immediately
           await chrome.storage.local.remove([
-            'reopenSidebarAfterNavigation', 
-            'reopenSidebarTimestamp', 
+            'reopenSidebarAfterNavigation',
+            'reopenSidebarTimestamp',
             'scrollToAnnotationId',
             'reopenInNotificationCenter'
           ]);
-          
+
           // Wait a bit for page to fully initialize, then open sidebar
           setTimeout(async () => {
             // Restore notification center state BEFORE opening sidebar
             if (reopenInNotificationCenter) {
               PointaSidebar.notificationCenterOpen = true;
             }
-            
+
             if (!PointaSidebar.isOpen) {
               await PointaSidebar.open(this);
             }
-            
+
             // If we have an annotation ID to scroll to, scroll the sidebar to show it
             if (scrollToAnnotationId) {
               setTimeout(() => {
@@ -334,8 +443,8 @@ class Pointa {
         } else {
           // Flag is too old, clear it
           await chrome.storage.local.remove([
-            'reopenSidebarAfterNavigation', 
-            'reopenSidebarTimestamp', 
+            'reopenSidebarAfterNavigation',
+            'reopenSidebarTimestamp',
             'scrollToAnnotationId',
             'reopenInNotificationCenter'
           ]);
@@ -1668,6 +1777,11 @@ class Pointa {
 
       this.addAnnotationBadge(element, annotation, index);
 
+      // Update toolbar badge in real-time
+      if (window.PointaToolbar && PointaToolbar.isVisible) {
+        PointaToolbar.updateBadges(this);
+      }
+
       // Refresh sidebar to show new annotation
 
 
@@ -2223,21 +2337,22 @@ class Pointa {
 
       if (response && response.success) {
 
+        // Clear persisted recording state
+        chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
 
-        // CRITICAL: Refresh sidebar immediately to show updated bug report count
-        // This ensures the dropdown badge updates without requiring the user to close the confirmation modal
-        if (window.PointaSidebar && window.PointaSidebar.isOpen) {
-
+        // Reset recording state on whichever UI is active
+        if (window.PointaToolbar && window.PointaToolbar.isVisible) {
+          window.PointaToolbar.isRecordingBug = false;
+          window.PointaToolbar.currentView = null;
+          window.PointaToolbar.closePanel();
+        } else if (window.PointaSidebar && window.PointaSidebar.isOpen) {
           window.PointaSidebar.isRecordingBug = false;
           window.PointaSidebar.currentView = null;
           const serverOnline = await window.PointaSidebar.checkServerStatus();
           await window.PointaSidebar.updateContent(this, serverOnline);
-
-        } else {
-
         }
 
-        // Show confirmation modal (will also refresh sidebar when closed for extra safety)
+        // Show confirmation modal
         BugReportUI.showConfirmation(bugReportId);
       } else {
         throw new Error(response?.error || 'Failed to save bug report');
@@ -2343,21 +2458,22 @@ class Pointa {
 
       if (response && response.success) {
 
+        // Clear persisted recording state
+        chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
 
-        // CRITICAL: Refresh sidebar immediately to show updated performance report count
-        // This ensures the dropdown badge updates without requiring the user to close the confirmation modal
-        if (window.PointaSidebar && window.PointaSidebar.isOpen) {
-
+        // Reset recording state on whichever UI is active
+        if (window.PointaToolbar && window.PointaToolbar.isVisible) {
+          window.PointaToolbar.isRecordingBug = false;
+          window.PointaToolbar.currentView = null;
+          window.PointaToolbar.closePanel();
+        } else if (window.PointaSidebar && window.PointaSidebar.isOpen) {
           window.PointaSidebar.isRecordingBug = false;
           window.PointaSidebar.currentView = null;
           const serverOnline = await window.PointaSidebar.checkServerStatus();
           await window.PointaSidebar.updateContent(this, serverOnline);
-
-        } else {
-
         }
 
-        // Show confirmation modal (will also refresh sidebar when closed for extra safety)
+        // Show confirmation modal
         PerformanceReportUI.showConfirmation(perfReportId);
       } else {
         throw new Error(response?.error || 'Failed to save performance report');

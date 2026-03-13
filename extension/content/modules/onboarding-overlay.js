@@ -366,16 +366,10 @@ const VibeOnboarding = {
     // Hide overlay
     this.hide();
     
-    // Open sidebar to start using
-    // Wait for overlay to fade out, then open sidebar
+    // Open toolbar after onboarding completes
     setTimeout(() => {
-      if (window.pointa && typeof PointaSidebar !== 'undefined') {
-        PointaSidebar.open(window.pointa);
-      } else {
-        console.error('[Onboarding] Failed to open sidebar - Pointa or PointaSidebar not found', {
-          pointa: !!window.pointa,
-          sidebar: typeof PointaSidebar !== 'undefined'
-        });
+      if (window.pointa && window.PointaToolbar) {
+        PointaToolbar.show(window.pointa);
       }
     }, 400);
   },
@@ -641,7 +635,7 @@ pointa-server start</pre>
                 <div class="feature-icon-large">🐛</div>
                 <div class="feature-content">
                   <h3>Bug Reports</h3>
-                  <p>Record bugs with backend logs using <code>pointa dev</code> wrapper.</p>
+                  <p>Record bugs with backend logs using <code>pointa-server dev</code> wrapper.</p>
                 </div>
               </div>
             </div>
@@ -808,9 +802,8 @@ pointa-server start</pre>
     // Skip button
     const skipBtn = this.overlay.querySelector('.skip-btn');
     if (skipBtn) {
-      skipBtn.addEventListener('click', async () => {
-        await chrome.storage.local.set({ onboardingCompleted: true });
-        this.hide();
+      skipBtn.addEventListener('click', () => {
+        this.complete();
       });
     }
     
