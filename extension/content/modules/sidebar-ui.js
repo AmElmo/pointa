@@ -5570,7 +5570,7 @@ IMPORTANT - Git Workflow:
           // Not available - show help button
           statusEl.innerHTML = `
             <span style="color: var(--theme-text-secondary);">Not available</span>
-            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— run <code style="background: var(--theme-surface-hover); padding: 1px 4px; border-radius: 3px;">pointa dev</code></span>
+            <span style="margin-left: 4px; font-size: 10px; color: var(--theme-text-secondary);">— run <code style="background: var(--theme-surface-hover); padding: 1px 4px; border-radius: 3px;">pointa-server dev</code></span>
           `;
           if (toggle) {
             toggle.disabled = true;
@@ -5709,16 +5709,16 @@ IMPORTANT - Git Workflow:
           <!-- Setup Steps -->
           <div class="pointa-backend-logs-section">
             <h3>📦 Quick Setup (30 seconds)</h3>
-            <p class="pointa-setup-intro">No code changes required. Just prefix your dev command with <code>pointa dev</code>:</p>
+            <p class="pointa-setup-intro">No code changes required. Just prefix your dev command with <code>pointa-server dev</code>:</p>
 
             <div class="pointa-setup-step-card">
               <div class="pointa-step-number">1</div>
               <div class="pointa-step-content">
                 <h4>Run your server with Pointa</h4>
-                <p class="pointa-step-hint">Instead of running your usual dev command, prefix it with <code>pointa dev</code></p>
+                <p class="pointa-step-hint">Instead of running your usual dev command, prefix it with <code>pointa-server dev</code></p>
                 <div class="pointa-command-code">
-                  <code>pointa dev npm run dev</code>
-                  <button class="pointa-copy-btn" data-command="pointa dev npm run dev" title="Copy command">
+                  <code>pointa-server dev npm run dev</code>
+                  <button class="pointa-copy-btn" data-command="pointa-server dev npm run dev" title="Copy command">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -5888,7 +5888,7 @@ IMPORTANT - Git Workflow:
                 <div class="pointa-status-dot offline"></div>
                 <span class="pointa-status-text">Not available</span>
               </div>
-              <p class="pointa-status-hint">Run <code>pointa dev</code> to enable backend log capture</p>
+              <p class="pointa-status-hint">Run <code>pointa-server dev</code> to enable backend log capture</p>
             `;
           }
         } else {

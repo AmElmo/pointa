@@ -1770,7 +1770,7 @@ class PointaBackground {
   }
 
   // ============================================================
-  // Backend Logs: Server-Side Log Capture (via `pointa dev`)
+  // Backend Logs: Server-Side Log Capture (via `pointa-server dev`)
   // ============================================================
 
   /**
@@ -1806,7 +1806,7 @@ class PointaBackground {
 
   /**
    * Start backend log recording via Pointa server
-   * This signals connected clients (via `pointa dev`) to start sending logs
+   * This signals connected clients (via `pointa-server dev`) to start sending logs
    * @param {Object} options - Recording options
    * @param {boolean} options.captureStdout - Whether to capture full terminal output
    */

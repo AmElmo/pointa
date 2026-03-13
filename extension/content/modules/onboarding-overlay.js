@@ -641,7 +641,7 @@ pointa-server start</pre>
                 <div class="feature-icon-large">🐛</div>
                 <div class="feature-content">
                   <h3>Bug Reports</h3>
-                  <p>Record bugs with backend logs using <code>pointa dev</code> wrapper.</p>
+                  <p>Record bugs with backend logs using <code>pointa-server dev</code> wrapper.</p>
                 </div>
               </div>
             </div>
