@@ -516,20 +516,6 @@ const ToolbarPanels = {
           </div>
 
           <div class="toolbar-panel-setting-group">
-            <label class="toolbar-panel-setting-label">AI Tools</label>
-            <div class="toolbar-panel-toggle-row">
-              <div>
-                <span>Auto-send prompts</span>
-                <p class="toolbar-panel-hint" style="margin-top: 2px;">Automatically submit prompts when sent to Cursor or Claude Code, instead of just pasting them</p>
-              </div>
-              <label class="toolbar-panel-toggle">
-                <input type="checkbox" id="toolbar-auto-send-toggle">
-                <span class="toolbar-panel-toggle-slider"></span>
-              </label>
-            </div>
-          </div>
-
-          <div class="toolbar-panel-setting-group">
             <label class="toolbar-panel-setting-label">Linear Integration</label>
             <div class="toolbar-panel-toggle-row">
               <span>Enable Linear Sync</span>
@@ -908,14 +894,6 @@ const ToolbarPanels = {
       });
     }
 
-    // Auto-send toggle
-    const autoSendToggle = panel.querySelector('#toolbar-auto-send-toggle');
-    if (autoSendToggle) {
-      autoSendToggle.addEventListener('change', () => {
-        chrome.storage.local.set({ aiAutoSend: autoSendToggle.checked });
-      });
-    }
-
     // Linear enabled toggle
     const linearToggle = panel.querySelector('#toolbar-linear-enabled-toggle');
     const linearConfig = panel.querySelector('#toolbar-linear-config');
@@ -1020,7 +998,6 @@ const ToolbarPanels = {
     try {
       const result = await chrome.storage.local.get([
         'themePreference',
-        'aiAutoSend',
         'linearEnabled'
       ]);
 
@@ -1028,12 +1005,6 @@ const ToolbarPanels = {
       const themeSelect = panel.querySelector('#toolbar-theme-select');
       if (themeSelect && result.themePreference) {
         themeSelect.value = result.themePreference;
-      }
-
-      // Auto-send
-      const autoSendToggle = panel.querySelector('#toolbar-auto-send-toggle');
-      if (autoSendToggle) {
-        autoSendToggle.checked = result.aiAutoSend || false;
       }
 
       // Linear
