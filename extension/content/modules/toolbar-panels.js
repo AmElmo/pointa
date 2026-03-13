@@ -581,6 +581,21 @@ const ToolbarPanels = {
               <div class="toolbar-status-dot-inline ${serverOnline ? 'online' : 'offline'}"></div>
               <span>MCP Server ${serverOnline ? 'Connected' : 'Offline'}</span>
             </div>
+            ${!serverOnline ? `
+              <div class="toolbar-panel-server-help">
+                <p class="toolbar-panel-hint">Start the server to enable annotations:</p>
+                <div class="toolbar-panel-command-row">
+                  <code class="toolbar-panel-command">pointa-server start</code>
+                  <button class="toolbar-panel-copy-cmd" id="toolbar-copy-server-cmd" title="Copy command">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                  </button>
+                </div>
+                <p class="toolbar-panel-hint" style="margin-top: 4px;">First time? Run: <code>npm i -g pointa-server</code></p>
+              </div>
+            ` : ''}
           </div>
         </div>
       </div>
@@ -1089,6 +1104,32 @@ const ToolbarPanels = {
     if (feedbackBtn) {
       feedbackBtn.addEventListener('click', () => {
         window.open('https://github.com/pointa-app/pointa/issues', '_blank');
+      });
+    }
+
+    // Copy server command button
+    const copyCmdBtn = panel.querySelector('#toolbar-copy-server-cmd');
+    if (copyCmdBtn) {
+      copyCmdBtn.addEventListener('click', async () => {
+        if (typeof PointaUtils !== 'undefined' && PointaUtils.copyToClipboard) {
+          await PointaUtils.copyToClipboard('pointa-server start', 'Command copied! Paste in your terminal.');
+        } else {
+          await navigator.clipboard.writeText('pointa-server start');
+        }
+        // Visual feedback
+        copyCmdBtn.innerHTML = `
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        `;
+        setTimeout(() => {
+          copyCmdBtn.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          `;
+        }, 2000);
       });
     }
   },

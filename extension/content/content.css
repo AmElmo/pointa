@@ -12171,6 +12171,78 @@ body.sidebar-resizing * {
   background: #ef4444;
 }
 
+/* Server help section (shown when offline) */
+.toolbar-panel-server-help {
+  margin-top: 8px;
+}
+
+.toolbar-panel-command-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.toolbar-panel-command {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-command {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.toolbar-panel-copy-cmd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.toolbar-panel-copy-cmd:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-copy-cmd {
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.4);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-copy-cmd:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.toolbar-panel-server-help code {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 11px;
+}
+
+[data-pointa-theme="light"] .toolbar-panel-server-help code {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 /* Badge inline (notification count in header) */
 .toolbar-badge-inline {
   display: inline-flex;
