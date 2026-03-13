@@ -257,10 +257,18 @@ const PointaToolbar = {
           this.closePanel();
           PointaAnnotationMode.startAnnotationMode(pointa);
         } else if (action === 'copy-all') {
+          // Deactivate annotation mode if active
+          if (pointa.isAnnotationMode) {
+            pointa.stopAnnotationMode();
+          }
           this.closePanel();
           await this.copyAllAnnotations(pointa);
         }
       } else if (panelBtn) {
+        // Deactivate annotation mode if active
+        if (pointa.isAnnotationMode) {
+          pointa.stopAnnotationMode();
+        }
         this.togglePanel(panelBtn.dataset.panel, pointa);
       }
     });

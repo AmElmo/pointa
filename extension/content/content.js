@@ -323,7 +323,7 @@ class Pointa {
               const maxSeconds = 30;
 
               if (elapsed < maxSeconds) {
-                // Recording is still within time limit — restore recording UI
+                // Recording is still within time limit — restore recording state
                 PointaToolbar.isRecordingBug = true;
                 PointaToolbar.currentView = 'bug-report';
 
@@ -345,14 +345,9 @@ class Pointa {
                   };
                 }
 
-                // Open the recording panel
-                await PointaToolbar.openPanel('bug-report', pointa);
-
-                // Start timer from elapsed time
-                if (PointaToolbar.panelContainer) {
-                  ToolbarPanels.startRecordingTimerFrom(
-                    PointaToolbar.panelContainer, PointaToolbar, pointa, elapsed
-                  );
+                // Show the full-screen recording indicator (red border + stop button)
+                if (window.BugReportUI) {
+                  BugReportUI.showRecordingIndicator();
                 }
               } else {
                 // Recording timed out during navigation — clean up

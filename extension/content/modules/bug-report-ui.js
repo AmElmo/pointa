@@ -77,6 +77,15 @@ const BugReportUI = {
     // Add stop button handler
     const stopBtn = this.recordingIndicator.querySelector('.bug-recording-stop-btn');
     stopBtn.addEventListener('click', async () => {
+      // Clear toolbar state if toolbar is active
+      if (window.PointaToolbar && window.PointaToolbar.isVisible) {
+        window.PointaToolbar.isRecordingBug = false;
+        window.PointaToolbar.currentView = null;
+      }
+
+      // Clear persisted recording state
+      chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
+
       await window.pointa.stopBugReporting();
     });
   },
