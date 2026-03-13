@@ -1011,12 +1011,14 @@ const ToolbarPanels = {
    */
   async checkBackendLogsStatus(toggle, statusEl) {
     const helpEl = statusEl.parentElement?.querySelector('#toolbar-backend-logs-help');
+    const currentPort = window.location.port || (window.location.protocol === 'https:' ? '443' : '80');
     try {
       const response = await chrome.runtime.sendMessage({
-        action: 'checkBackendLogs'
+        action: 'getBackendLogStatus',
+        port: currentPort
       });
 
-      if (response.success && response.available) {
+      if (response.success && response.status?.connected) {
         statusEl.innerHTML = '<span style="color: #10b981;">✓</span> Backend logs ready';
         statusEl.className = 'toolbar-panel-hint success';
         toggle.disabled = false;
