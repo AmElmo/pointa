@@ -646,46 +646,54 @@ const ToolbarPanels = {
       });
     });
 
-    // Delete buttons — with visible confirmation
+    // Delete buttons — with inline "Delete? Yes / No" confirmation
     panel.querySelectorAll('.toolbar-panel-item-delete').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const annotationId = btn.dataset.annotationId;
 
-        if (btn.dataset.confirming) {
-          // Second click: actually delete
+        // Remove any existing confirmation
+        const existing = panel.querySelector('.toolbar-delete-confirm');
+        if (existing) existing.remove();
+
+        // Create confirmation row
+        const confirm = document.createElement('div');
+        confirm.className = 'toolbar-delete-confirm';
+        confirm.innerHTML = `
+          <span class="toolbar-delete-confirm-text">Delete?</span>
+          <button class="toolbar-delete-confirm-yes" data-annotation-id="${annotationId}">Yes</button>
+          <button class="toolbar-delete-confirm-no">No</button>
+        `;
+
+        // Insert after the item's actions
+        const item = btn.closest('.toolbar-panel-item');
+        if (item) {
+          item.appendChild(confirm);
+        }
+
+        // Yes button
+        confirm.querySelector('.toolbar-delete-confirm-yes').addEventListener('click', async (ev) => {
+          ev.stopPropagation();
           await chrome.runtime.sendMessage({
             action: 'deleteAnnotation',
             id: annotationId
           });
-
-          // Refresh annotations in pointa and rebuild panel
           if (pointa.loadAnnotations) {
             await pointa.loadAnnotations();
           }
           await toolbar.openPanel('annotations', pointa);
-        } else {
-          // First click: show "Delete?" confirmation text
-          btn.dataset.confirming = 'true';
-          btn.classList.add('confirming');
-          btn.innerHTML = '<span class="toolbar-delete-confirm-text">Delete?</span>';
-          btn.title = 'Click again to confirm';
+        });
 
-          // Reset after 3 seconds
-          setTimeout(() => {
-            if (btn.dataset.confirming) {
-              delete btn.dataset.confirming;
-              btn.classList.remove('confirming');
-              btn.title = 'Delete';
-              btn.innerHTML = `
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6"></polyline>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                </svg>
-              `;
-            }
-          }, 3000);
-        }
+        // No button
+        confirm.querySelector('.toolbar-delete-confirm-no').addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          confirm.remove();
+        });
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+          if (confirm.parentNode) confirm.remove();
+        }, 5000);
       });
     });
 

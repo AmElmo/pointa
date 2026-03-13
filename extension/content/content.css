@@ -11415,6 +11415,7 @@ body.sidebar-resizing * {
   cursor: pointer;
   transition: background 0.1s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
 }
 
 .toolbar-panel-item:hover {
@@ -11587,20 +11588,73 @@ body.sidebar-resizing * {
   color: #ef4444;
 }
 
-/* Delete confirmation state */
-.toolbar-panel-item-delete.confirming {
-  width: auto;
-  min-width: 26px;
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  padding: 0 8px;
+/* Delete confirmation — inline "Delete? Yes / No" */
+.toolbar-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1a1d24;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 6px;
+  padding: 4px 8px;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+[data-pointa-theme="light"] .toolbar-delete-confirm {
+  background: #ffffff;
+  border-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .toolbar-delete-confirm-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #ef4444;
+}
+
+.toolbar-delete-confirm-yes,
+.toolbar-delete-confirm-no {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
-  color: #ef4444;
-  white-space: nowrap;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.toolbar-delete-confirm-yes {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.toolbar-delete-confirm-yes:hover {
+  background: #dc2626;
+}
+
+.toolbar-delete-confirm-no {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.toolbar-delete-confirm-no:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+[data-pointa-theme="light"] .toolbar-delete-confirm-no {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-pointa-theme="light"] .toolbar-delete-confirm-no:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.8);
 }
 
 /* Section label for "Other Pages" */

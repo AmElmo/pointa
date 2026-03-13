@@ -297,12 +297,17 @@ class Pointa {
         'reopenSidebarTimestamp',
         'scrollToAnnotationId',
         'reopenInNotificationCenter',
-        'reopenToolbar'
+        'reopenToolbar',
+        'toolbarVisible'
       ]);
 
       // Handle toolbar reopen (floating toolbar on localhost)
-      if (result.reopenToolbar) {
-        await chrome.storage.local.remove(['reopenToolbar']);
+      // Either from explicit navigation flag OR from persistent visibility state
+      const shouldReopenToolbar = result.reopenToolbar || result.toolbarVisible;
+      if (shouldReopenToolbar) {
+        if (result.reopenToolbar) {
+          await chrome.storage.local.remove(['reopenToolbar']);
+        }
         const isLocalhost = PointaUtils.isLocalhostUrl();
         if (isLocalhost && window.PointaToolbar && !PointaToolbar.isVisible) {
           setTimeout(async () => {

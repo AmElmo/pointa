@@ -109,6 +109,9 @@ const PointaToolbar = {
 
     this.isVisible = true;
 
+    // Persist visibility so toolbar survives page reloads
+    chrome.storage.local.set({ toolbarVisible: true });
+
     // Update badges
     this.updateBadges(pointa);
   },
@@ -175,6 +178,9 @@ const PointaToolbar = {
     this.notificationCenterOpen = false;
     this.isRecordingBug = false;
     this.currentView = null;
+
+    // Clear persistence so toolbar stays hidden after user dismissed it
+    chrome.storage.local.remove(['toolbarVisible']);
   },
 
   /**
