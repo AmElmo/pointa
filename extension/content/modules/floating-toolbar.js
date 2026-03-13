@@ -418,7 +418,7 @@ const PointaToolbar = {
         annotations.forEach((a, i) => {
           const messages = a.messages || (a.comment ? [{ text: a.comment }] : []);
           const latest = messages.length > 0 ? messages[messages.length - 1].text : 'No description';
-          text += `  ${i + 1}. [${a.id}] ${latest.substring(0, 80)}${latest.length > 80 ? '...' : ''}\n`;
+          text += `  ${i + 1}. ${latest.substring(0, 80)}${latest.length > 80 ? '...' : ''}\n`;
         });
         text += `  -> read_annotations(url: "${url}")\n\n`;
       }

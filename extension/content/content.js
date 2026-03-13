@@ -140,6 +140,11 @@ class Pointa {
       });
       this.annotations = Array.from(annotationsMap.values());
 
+      // Update toolbar badge if visible
+      if (window.PointaToolbar && PointaToolbar.isVisible) {
+        PointaToolbar.updateBadges(this);
+      }
+
       const loadEndTime = Date.now();
       const loadDuration = loadEndTime - loadStartTime;
 
@@ -1739,6 +1744,11 @@ class Pointa {
 
 
       this.addAnnotationBadge(element, annotation, index);
+
+      // Update toolbar badge in real-time
+      if (window.PointaToolbar && PointaToolbar.isVisible) {
+        PointaToolbar.updateBadges(this);
+      }
 
       // Refresh sidebar to show new annotation
 
