@@ -138,7 +138,7 @@ const ToolbarDrag = {
    * @returns {{x: number, y: number}}
    */
   getDefaultPosition() {
-    return { x: window.innerWidth - 400, y: 16 };
+    return { x: window.innerWidth - 60, y: Math.round(window.innerHeight / 2 - 150) };
   },
 
   /**

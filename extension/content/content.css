@@ -11079,12 +11079,13 @@ body.sidebar-resizing * {
   align-items: flex-end;
 }
 
-/* Pill toolbar */
+/* Pill toolbar — vertical layout */
 .toolbar-pill {
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 8px;
+  padding: 8px 6px;
   border-radius: 28px;
   background: #1a1d24;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -11189,7 +11190,7 @@ body.sidebar-resizing * {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  margin: 0 6px 0 4px;
+  margin: 4px 0 2px;
   flex-shrink: 0;
   transition: background 0.3s ease;
 }
@@ -11208,8 +11209,8 @@ body.sidebar-resizing * {
 
 .toolbar-panel {
   position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
+  top: 0;
+  right: calc(100% + 8px);
   width: 360px;
   max-height: 480px;
   background: #1a1d24;
@@ -11219,7 +11220,7 @@ body.sidebar-resizing * {
   overflow: hidden;
   display: none;
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateX(4px);
   transition: opacity 0.15s ease, transform 0.15s ease;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -11227,7 +11228,7 @@ body.sidebar-resizing * {
 .toolbar-panel.visible {
   display: block;
   opacity: 1;
-  transform: translateY(0);
+  transform: translateX(0);
 }
 
 [data-pointa-theme="light"] .toolbar-panel {
