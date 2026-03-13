@@ -675,7 +675,7 @@ const ToolbarPanels = {
    */
   setupAnnotationsPanelListeners(panel, pointa, toolbar) {
     // Click on annotation item (navigate to element)
-    panel.querySelectorAll('.toolbar-panel-item').forEach(item => {
+    panel.querySelectorAll('.toolbar-panel-item:not(.toolbar-panel-report-item)').forEach(item => {
       item.addEventListener('click', async (e) => {
         // Ignore clicks on action buttons
         if (e.target.closest('.toolbar-panel-item-actions')) return;
@@ -715,8 +715,8 @@ const ToolbarPanels = {
       });
     });
 
-    // Copy buttons
-    panel.querySelectorAll('.toolbar-panel-item-copy').forEach(btn => {
+    // Annotation copy buttons
+    panel.querySelectorAll('.toolbar-panel-item:not(.toolbar-panel-report-item) .toolbar-panel-item-copy').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const annotationId = btn.dataset.annotationId;
@@ -724,8 +724,8 @@ const ToolbarPanels = {
       });
     });
 
-    // Delete buttons — with inline "Delete? Yes / No" confirmation
-    panel.querySelectorAll('.toolbar-panel-item-delete').forEach(btn => {
+    // Annotation delete buttons — with inline "Delete? Yes / No" confirmation
+    panel.querySelectorAll('.toolbar-panel-item:not(.toolbar-panel-report-item) .toolbar-panel-item-delete').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const annotationId = btn.dataset.annotationId;
@@ -882,20 +882,53 @@ const ToolbarPanels = {
       });
     });
 
-    // Report delete buttons (uses same class as annotation delete)
+    // Report delete buttons — with inline "Delete? Yes / No" confirmation
     panel.querySelectorAll('.toolbar-panel-report-item .toolbar-panel-item-delete').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const reportId = btn.dataset.reportId;
         if (!reportId) return;
-        try {
-          await chrome.runtime.sendMessage({
-            action: 'deleteBugReport',
-            id: reportId
-          });
-          // Refresh panel
-          await toolbar.openPanel('annotations', pointa);
-        } catch (_) { /* ignore */ }
+
+        // Remove any existing confirmation
+        const existing = panel.querySelector('.toolbar-delete-confirm');
+        if (existing) existing.remove();
+
+        // Create confirmation row
+        const confirm = document.createElement('div');
+        confirm.className = 'toolbar-delete-confirm';
+        confirm.innerHTML = `
+          <span class="toolbar-delete-confirm-text">Delete?</span>
+          <button class="toolbar-delete-confirm-yes">Yes</button>
+          <button class="toolbar-delete-confirm-no">No</button>
+        `;
+
+        const item = btn.closest('.toolbar-panel-report-item');
+        if (item) {
+          item.appendChild(confirm);
+        }
+
+        // Yes button
+        confirm.querySelector('.toolbar-delete-confirm-yes').addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          try {
+            await chrome.runtime.sendMessage({
+              action: 'deleteBugReport',
+              id: reportId
+            });
+            await toolbar.openPanel('annotations', pointa);
+          } catch (_) { /* ignore */ }
+        });
+
+        // No button
+        confirm.querySelector('.toolbar-delete-confirm-no').addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          confirm.remove();
+        });
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+          if (confirm.parentNode) confirm.remove();
+        }, 5000);
       });
     });
 
