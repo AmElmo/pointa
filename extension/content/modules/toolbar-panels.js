@@ -798,12 +798,13 @@ const ToolbarPanels = {
     // Issue type: Performance
     const perfTypeBtn = panel.querySelector('#toolbar-issue-type-performance');
     if (perfTypeBtn) {
-      perfTypeBtn.addEventListener('click', () => {
+      perfTypeBtn.addEventListener('click', async () => {
         toolbar.currentView = 'performance';
-        if (window.PerformanceRecorder) {
-          PerformanceRecorder.startRecording(pointa);
-        }
+        toolbar.isRecordingBug = true;
         toolbar.closePanel();
+
+        // Use the full flow that shows recording indicator + starts recording
+        await pointa.startPerformanceInvestigation();
       });
     }
 
@@ -821,6 +822,12 @@ const ToolbarPanels = {
     if (startRecordingBtn) {
       startRecordingBtn.addEventListener('click', async () => {
         toolbar.isRecordingBug = true;
+
+        // Persist recording state so it survives page navigation
+        chrome.storage.local.set({
+          bugRecordingActive: true,
+          bugRecordingStartTime: Date.now()
+        });
 
         if (window.BugRecorder) {
           await BugRecorder.startRecording();
@@ -842,6 +849,9 @@ const ToolbarPanels = {
     if (stopRecordingBtn) {
       stopRecordingBtn.addEventListener('click', async () => {
         toolbar.isRecordingBug = false;
+
+        // Clear persisted recording state
+        chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
 
         if (toolbar.recordingTimerInterval) {
           clearInterval(toolbar.recordingTimerInterval);
@@ -915,13 +925,32 @@ const ToolbarPanels = {
    * @param {Pointa} pointa - Reference to main Pointa instance
    */
   startRecordingTimer(panel, toolbar, pointa) {
+    this.startRecordingTimerFrom(panel, toolbar, pointa, 0);
+  },
+
+  /**
+   * Start the recording timer from a given elapsed offset
+   * @param {HTMLElement} panel - Panel container element
+   * @param {Object} toolbar - Reference to PointaToolbar
+   * @param {Pointa} pointa - Reference to main Pointa instance
+   * @param {number} startFromSeconds - Seconds already elapsed
+   */
+  startRecordingTimerFrom(panel, toolbar, pointa, startFromSeconds) {
     // Clear any existing timer
     if (toolbar.recordingTimerInterval) {
       clearInterval(toolbar.recordingTimerInterval);
     }
 
-    let seconds = 0;
+    let seconds = startFromSeconds;
     const maxSeconds = 30;
+
+    // Update timer immediately with current elapsed time
+    const timerEl = panel.querySelector('#toolbar-bug-timer');
+    if (timerEl) {
+      const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+      const secs = String(seconds % 60).padStart(2, '0');
+      timerEl.textContent = `${mins}:${secs}`;
+    }
 
     toolbar.recordingTimerInterval = setInterval(async () => {
       seconds++;
@@ -938,6 +967,9 @@ const ToolbarPanels = {
         clearInterval(toolbar.recordingTimerInterval);
         toolbar.recordingTimerInterval = null;
         toolbar.isRecordingBug = false;
+
+        // Clear persisted recording state
+        chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
 
         if (window.BugRecorder) {
           await BugRecorder.stopRecording(pointa);

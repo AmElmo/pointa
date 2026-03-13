@@ -298,7 +298,9 @@ class Pointa {
         'scrollToAnnotationId',
         'reopenInNotificationCenter',
         'reopenToolbar',
-        'toolbarVisible'
+        'toolbarVisible',
+        'bugRecordingActive',
+        'bugRecordingStartTime'
       ]);
 
       // Handle toolbar reopen (floating toolbar on localhost)
@@ -310,12 +312,59 @@ class Pointa {
         }
         const isLocalhost = PointaUtils.isLocalhostUrl();
         if (isLocalhost && window.PointaToolbar && !PointaToolbar.isVisible) {
+          const pointa = this;
           setTimeout(async () => {
-            await PointaToolbar.show(this);
-            // Reopen annotations panel if notification center was active
-            if (result.reopenInNotificationCenter) {
+            await PointaToolbar.show(pointa);
+
+            // Restore bug recording state if recording was active
+            if (result.bugRecordingActive) {
+              const startTime = result.bugRecordingStartTime || Date.now();
+              const elapsed = Math.floor((Date.now() - startTime) / 1000);
+              const maxSeconds = 30;
+
+              if (elapsed < maxSeconds) {
+                // Recording is still within time limit — restore recording UI
+                PointaToolbar.isRecordingBug = true;
+                PointaToolbar.currentView = 'bug-report';
+
+                // Restore BugRecorder state so stopRecording() works
+                if (window.BugRecorder) {
+                  BugRecorder.isRecording = true;
+                  BugRecorder.startTime = startTime;
+                  BugRecorder.recordingData = {
+                    console: [],
+                    network: [],
+                    interactions: [],
+                    errors: [],
+                    metadata: {
+                      startTime: new Date(startTime).toISOString(),
+                      url: window.location.href,
+                      userAgent: navigator.userAgent,
+                      viewport: { width: window.innerWidth, height: window.innerHeight }
+                    }
+                  };
+                }
+
+                // Open the recording panel
+                await PointaToolbar.openPanel('bug-report', pointa);
+
+                // Start timer from elapsed time
+                if (PointaToolbar.panelContainer) {
+                  ToolbarPanels.startRecordingTimerFrom(
+                    PointaToolbar.panelContainer, PointaToolbar, pointa, elapsed
+                  );
+                }
+              } else {
+                // Recording timed out during navigation — clean up
+                chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
+                if (window.BugRecorder && BugRecorder.isRecording) {
+                  BugRecorder.isRecording = true;
+                  await BugRecorder.stopRecording(pointa);
+                }
+              }
+            } else if (result.reopenInNotificationCenter) {
               PointaToolbar.notificationCenterOpen = true;
-              await PointaToolbar.openPanel('annotations', this);
+              await PointaToolbar.openPanel('annotations', pointa);
             }
           }, 300);
         }
@@ -2251,6 +2300,8 @@ class Pointa {
 
       if (response && response.success) {
 
+        // Clear persisted recording state
+        chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
 
         // Reset recording state on whichever UI is active
         if (window.PointaToolbar && window.PointaToolbar.isVisible) {
@@ -2370,6 +2421,8 @@ class Pointa {
 
       if (response && response.success) {
 
+        // Clear persisted recording state
+        chrome.storage.local.remove(['bugRecordingActive', 'bugRecordingStartTime']);
 
         // Reset recording state on whichever UI is active
         if (window.PointaToolbar && window.PointaToolbar.isVisible) {

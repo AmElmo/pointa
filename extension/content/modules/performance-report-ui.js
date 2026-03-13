@@ -72,6 +72,17 @@ const PerformanceReportUI = {
     // Add stop button handler
     const stopBtn = this.recordingIndicator.querySelector('.bug-recording-stop-btn');
     stopBtn.addEventListener('click', async () => {
+      // Clear toolbar state if toolbar is active
+      if (window.PointaToolbar && window.PointaToolbar.isVisible) {
+        if (window.PointaToolbar.recordingTimerInterval) {
+          clearInterval(window.PointaToolbar.recordingTimerInterval);
+          window.PointaToolbar.recordingTimerInterval = null;
+        }
+        window.PointaToolbar.isRecordingBug = false;
+        window.PointaToolbar.currentView = null;
+        window.PointaToolbar.closePanel();
+      }
+
       // If sidebar is open, handle state there (like bug reporting does)
       if (window.PointaSidebar && window.PointaSidebar.isOpen && window.PointaSidebar.isRecordingBug) {
         // Clear the sidebar timer
