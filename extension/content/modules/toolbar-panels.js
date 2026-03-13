@@ -854,12 +854,20 @@ const ToolbarPanels = {
         const reportType = item.dataset.reportType;
         if (!reportId) return;
 
-        toolbar.closePanel();
+        if (!window.PointaReportDetails) {
+          console.error('[Toolbar] PointaReportDetails not loaded');
+          return;
+        }
 
-        if (reportType === 'performance' && window.PointaReportDetails) {
-          await PointaReportDetails.showPerformanceReportDetails(reportId);
-        } else if (window.PointaReportDetails) {
-          await PointaReportDetails.showBugReportDetails(reportId);
+        try {
+          if (reportType === 'performance') {
+            await PointaReportDetails.showPerformanceReportDetails(reportId);
+          } else {
+            await PointaReportDetails.showBugReportDetails(reportId);
+          }
+          toolbar.closePanel();
+        } catch (err) {
+          console.error('[Toolbar] Error opening report details:', err);
         }
       });
     });

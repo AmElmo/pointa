@@ -19,8 +19,10 @@ const PointaReportDetails = {
 
   // Show bug report details modal
   async showBugReportDetails(bugId) {
+    console.log('[ReportDetails] showBugReportDetails called with:', bugId);
     try {
       const issueReports = await PointaReportDetails.loadBugReports();
+      console.log('[ReportDetails] Loaded reports:', issueReports.length, 'looking for:', bugId);
       const bugReport = issueReports.find((r) => r.id === bugId);
 
       if (!bugReport) {
