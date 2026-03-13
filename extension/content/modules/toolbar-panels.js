@@ -856,13 +856,10 @@ const ToolbarPanels = {
 
         toolbar.closePanel();
 
-        if (reportType === 'performance' && window.PerformanceReportUI) {
-          // Use sidebar's performance report viewer
-          if (window.PointaSidebar) {
-            await PointaSidebar.showPerformanceReportDetails(reportId);
-          }
-        } else if (window.PointaSidebar) {
-          await PointaSidebar.showBugReportDetails(reportId);
+        if (reportType === 'performance' && window.PointaReportDetails) {
+          await PointaReportDetails.showPerformanceReportDetails(reportId);
+        } else if (window.PointaReportDetails) {
+          await PointaReportDetails.showBugReportDetails(reportId);
         }
       });
     });

@@ -201,11 +201,11 @@ class Pointa {
           break;
 
         case 'toggleSidebar':
-          // Use floating toolbar on localhost, sidebar on external sites
           if (PointaUtils.isLocalhostUrl() && window.PointaToolbar) {
             PointaToolbar.toggle(this);
           } else {
-            PointaSidebar.toggle(this);
+            // Show a brief toast on non-localhost pages
+            this.showLocalhostOnlyToast();
           }
           sendResponse({ success: true, message: 'Toolbar toggled' });
           break;
@@ -225,6 +225,38 @@ class Pointa {
 
       return true; // Keep the message channel open for async response
     });
+  }
+
+  showLocalhostOnlyToast() {
+    // Remove existing toast if any
+    const existing = document.querySelector('.pointa-localhost-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.className = 'pointa-localhost-toast';
+    toast.setAttribute('data-pointa-theme', window.PointaThemeManager ? PointaThemeManager.getEffective() : 'dark');
+    toast.innerHTML = `
+      <span style="font-size: 18px;">&#x1F4CD;</span>
+      <div>
+        <strong>Pointa works on localhost</strong>
+        <p style="margin: 4px 0 0; opacity: 0.8; font-size: 12px;">Start your dev server and navigate to localhost to use Pointa.</p>
+      </div>
+    `;
+    toast.style.cssText = `
+      position: fixed; top: 20px; right: 20px; z-index: 2147483647;
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: 10px;
+      background: #1e1e2e; color: #e0e0e0; border: 1px solid #333;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      animation: pointa-toast-in 0.3s ease;
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transition = 'opacity 0.3s ease';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
   }
 
   setupGlobalListeners() {

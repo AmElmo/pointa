@@ -19,7 +19,7 @@
     "128": "assets/icons/pointa-icon128.png"
   },
   "action": {
-    "default_title": "Pointa - Toggle Sidebar",
+    "default_title": "Pointa - Toggle Toolbar",
     "default_icon": {
       "16": "assets/icons/pointa-icon16.png",
       "32": "assets/icons/pointa-icon32.png",

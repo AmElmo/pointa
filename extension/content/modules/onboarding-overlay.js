@@ -366,16 +366,10 @@ const VibeOnboarding = {
     // Hide overlay
     this.hide();
     
-    // Open sidebar to start using
-    // Wait for overlay to fade out, then open sidebar
+    // Open toolbar after onboarding completes
     setTimeout(() => {
-      if (window.pointa && typeof PointaSidebar !== 'undefined') {
-        PointaSidebar.open(window.pointa);
-      } else {
-        console.error('[Onboarding] Failed to open sidebar - Pointa or PointaSidebar not found', {
-          pointa: !!window.pointa,
-          sidebar: typeof PointaSidebar !== 'undefined'
-        });
+      if (window.pointa && window.PointaToolbar) {
+        PointaToolbar.show(window.pointa);
       }
     }, 400);
   },

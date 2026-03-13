@@ -437,8 +437,22 @@ class PointaAnnotationMode {
         // Immediately close the widget for instant feedback
         this.closeInlineCommentWidget(pointa);
 
-        // Use the sidebar's markAnnotationDone which handles everything
-        await PointaSidebar.markAnnotationDone(pointa, annotation.id);
+        // Mark annotation as done via background script
+        try {
+          await chrome.runtime.sendMessage({
+            action: 'updateAnnotation',
+            id: annotation.id,
+            updates: { status: 'done', updated_at: new Date().toISOString() }
+          });
+          const getResponse = await chrome.runtime.sendMessage({
+            action: 'getAnnotations',
+            url: window.location.href
+          });
+          pointa.annotations = getResponse.success ? getResponse.annotations || [] : [];
+          pointa.badgeManager.removeBadge(annotation.id);
+        } catch (error) {
+          console.error('Error marking annotation as done:', error);
+        }
       });
 
       tabBar.appendChild(markDoneBtn);
