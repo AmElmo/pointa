@@ -546,7 +546,10 @@ const ToolbarPanels = {
           <div class="toolbar-panel-setting-group">
             <label class="toolbar-panel-setting-label">AI Tools</label>
             <div class="toolbar-panel-toggle-row">
-              <span>Auto-send prompts</span>
+              <div>
+                <span>Auto-send prompts</span>
+                <p class="toolbar-panel-hint" style="margin-top: 2px;">Automatically submit prompts when sent to Cursor or Claude Code, instead of just pasting them</p>
+              </div>
               <label class="toolbar-panel-toggle">
                 <input type="checkbox" id="toolbar-auto-send-toggle">
                 <span class="toolbar-panel-toggle-slider"></span>
