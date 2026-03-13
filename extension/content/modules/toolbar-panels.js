@@ -508,11 +508,13 @@ const ToolbarPanels = {
         <div class="toolbar-panel-body">
           <div class="toolbar-panel-setting-group">
             <label class="toolbar-panel-setting-label">Theme</label>
-            <select id="toolbar-theme-select" class="toolbar-panel-select">
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
+            <div class="toolbar-panel-toggle-row">
+              <span>Dark mode</span>
+              <label class="toolbar-panel-toggle">
+                <input type="checkbox" id="toolbar-dark-mode-toggle">
+                <span class="toolbar-panel-toggle-slider"></span>
+              </label>
+            </div>
           </div>
 
           <div class="toolbar-panel-setting-group">
@@ -882,11 +884,11 @@ const ToolbarPanels = {
     // Load current settings values
     this.loadSettingsValues(panel);
 
-    // Theme select
-    const themeSelect = panel.querySelector('#toolbar-theme-select');
-    if (themeSelect) {
-      themeSelect.addEventListener('change', () => {
-        const value = themeSelect.value;
+    // Dark mode toggle
+    const darkModeToggle = panel.querySelector('#toolbar-dark-mode-toggle');
+    if (darkModeToggle) {
+      darkModeToggle.addEventListener('change', () => {
+        const value = darkModeToggle.checked ? 'dark' : 'light';
         chrome.storage.local.set({ themePreference: value });
 
         if (typeof PointaThemeManager !== 'undefined') {
@@ -895,12 +897,9 @@ const ToolbarPanels = {
 
         // Update theme attribute on wrapper (parent of both pill and panel)
         if (toolbar.toolbar) {
-          const effective = (typeof PointaThemeManager !== 'undefined')
-            ? PointaThemeManager.getEffective()
-            : value;
           const wrapper = toolbar.toolbar.closest('.toolbar-wrapper');
           if (wrapper) {
-            wrapper.setAttribute('data-pointa-theme', effective);
+            wrapper.setAttribute('data-pointa-theme', value);
           }
         }
       });
@@ -1013,10 +1012,10 @@ const ToolbarPanels = {
         'linearEnabled'
       ]);
 
-      // Theme
-      const themeSelect = panel.querySelector('#toolbar-theme-select');
-      if (themeSelect && result.themePreference) {
-        themeSelect.value = result.themePreference;
+      // Theme (dark mode toggle)
+      const darkModeToggle = panel.querySelector('#toolbar-dark-mode-toggle');
+      if (darkModeToggle) {
+        darkModeToggle.checked = (result.themePreference === 'dark') || (!result.themePreference);
       }
 
       // Linear
