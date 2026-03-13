@@ -802,9 +802,8 @@ pointa-server start</pre>
     // Skip button
     const skipBtn = this.overlay.querySelector('.skip-btn');
     if (skipBtn) {
-      skipBtn.addEventListener('click', async () => {
-        await chrome.storage.local.set({ onboardingCompleted: true });
-        this.hide();
+      skipBtn.addEventListener('click', () => {
+        this.complete();
       });
     }
     
