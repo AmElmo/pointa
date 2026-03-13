@@ -142,6 +142,67 @@ const ToolbarPanels = {
       `;
     }
 
+    // Fetch bug/performance reports for current page
+    let reportsHTML = '';
+    if (!toolbar.notificationCenterOpen) {
+      try {
+        const reportsResponse = await chrome.runtime.sendMessage({
+          action: 'getBugReports',
+          status: 'active',
+          url: window.location.href
+        });
+        const reports = reportsResponse.success ? reportsResponse.issueReports || [] : [];
+        if (reports.length > 0) {
+          const reportItems = reports.map((report, index) => {
+            const isBug = report.type === 'bug' || !report.type;
+            const typeLabel = isBug ? 'Bug' : 'Performance';
+            const typeIcon = isBug
+              ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>'
+              : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>';
+            const reportId = report.id || '';
+            const shortId = reportId.length > 16 ? reportId.substring(0, 16) + '...' : reportId;
+            const timestamp = report.created_at ? new Date(report.created_at).toLocaleDateString() : '';
+            const prompt = isBug
+              ? `Analyze and fix bug report ${reportId}`
+              : `Analyze and fix performance report ${reportId}`;
+
+            return `
+              <div class="toolbar-panel-item toolbar-panel-report-item" data-report-id="${PointaUtils.escapeHtml(reportId)}" data-report-type="${isBug ? 'bug' : 'performance'}" data-report-prompt="${PointaUtils.escapeHtml(prompt)}">
+                <div class="toolbar-panel-item-number">${typeIcon}</div>
+                <div class="toolbar-panel-item-content">
+                  <div class="toolbar-panel-item-preview">${PointaUtils.escapeHtml(shortId)}</div>
+                  <div class="toolbar-panel-item-meta">
+                    <span class="toolbar-panel-item-tag">${typeLabel}</span>
+                    ${timestamp ? `<span class="toolbar-panel-item-date">${timestamp}</span>` : ''}
+                  </div>
+                </div>
+                <div class="toolbar-panel-item-actions">
+                  <button class="toolbar-panel-report-copy" data-report-prompt="${PointaUtils.escapeHtml(prompt)}" title="Copy prompt">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                  </button>
+                  <button class="toolbar-panel-report-delete" data-report-id="${PointaUtils.escapeHtml(reportId)}" title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6"></polyline>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `;
+          }).join('');
+
+          reportsHTML = `
+            <div class="toolbar-panel-divider"></div>
+            <div class="toolbar-panel-section-label">Reports</div>
+            ${reportItems}
+          `;
+        }
+      } catch (_) { /* ignore */ }
+    }
+
     // Build page navigation section (other pages with annotations)
     let pageNavHTML = '';
     if (!toolbar.notificationCenterOpen) {
@@ -204,6 +265,7 @@ const ToolbarPanels = {
         ${subHeaderHTML}
         <div class="toolbar-panel-list">
           ${annotationItemsHTML || '<div class="toolbar-panel-empty">No annotations on this page</div>'}
+          ${reportsHTML}
           ${pageNavHTML}
         </div>
       </div>
@@ -756,6 +818,41 @@ const ToolbarPanels = {
         await toolbar.openPanel('annotations', pointa);
       });
     }
+
+    // Report copy buttons
+    panel.querySelectorAll('.toolbar-panel-report-copy').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const prompt = btn.dataset.reportPrompt;
+        if (!prompt) return;
+        try {
+          await navigator.clipboard.writeText(prompt);
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          btn.style.color = '#10b981';
+          setTimeout(() => {
+            btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+            btn.style.color = '';
+          }, 2000);
+        } catch (_) { /* ignore */ }
+      });
+    });
+
+    // Report delete buttons
+    panel.querySelectorAll('.toolbar-panel-report-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const reportId = btn.dataset.reportId;
+        if (!reportId) return;
+        try {
+          await chrome.runtime.sendMessage({
+            action: 'deleteBugReport',
+            id: reportId
+          });
+          // Refresh panel
+          await toolbar.openPanel('annotations', pointa);
+        } catch (_) { /* ignore */ }
+      });
+    });
 
     // Page navigation items (merged from "More" panel)
     panel.querySelectorAll('.toolbar-panel-page-item').forEach(item => {

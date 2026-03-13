@@ -11531,6 +11531,24 @@ body.sidebar-resizing * {
   color: #f59e0b;
 }
 
+.toolbar-panel-item-date {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+}
+[data-pointa-theme="light"] .toolbar-panel-item-date {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.toolbar-panel-report-item .toolbar-panel-item-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.5);
+}
+[data-pointa-theme="light"] .toolbar-panel-report-item .toolbar-panel-item-number {
+  color: rgba(0, 0, 0, 0.4);
+}
+
 /* Item action buttons */
 .toolbar-panel-item-actions {
   display: flex;
