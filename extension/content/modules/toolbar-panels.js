@@ -142,14 +142,13 @@ const ToolbarPanels = {
       `;
     }
 
-    // Fetch bug/performance reports for current page
+    // Fetch all bug/performance reports (cross-app, not page-specific)
     let reportsHTML = '';
     if (!toolbar.notificationCenterOpen) {
       try {
         const reportsResponse = await chrome.runtime.sendMessage({
           action: 'getBugReports',
-          status: 'active',
-          url: window.location.href
+          status: 'active'
         });
         const reports = reportsResponse.success ? reportsResponse.issueReports || [] : [];
         if (reports.length > 0) {
@@ -161,7 +160,7 @@ const ToolbarPanels = {
               : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>';
             const reportId = report.id || '';
             const shortId = reportId.length > 16 ? reportId.substring(0, 16) + '...' : reportId;
-            const timestamp = report.created_at ? new Date(report.created_at).toLocaleDateString() : '';
+            const timestamp = report.created ? new Date(report.created).toLocaleDateString() : '';
             const prompt = isBug
               ? `Analyze and fix bug report ${reportId}`
               : `Analyze and fix performance report ${reportId}`;
@@ -177,13 +176,13 @@ const ToolbarPanels = {
                   </div>
                 </div>
                 <div class="toolbar-panel-item-actions">
-                  <button class="toolbar-panel-report-copy" data-report-prompt="${PointaUtils.escapeHtml(prompt)}" title="Copy prompt">
+                  <button class="toolbar-panel-item-copy" data-report-prompt="${PointaUtils.escapeHtml(prompt)}" title="Copy prompt">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                     </svg>
                   </button>
-                  <button class="toolbar-panel-report-delete" data-report-id="${PointaUtils.escapeHtml(reportId)}" title="Delete">
+                  <button class="toolbar-panel-item-delete" data-report-id="${PointaUtils.escapeHtml(reportId)}" title="Delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="3 6 5 6 21 6"></polyline>
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -845,8 +844,31 @@ const ToolbarPanels = {
       });
     }
 
-    // Report copy buttons
-    panel.querySelectorAll('.toolbar-panel-report-copy').forEach(btn => {
+    // Report item click → open report detail modal
+    panel.querySelectorAll('.toolbar-panel-report-item').forEach(item => {
+      item.addEventListener('click', async (e) => {
+        // Ignore clicks on action buttons
+        if (e.target.closest('.toolbar-panel-item-actions')) return;
+
+        const reportId = item.dataset.reportId;
+        const reportType = item.dataset.reportType;
+        if (!reportId) return;
+
+        toolbar.closePanel();
+
+        if (reportType === 'performance' && window.PerformanceReportUI) {
+          // Use sidebar's performance report viewer
+          if (window.PointaSidebar) {
+            await PointaSidebar.showPerformanceReportDetails(reportId);
+          }
+        } else if (window.PointaSidebar) {
+          await PointaSidebar.showBugReportDetails(reportId);
+        }
+      });
+    });
+
+    // Report copy buttons (uses same class as annotation copy)
+    panel.querySelectorAll('.toolbar-panel-report-item .toolbar-panel-item-copy').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const prompt = btn.dataset.reportPrompt;
@@ -863,8 +885,8 @@ const ToolbarPanels = {
       });
     });
 
-    // Report delete buttons
-    panel.querySelectorAll('.toolbar-panel-report-delete').forEach(btn => {
+    // Report delete buttons (uses same class as annotation delete)
+    panel.querySelectorAll('.toolbar-panel-report-item .toolbar-panel-item-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const reportId = btn.dataset.reportId;

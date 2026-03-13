@@ -11539,6 +11539,9 @@ body.sidebar-resizing * {
   color: rgba(0, 0, 0, 0.35);
 }
 
+.toolbar-panel-report-item {
+  cursor: pointer;
+}
 .toolbar-panel-report-item .toolbar-panel-item-number {
   display: flex;
   align-items: center;
