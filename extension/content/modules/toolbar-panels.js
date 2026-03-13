@@ -518,6 +518,19 @@ const ToolbarPanels = {
               </label>
             </div>
             <div id="toolbar-backend-logs-status" class="toolbar-panel-hint">Checking...</div>
+            <div id="toolbar-backend-logs-help" class="toolbar-panel-backend-help" style="display: none;">
+              <p class="toolbar-panel-hint">Run your dev server with Pointa to capture backend logs:</p>
+              <div class="toolbar-panel-command-row">
+                <code class="toolbar-panel-command">pointa dev npm run dev</code>
+                <button class="toolbar-panel-copy-cmd" id="toolbar-copy-backend-cmd" title="Copy command">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+              </div>
+              <p class="toolbar-panel-hint" style="margin-top: 4px;">Works with any Node.js command: <code>npm run dev</code>, <code>yarn dev</code>, <code>node server.js</code>, etc.</p>
+            </div>
             <button id="toolbar-start-recording-btn" class="toolbar-panel-primary-btn">
               Start Recording
             </button>
@@ -953,6 +966,20 @@ const ToolbarPanels = {
       });
     }
 
+    // Copy backend command button
+    const copyBackendCmd = panel.querySelector('#toolbar-copy-backend-cmd');
+    if (copyBackendCmd) {
+      copyBackendCmd.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText('pointa dev npm run dev');
+          copyBackendCmd.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+          setTimeout(() => {
+            copyBackendCmd.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+          }, 2000);
+        } catch (_) { /* ignore */ }
+      });
+    }
+
   },
 
   /**
@@ -961,27 +988,31 @@ const ToolbarPanels = {
    * @param {HTMLElement} statusEl - Status text element
    */
   async checkBackendLogsStatus(toggle, statusEl) {
+    const helpEl = statusEl.parentElement?.querySelector('#toolbar-backend-logs-help');
     try {
       const response = await chrome.runtime.sendMessage({
         action: 'checkBackendLogs'
       });
 
       if (response.success && response.available) {
-        statusEl.textContent = 'Backend logs available';
+        statusEl.innerHTML = '<span style="color: #10b981;">✓</span> Backend logs ready';
         statusEl.className = 'toolbar-panel-hint success';
         toggle.disabled = false;
         toggle.checked = window.BugRecorder?.includeBackendLogs || false;
+        if (helpEl) helpEl.style.display = 'none';
       } else {
-        statusEl.textContent = 'Start server with dev mode for backend logs';
+        statusEl.innerHTML = 'Not available — run <code>pointa dev</code>';
         statusEl.className = 'toolbar-panel-hint';
         toggle.disabled = true;
         toggle.checked = false;
+        if (helpEl) helpEl.style.display = 'block';
       }
     } catch (_) {
       statusEl.textContent = 'Server not connected';
       statusEl.className = 'toolbar-panel-hint';
       toggle.disabled = true;
       toggle.checked = false;
+      if (helpEl) helpEl.style.display = 'block';
     }
   },
 

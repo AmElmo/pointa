@@ -204,6 +204,7 @@ class PointaAnnotationMode {
     // Don't prevent default or stop propagation - allow normal hover effects to work
     // Skip all extension UI elements
     if (e.target.closest('#pointa-sidebar-host') ||
+    e.target.closest('#pointa-toolbar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -239,6 +240,7 @@ class PointaAnnotationMode {
     // Don't prevent default or stop propagation - allow normal hover effects to work
     // Skip all extension UI elements
     if (e.target.closest('#pointa-sidebar-host') ||
+    e.target.closest('#pointa-toolbar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
@@ -265,6 +267,7 @@ class PointaAnnotationMode {
     // Check if click is on extension UI elements - allow normal interaction
     // Don't prevent default or stop propagation for these elements
     if (e.target.closest('#pointa-sidebar-host') ||
+    e.target.closest('#pointa-toolbar-host') ||
     e.target.closest('.pointa-inline-comment-widget') ||
     e.target.closest('.pointa-design-editor') ||
     e.target.closest('.pointa-comment-modal') ||
