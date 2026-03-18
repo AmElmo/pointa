@@ -12,6 +12,14 @@
     "debugger",
     "scripting"
   ],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://0.0.0.0/*",
+    "http://*.local/*",
+    "http://*.test/*",
+    "http://*.localhost/*"
+  ],
   "icons": {
     "16": "assets/icons/pointa-icon16.png",
     "32": "assets/icons/pointa-icon32.png",
