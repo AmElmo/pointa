@@ -28,11 +28,12 @@ const VibeImageUploader = {
         format: 'webp'
       });
 
-      // 2. Generate tiny thumbnail for JSON (for UI preview)
+      // 2. Generate thumbnail for JSON (for UI preview)
+      // 240px covers 80px CSS display at up to 3x DPI
       const thumbnail = await this.compressImage(file, {
-        maxWidth: 100,
-        maxHeight: 100,
-        quality: 0.7,
+        maxWidth: 240,
+        maxHeight: 240,
+        quality: 0.85,
         format: 'webp'
       });
 
