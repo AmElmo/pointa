@@ -1,3 +1,9 @@
+## [1.3.3](https://github.com/AmElmo/pointa/compare/v1.3.2...v1.3.3) (2026-03-18)
+
+### Bug Fixes
+
+* annotations disappear after page reload on Chrome store ([#46](https://github.com/AmElmo/pointa/issues/46)) ([011b7c5](https://github.com/AmElmo/pointa/commit/011b7c5a741394d2f8d562e3adc4215576798dc0))
+
 ## [1.3.2](https://github.com/AmElmo/pointa/compare/v1.3.1...v1.3.2) (2026-03-13)
 
 ### Refactoring
