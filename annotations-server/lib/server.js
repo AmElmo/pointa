@@ -154,20 +154,36 @@ class LocalAnnotationsServer {
         }
 
         if (url) {
-          // Smart URL filtering: support exact matches and base URL patterns
+          // Smart URL filtering: support exact matches, path-based matches, and wildcard patterns
           if (url.includes('*')) {
             // Pattern matching with wildcard
             const baseUrl = url.replace('*', '').replace(/\/$/, '');
             filtered = filtered.filter((a) => a.url.startsWith(baseUrl));
           } else {
-            // Try exact match first, then fallback to base URL pattern
+            // Try exact match first
             const exactMatches = filtered.filter((a) => a.url === url);
             if (exactMatches.length > 0) {
               filtered = exactMatches;
             } else {
-              // Treat as base URL pattern
-              const baseUrl = url.replace(/\/$/, '');
-              filtered = filtered.filter((a) => a.url.startsWith(baseUrl));
+              // Fallback: compare by origin + pathname (ignoring query params, hash, trailing slash)
+              // This handles cases where URLs differ only by query params or trailing slashes
+              try {
+                const reqUrl = new URL(url);
+                const reqPath = (reqUrl.origin + reqUrl.pathname).replace(/\/$/, '');
+                filtered = filtered.filter((a) => {
+                  try {
+                    const aUrl = new URL(a.url);
+                    const aPath = (aUrl.origin + aUrl.pathname).replace(/\/$/, '');
+                    return aPath === reqPath;
+                  } catch {
+                    return a.url.startsWith(url.replace(/\/$/, ''));
+                  }
+                });
+              } catch {
+                // If URL parsing fails, fall back to startsWith
+                const baseUrl = url.replace(/\/$/, '');
+                filtered = filtered.filter((a) => a.url.startsWith(baseUrl));
+              }
             }
           }
         }

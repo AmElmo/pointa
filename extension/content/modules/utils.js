@@ -80,6 +80,20 @@ const PointaUtils = {
   },
 
   /**
+   * Get normalized origin + pathname (ignoring query params, hash, trailing slash)
+   * @param {string} url - URL to normalize
+   * @returns {string} Normalized path
+   */
+  getUrlPath(url) {
+    try {
+      const urlObj = new URL(url);
+      return (urlObj.origin + urlObj.pathname).replace(/\/$/, '');
+    } catch {
+      return url.split('?')[0].split('#')[0].replace(/\/$/, '');
+    }
+  },
+
+  /**
    * Get URL without hash fragment
    * @param {string} url - URL to strip hash from
    * @returns {string} URL without hash
