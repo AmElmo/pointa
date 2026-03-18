@@ -113,15 +113,13 @@ class Pointa {
 
 
 
-      // Get current URL without hash for comparison (background script already filters, but keeping for reference)
-      const currentUrlWithoutHash = PointaUtils.getUrlWithoutHash(window.location.href);
+      // Get current URL path for comparison (background script already filters, but double-check)
+      // Use path-based comparison to handle query param / trailing slash / hash differences
+      const currentUrlPath = PointaUtils.getUrlPath(window.location.href);
 
-
-
-      // Annotations already filtered by background script, but double-check
       const finalAnnotations = filteredAnnotations.filter((annotation) => {
-        const annotationUrlWithoutHash = PointaUtils.getUrlWithoutHash(annotation.url);
-        return annotationUrlWithoutHash === currentUrlWithoutHash;
+        const annotationUrlPath = PointaUtils.getUrlPath(annotation.url);
+        return annotationUrlPath === currentUrlPath;
       });
 
 

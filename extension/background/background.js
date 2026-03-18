@@ -551,6 +551,16 @@ class PointaBackground {
   // 🗑️ REMOVED: onAnnotationsChanged() - No longer needed without local storage sync
   // 🗑️ REMOVED: syncAnnotationsToAPI() - No longer needed without local storage sync
 
+  // Helper to get normalized origin + pathname (ignoring query params, hash, trailing slash)
+  getUrlPath(url) {
+    try {
+      const urlObj = new URL(url);
+      return (urlObj.origin + urlObj.pathname).replace(/\/$/, '');
+    } catch {
+      return url.split('?')[0].split('#')[0].replace(/\/$/, '');
+    }
+  }
+
   // Helper to get URL without hash
   getUrlWithoutHash(url) {
     try {
@@ -717,7 +727,8 @@ class PointaBackground {
       const params = new URLSearchParams();
 
       if (url) {
-        params.append('url', url);
+        // Strip hash before sending to server — annotations are stored without hash
+        params.append('url', this.getUrlWithoutHash(url));
       }
       if (limit) {
         params.append('limit', limit.toString());
@@ -749,21 +760,12 @@ class PointaBackground {
 
 
       // API already filters by URL, but double-check for safety
+      // Use path-based comparison to handle query param / trailing slash differences
       if (url && annotations.length > 0) {
-        const urlWithoutHash = this.getUrlWithoutHash(url);
+        const reqPath = this.getUrlPath(url);
         const filtered = annotations.filter((annotation) => {
-          const annotationUrlWithoutHash = this.getUrlWithoutHash(annotation.url);
-          const matches = annotationUrlWithoutHash === urlWithoutHash;
-
-          if (!matches) {
-            console.warn('[BG_GET_ANNOTATIONS] URL mismatch:', {
-              requested: urlWithoutHash,
-              annotation: annotationUrlWithoutHash,
-              annotationId: annotation.id
-            });
-          }
-
-          return matches;
+          const annotationPath = this.getUrlPath(annotation.url);
+          return annotationPath === reqPath;
         });
 
         if (filtered.length !== annotations.length) {
