@@ -232,7 +232,7 @@ const ToolbarPanels = {
 
           const annotationIds = pageAnnotations.map(a => a.id);
           return `
-            <div class="toolbar-panel-page-item" data-page-url="${PointaUtils.escapeHtml(url)}" data-page-annotation-ids="${PointaUtils.escapeHtml(JSON.stringify(annotationIds))}">
+            <div class="toolbar-panel-page-item" data-page-url="${PointaUtils.escapeHtml(url)}" data-page-annotation-ids="${annotationIds.join(',')}">
               <div class="toolbar-panel-page-info">
                 <div class="toolbar-panel-page-path">${PointaUtils.escapeHtml(path)}</div>
                 <div class="toolbar-panel-page-host">${PointaUtils.escapeHtml(host)}</div>
@@ -977,7 +977,7 @@ const ToolbarPanels = {
         const pageItem = btn.closest('.toolbar-panel-page-item');
         if (!pageItem) return;
 
-        const annotationIds = JSON.parse(pageItem.dataset.pageAnnotationIds || '[]');
+        const annotationIds = (pageItem.dataset.pageAnnotationIds || '').split(',').filter(Boolean);
         if (annotationIds.length === 0) return;
 
         let text = `Please address these ${annotationIds.length} annotation(s):\n\n`;
@@ -1009,7 +1009,7 @@ const ToolbarPanels = {
         const pageItem = btn.closest('.toolbar-panel-page-item');
         if (!pageItem) return;
 
-        const annotationIds = JSON.parse(pageItem.dataset.pageAnnotationIds || '[]');
+        const annotationIds = (pageItem.dataset.pageAnnotationIds || '').split(',').filter(Boolean);
         if (annotationIds.length === 0) return;
 
         // Remove any existing confirmation
