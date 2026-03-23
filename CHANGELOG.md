@@ -1,3 +1,9 @@
+## [1.3.4](https://github.com/AmElmo/pointa/compare/v1.3.3...v1.3.4) (2026-03-23)
+
+### Bug Fixes
+
+* **panel:** trigger release for panel UI improvements ([79e430e](https://github.com/AmElmo/pointa/commit/79e430e2bc440e193999b8ac090fd5711d3309bc))
+
 ## [1.3.3](https://github.com/AmElmo/pointa/compare/v1.3.2...v1.3.3) (2026-03-18)
 
 ### Bug Fixes
