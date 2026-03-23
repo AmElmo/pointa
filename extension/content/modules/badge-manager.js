@@ -676,6 +676,15 @@ class VibeBadgeManager {
     badge.style.top = `${top}px`;
     badge.style.transform = 'none';
 
+    // Theme-aware box-shadow: on light backgrounds the white ring is invisible,
+    // so use a subtle grey outline instead
+    const theme = (typeof PointaThemeManager !== 'undefined') ? PointaThemeManager.getEffective() : 'light';
+    if (theme === 'light') {
+      badge.style.setProperty('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.15), 0 0 0 2px rgba(0, 0, 0, 0.1)', 'important');
+    } else {
+      badge.style.setProperty('box-shadow', '0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 2px white', 'important');
+    }
+
     // For right-edge badges, anchor from the right so expansion grows leftward
     if (nearRightEdge) {
       badge.style.left = 'auto';
