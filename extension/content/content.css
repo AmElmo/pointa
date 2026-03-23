@@ -6062,7 +6062,7 @@ body.sidebar-resizing * {
 /* Feature Grid (Welcome Step) */
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-bottom: 32px;
 }
