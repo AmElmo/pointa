@@ -444,12 +444,9 @@ class PointaAnnotationMode {
             id: annotation.id,
             updates: { status: 'done', updated_at: new Date().toISOString() }
           });
-          const getResponse = await chrome.runtime.sendMessage({
-            action: 'getAnnotations',
-            url: window.location.href
-          });
-          pointa.annotations = getResponse.success ? getResponse.annotations || [] : [];
-          pointa.badgeManager.removeBadge(annotation.id);
+          // Refresh annotations and rebuild badges so the done one disappears
+          await pointa.loadAnnotations();
+          pointa.showExistingAnnotations();
         } catch (error) {
           console.error('Error marking annotation as done:', error);
         }
