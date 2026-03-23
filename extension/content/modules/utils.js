@@ -279,41 +279,9 @@ const PointaUtils = {
     toast.className = `pointa-toast pointa-toast-${type}`;
     toast.textContent = message;
 
-    // Apply theme-aware inline styles so the toast looks correct
-    // regardless of host page styles or CSS variable availability
+    // Apply theme
     const theme = PointaThemeManager?.getEffective() || 'light';
     toast.setAttribute('data-pointa-theme', theme);
-
-    const borderColors = { success: '#10b981', error: '#ef4444', info: '#0c8ce9' };
-    const borderColor = borderColors[type] || borderColors.info;
-
-    if (theme === 'light') {
-      const tintColors = { success: 'rgba(16, 185, 129, 0.08)', error: 'rgba(239, 68, 68, 0.08)', info: 'rgba(12, 140, 233, 0.08)' };
-      toast.style.cssText = `
-        position: fixed; bottom: 24px; right: 24px; z-index: 2147483647;
-        background: linear-gradient(135deg, ${tintColors[type] || tintColors.info} 0%, #ffffff 100%);
-        color: #1a1a1a; padding: 12px 20px; border-radius: 8px;
-        border: 1px solid ${borderColor};
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        font-size: 14px; font-weight: 500; max-width: 400px; pointer-events: none;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        opacity: 0; transform: translateY(10px);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-      `;
-    } else {
-      const tintColors = { success: 'rgba(16, 185, 129, 0.1)', error: 'rgba(239, 68, 68, 0.1)', info: 'rgba(12, 140, 233, 0.1)' };
-      toast.style.cssText = `
-        position: fixed; bottom: 24px; right: 24px; z-index: 2147483647;
-        background: linear-gradient(135deg, ${tintColors[type] || tintColors.info} 0%, #191D24 100%);
-        color: #f5f5f5; padding: 12px 20px; border-radius: 8px;
-        border: 1px solid ${borderColor};
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        font-size: 14px; font-weight: 500; max-width: 400px; pointer-events: none;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        opacity: 0; transform: translateY(10px);
-        transition: opacity 0.3s ease, transform 0.3s ease;
-      `;
-    }
 
     // Add to page
     document.body.appendChild(toast);
