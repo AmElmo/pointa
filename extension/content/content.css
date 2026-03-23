@@ -11777,6 +11777,7 @@ body.sidebar-resizing * {
   cursor: pointer;
   transition: background 0.1s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
 }
 
 .toolbar-panel-page-item:hover {
@@ -11848,15 +11849,13 @@ body.sidebar-resizing * {
 }
 
 .toolbar-panel-page-actions {
-  display: flex;
+  display: none;
   gap: 2px;
   flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease;
 }
 
 .toolbar-panel-page-item:hover .toolbar-panel-page-actions {
-  opacity: 1;
+  display: flex;
 }
 
 .toolbar-panel-page-item:hover .toolbar-panel-page-badge {
