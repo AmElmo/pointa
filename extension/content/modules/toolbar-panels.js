@@ -804,9 +804,12 @@ const ToolbarPanels = {
           status: 'done'
         });
 
-        // Refresh and rebuild panel
+        // Refresh annotations, rebuild badges and panel
         if (pointa.loadAnnotations) {
           await pointa.loadAnnotations();
+        }
+        if (pointa.showExistingAnnotations) {
+          pointa.showExistingAnnotations();
         }
         await toolbar.openPanel('annotations', pointa);
       });
@@ -852,9 +855,12 @@ const ToolbarPanels = {
           }
         } catch (_) { /* ignore */ }
 
-        // Refresh and rebuild panel
+        // Refresh annotations, rebuild badges and panel
         if (pointa.loadAnnotations) {
           await pointa.loadAnnotations();
+        }
+        if (pointa.showExistingAnnotations) {
+          pointa.showExistingAnnotations();
         }
         toolbar.notificationCenterOpen = false;
         await toolbar.openPanel('annotations', pointa);
