@@ -147,6 +147,18 @@
   transform: translate(4px, -4px) !important;
 }
 
+/* Badge near right edge - expand leftward instead of rightward */
+.pointa-badge.pointa-badge-edge-right {
+  flex-direction: row-reverse !important;
+  transform-origin: right bottom !important;
+}
+
+.pointa-badge.pointa-badge-edge-right:hover {
+  padding-left: 12px !important;
+  padding-right: 0 !important;
+  transform: translate(-4px, -4px) !important;
+}
+
 /* Completely disable all hover effects when widget is active to prevent positioning issues */
 .pointa-badge.widget-active {
   pointer-events: none !important;
