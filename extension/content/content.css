@@ -127,7 +127,7 @@
   cursor: pointer !important;
   z-index: 2147483645 !important;
   pointer-events: auto !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 2px white !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(0, 0, 0, 0.08) !important;
   transition: width 0.25s cubic-bezier(0.4, 0.0, 0.2, 1), 
               border-radius 0.25s cubic-bezier(0.4, 0.0, 0.2, 1),
               box-shadow 0.2s ease,
@@ -142,7 +142,7 @@
   width: auto !important;
   max-width: 320px !important;
   border-radius: 16px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 2px white !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(0, 0, 0, 0.08) !important;
   padding-right: 12px !important;
   transform: translate(4px, -4px) !important;
 }
