@@ -11847,6 +11847,63 @@ body.sidebar-resizing * {
   color: rgba(0, 0, 0, 0.5);
 }
 
+.toolbar-panel-page-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.toolbar-panel-page-item:hover .toolbar-panel-page-actions {
+  opacity: 1;
+}
+
+.toolbar-panel-page-item:hover .toolbar-panel-page-badge {
+  display: none;
+}
+
+.toolbar-panel-page-copy,
+.toolbar-panel-page-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.toolbar-panel-page-copy:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.toolbar-panel-page-delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+[data-pointa-theme="light"] .toolbar-panel-page-copy,
+[data-pointa-theme="light"] .toolbar-panel-page-delete {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-page-copy:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-page-delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+
 /* ============================================================
    TOOLBAR PANEL - SETTINGS
    ============================================================ */

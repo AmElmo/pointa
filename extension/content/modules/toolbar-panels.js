@@ -230,13 +230,28 @@ const ToolbarPanels = {
             host = '';
           }
 
+          const annotationIds = pageAnnotations.map(a => a.id);
           return `
-            <div class="toolbar-panel-page-item" data-page-url="${PointaUtils.escapeHtml(url)}">
+            <div class="toolbar-panel-page-item" data-page-url="${PointaUtils.escapeHtml(url)}" data-page-annotation-ids="${PointaUtils.escapeHtml(JSON.stringify(annotationIds))}">
               <div class="toolbar-panel-page-info">
                 <div class="toolbar-panel-page-path">${PointaUtils.escapeHtml(path)}</div>
                 <div class="toolbar-panel-page-host">${PointaUtils.escapeHtml(host)}</div>
               </div>
               <div class="toolbar-panel-page-badge">${pageAnnotations.length}</div>
+              <div class="toolbar-panel-page-actions">
+                <button class="toolbar-panel-page-copy" title="Copy all annotations">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                </button>
+                <button class="toolbar-panel-page-delete" title="Delete all annotations on this page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                </button>
+              </div>
             </div>
           `;
         }).join('');
@@ -264,8 +279,8 @@ const ToolbarPanels = {
         ${subHeaderHTML}
         <div class="toolbar-panel-list">
           ${annotationItemsHTML || '<div class="toolbar-panel-empty">No annotations on this page</div>'}
-          ${reportsHTML}
           ${pageNavHTML}
+          ${reportsHTML}
         </div>
       </div>
     `;
@@ -942,13 +957,101 @@ const ToolbarPanels = {
 
     // Page navigation items (merged from "More" panel)
     panel.querySelectorAll('.toolbar-panel-page-item').forEach(item => {
-      item.addEventListener('click', async () => {
+      item.addEventListener('click', async (e) => {
+        // Ignore clicks on action buttons
+        if (e.target.closest('.toolbar-panel-page-actions')) return;
+
         const url = item.dataset.pageUrl;
         if (!url) return;
 
         // Set flag to reopen toolbar after navigation
         await chrome.storage.local.set({ reopenToolbar: true });
         window.location.href = url;
+      });
+    });
+
+    // Page-level copy buttons — copy references for all annotations on that page
+    panel.querySelectorAll('.toolbar-panel-page-copy').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pageItem = btn.closest('.toolbar-panel-page-item');
+        if (!pageItem) return;
+
+        const annotationIds = JSON.parse(pageItem.dataset.pageAnnotationIds || '[]');
+        if (annotationIds.length === 0) return;
+
+        let text = `Please address these ${annotationIds.length} annotation(s):\n\n`;
+        text += `Use the Pointa MCP tools to get full context:\n`;
+        annotationIds.forEach(id => {
+          text += `- read_annotation_by_id(id: "${id}")\n`;
+        });
+
+        if (typeof PointaUtils !== 'undefined' && PointaUtils.copyToClipboard) {
+          await PointaUtils.copyToClipboard(text, `${annotationIds.length} annotation reference(s) copied!`);
+        } else {
+          await navigator.clipboard.writeText(text);
+        }
+
+        // Visual feedback
+        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+        btn.style.color = '#10b981';
+        setTimeout(() => {
+          btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+          btn.style.color = '';
+        }, 2000);
+      });
+    });
+
+    // Page-level delete buttons — with inline confirmation
+    panel.querySelectorAll('.toolbar-panel-page-delete').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pageItem = btn.closest('.toolbar-panel-page-item');
+        if (!pageItem) return;
+
+        const annotationIds = JSON.parse(pageItem.dataset.pageAnnotationIds || '[]');
+        if (annotationIds.length === 0) return;
+
+        // Remove any existing confirmation
+        const existing = panel.querySelector('.toolbar-delete-confirm');
+        if (existing) existing.remove();
+
+        // Create confirmation row
+        const confirm = document.createElement('div');
+        confirm.className = 'toolbar-delete-confirm';
+        confirm.innerHTML = `
+          <span class="toolbar-delete-confirm-text">Delete ${annotationIds.length} annotation(s)?</span>
+          <button class="toolbar-delete-confirm-yes">Yes</button>
+          <button class="toolbar-delete-confirm-no">No</button>
+        `;
+
+        pageItem.appendChild(confirm);
+
+        // Yes button
+        confirm.querySelector('.toolbar-delete-confirm-yes').addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          for (const id of annotationIds) {
+            await chrome.runtime.sendMessage({
+              action: 'deleteAnnotation',
+              id: id
+            });
+          }
+          if (pointa.loadAnnotations) {
+            await pointa.loadAnnotations();
+          }
+          await toolbar.openPanel('annotations', pointa);
+        });
+
+        // No button
+        confirm.querySelector('.toolbar-delete-confirm-no').addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          confirm.remove();
+        });
+
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+          if (confirm.parentNode) confirm.remove();
+        }, 5000);
       });
     });
   },
