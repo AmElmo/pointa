@@ -1387,23 +1387,14 @@ class PointaAnnotationMode {
         height: Math.abs(endY - startY)
       };
 
-      // Delay to ensure overlay is hidden before capture
-      await new Promise(resolve => setTimeout(resolve, 150));
+      // Small delay to ensure overlay is hidden before capture
+      await new Promise(resolve => setTimeout(resolve, 50));
 
-      // Request full page screenshot from background (with retry for service worker wake-up)
-      let response;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-          response = await chrome.runtime.sendMessage({ action: 'captureScreenshot' });
-          if (response && response.success) break;
-        } catch (msgError) {
-          console.warn(`[Pointa Screenshot] Attempt ${attempt + 1} failed:`, msgError);
-        }
-        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 200));
-      }
+      // Request full page screenshot from background
+      const response = await chrome.runtime.sendMessage({ action: 'captureScreenshot' });
 
-      if (!response || !response.success) {
-        throw new Error(response?.error || 'Failed to capture screenshot');
+      if (!response.success) {
+        throw new Error('Failed to capture screenshot');
       }
 
       // Create canvas to crop selection
@@ -1476,7 +1467,7 @@ class PointaAnnotationMode {
 
     } catch (error) {
       console.error('[Pointa Screenshot] Error:', error);
-      alert('Failed to capture screenshot: ' + (error.message || 'Unknown error') + '. Please try again.');
+      alert('Failed to capture screenshot. Please try again.');
       this.exitScreenshotSelectionMode();
     }
   }
