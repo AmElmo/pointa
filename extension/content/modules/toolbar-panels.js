@@ -714,14 +714,16 @@ const ToolbarPanels = {
           const element = pointa.findElementBySelector(annotation);
           if (element) {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            // Flash the badge to highlight
+            toolbar.closePanel();
+            // Click the badge to open the annotation widget
             const badge = document.querySelector(`.pointa-badge[data-annotation-id="${annotation.id}"]`);
             if (badge) {
-              badge.classList.add('sidebar-hover-highlight');
-              setTimeout(() => badge.classList.remove('sidebar-hover-highlight'), 1500);
+              // Small delay to let scroll settle before triggering badge click
+              setTimeout(() => badge.click(), 350);
             }
+          } else {
+            toolbar.closePanel();
           }
-          toolbar.closePanel();
         } else if (annotationUrl) {
           // Annotation is on a different page - navigate there
           await chrome.storage.local.set({ reopenToolbar: true });
