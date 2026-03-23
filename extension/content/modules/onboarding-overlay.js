@@ -424,13 +424,8 @@ const VibeOnboarding = {
                 <h3>AI Fixes</h3>
                 <p>AI implements changes automatically</p>
               </div>
-              <div class="feature-item">
-                <div class="feature-icon">✨</div>
-                <h3>Inspiration</h3>
-                <p>Save design elements as references</p>
-              </div>
             </div>
-            
+
             <div class="setup-info">
               <p>Quick setup requires:</p>
               <ul>
@@ -623,14 +618,6 @@ pointa-server start</pre>
                 </div>
               </div>
               
-              <div class="feature-detail-compact">
-                <div class="feature-icon-large">✨</div>
-                <div class="feature-content">
-                  <h3>Inspiration</h3>
-                  <p>Capture design elements from any site as references.</p>
-                </div>
-              </div>
-
               <div class="feature-detail-compact">
                 <div class="feature-icon-large">🐛</div>
                 <div class="feature-content">
