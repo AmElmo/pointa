@@ -1279,7 +1279,7 @@ const ToolbarPanels = {
     const docsBtn = panel.querySelector('#toolbar-docs-btn');
     if (docsBtn) {
       docsBtn.addEventListener('click', () => {
-        window.open('https://github.com/pointa-app/pointa', '_blank');
+        window.open('https://github.com/AmElmo/pointa', '_blank');
       });
     }
 
