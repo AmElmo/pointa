@@ -200,7 +200,7 @@ const PointaToolbar = {
         </div>
         <button class="toolbar-btn" data-action="annotate" title="Annotate">
           <svg width="18" height="18" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M28 16c0 6.627-5.373 12-12 12-1.94 0-3.771-.461-5.393-1.28L4 28l1.28-6.607C4.461 19.771 4 17.94 4 16 4 9.373 9.373 4 16 4s12 5.373 12 12z" fill="currentColor"/>
+            <path d="M28 16c0 6.627-5.373 12-12 12-1.94 0-3.771-.461-5.393-1.28L4 28l1.28-6.607C4.461 19.771 4 17.94 4 16 4 9.373 9.373 4 16 4s12 5.373 12 12z"/>
           </svg>
         </button>
         <button class="toolbar-btn" data-panel="annotations" title="Annotations">
