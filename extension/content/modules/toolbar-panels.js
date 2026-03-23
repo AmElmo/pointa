@@ -799,9 +799,9 @@ const ToolbarPanels = {
         const annotationId = btn.dataset.annotationId;
 
         await chrome.runtime.sendMessage({
-          action: 'updateAnnotationStatus',
+          action: 'updateAnnotation',
           id: annotationId,
-          status: 'done'
+          updates: { status: 'done', updated_at: new Date().toISOString() }
         });
 
         // Refresh annotations, rebuild badges and panel
@@ -848,9 +848,9 @@ const ToolbarPanels = {
 
           for (const annotation of toReview) {
             await chrome.runtime.sendMessage({
-              action: 'updateAnnotationStatus',
+              action: 'updateAnnotation',
               id: annotation.id,
-              status: 'done'
+              updates: { status: 'done', updated_at: new Date().toISOString() }
             });
           }
         } catch (_) { /* ignore */ }
