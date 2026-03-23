@@ -10387,6 +10387,28 @@ body.sidebar-resizing * {
   background: linear-gradient(135deg, rgba(12, 140, 233, 0.1) 0%, var(--theme-surface-1) 100%);
 }
 
+.pointa-toast[data-pointa-theme="light"] {
+  background: #ffffff;
+  color: #1a1a1a;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.pointa-toast-success[data-pointa-theme="light"] {
+  border-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, #ffffff 100%);
+}
+
+.pointa-toast-error[data-pointa-theme="light"] {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, #ffffff 100%);
+}
+
+.pointa-toast-info[data-pointa-theme="light"] {
+  border-color: #0c8ce9;
+  background: linear-gradient(135deg, rgba(12, 140, 233, 0.08) 0%, #ffffff 100%);
+}
+
 /* Page navigation copy button (appears to left of badge) */
 .sidebar-page-nav-copy {
   width: 24px;
