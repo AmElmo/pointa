@@ -196,6 +196,11 @@
   flex-shrink: 0 !important;
 }
 
+/* In-review badge - green to indicate AI has worked on it */
+.pointa-badge[data-status="in-review"] {
+  background: #10b981 !important;
+}
+
 /* Design-edit badge - different color and icon */
 .pointa-badge[data-type="design-edit"] {
   background: #0c8ce9 !important; /* Accent color for design mode */

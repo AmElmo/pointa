@@ -204,6 +204,10 @@ class VibeBadgeManager {
     if (annotation.type === 'design-edit') {
       badge.setAttribute('data-type', 'design-edit');
     }
+    // Add status attribute for in-review badges (different color)
+    if (annotation.status) {
+      badge.setAttribute('data-status', annotation.status);
+    }
     // No title to avoid default browser tooltip interfering
 
     // Add hover handlers to highlight element (Figma-style)
