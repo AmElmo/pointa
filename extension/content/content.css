@@ -127,7 +127,7 @@
   cursor: pointer !important;
   z-index: 2147483645 !important;
   pointer-events: auto !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 2px white !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(0, 0, 0, 0.08) !important;
   transition: width 0.25s cubic-bezier(0.4, 0.0, 0.2, 1), 
               border-radius 0.25s cubic-bezier(0.4, 0.0, 0.2, 1),
               box-shadow 0.2s ease,
@@ -142,9 +142,21 @@
   width: auto !important;
   max-width: 320px !important;
   border-radius: 16px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 2px white !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 0 0 2px rgba(255, 255, 255, 0.9), 0 0 0 3px rgba(0, 0, 0, 0.08) !important;
   padding-right: 12px !important;
   transform: translate(4px, -4px) !important;
+}
+
+/* Badge near right edge - expand leftward instead of rightward */
+.pointa-badge.pointa-badge-edge-right {
+  flex-direction: row-reverse !important;
+  transform-origin: right bottom !important;
+}
+
+.pointa-badge.pointa-badge-edge-right:hover {
+  padding-left: 12px !important;
+  padding-right: 0 !important;
+  transform: translate(-4px, -4px) !important;
 }
 
 /* Completely disable all hover effects when widget is active to prevent positioning issues */
@@ -182,6 +194,11 @@
   background-position: center !important;
   display: block !important;
   flex-shrink: 0 !important;
+}
+
+/* In-review badge - green to indicate AI has worked on it */
+.pointa-badge[data-status="in-review"] {
+  background: #10b981 !important;
 }
 
 /* Design-edit badge - different color and icon */
@@ -6050,7 +6067,7 @@ body.sidebar-resizing * {
 /* Feature Grid (Welcome Step) */
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
   margin-bottom: 32px;
 }
@@ -10338,12 +10355,12 @@ body.sidebar-resizing * {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  background: var(--theme-surface-1);
-  color: var(--theme-text-primary);
+  background: #ffffff;
+  color: #1a1a1a;
   padding: 12px 20px;
   border-radius: 8px;
-  border: 1px solid var(--theme-outline);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   font-size: 14px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-weight: 500;
@@ -10362,17 +10379,36 @@ body.sidebar-resizing * {
 
 .pointa-toast-success {
   border-color: #10b981;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--theme-surface-1) 100%);
 }
 
 .pointa-toast-error {
   border-color: #ef4444;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, var(--theme-surface-1) 100%);
 }
 
 .pointa-toast-info {
   border-color: #0c8ce9;
-  background: linear-gradient(135deg, rgba(12, 140, 233, 0.1) 0%, var(--theme-surface-1) 100%);
+}
+
+.pointa-toast[data-pointa-theme="dark"] {
+  background: #191D24;
+  color: #f5f5f5;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.pointa-toast-success[data-pointa-theme="dark"] {
+  border-color: #10b981;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, #191D24 100%);
+}
+
+.pointa-toast-error[data-pointa-theme="dark"] {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, #191D24 100%);
+}
+
+.pointa-toast-info[data-pointa-theme="dark"] {
+  border-color: #0c8ce9;
+  background: linear-gradient(135deg, rgba(12, 140, 233, 0.1) 0%, #191D24 100%);
 }
 
 /* Page navigation copy button (appears to left of badge) */
@@ -11777,6 +11813,7 @@ body.sidebar-resizing * {
   cursor: pointer;
   transition: background 0.1s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
 }
 
 .toolbar-panel-page-item:hover {
@@ -11845,6 +11882,61 @@ body.sidebar-resizing * {
 [data-pointa-theme="light"] .toolbar-panel-page-badge {
   background: rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.5);
+}
+
+.toolbar-panel-page-actions {
+  display: none;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.toolbar-panel-page-item:hover .toolbar-panel-page-actions {
+  display: flex;
+}
+
+.toolbar-panel-page-item:hover .toolbar-panel-page-badge {
+  display: none;
+}
+
+.toolbar-panel-page-copy,
+.toolbar-panel-page-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+
+.toolbar-panel-page-copy:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.toolbar-panel-page-delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+[data-pointa-theme="light"] .toolbar-panel-page-copy,
+[data-pointa-theme="light"] .toolbar-panel-page-delete {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-page-copy:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+[data-pointa-theme="light"] .toolbar-panel-page-delete:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
 }
 
 /* ============================================================

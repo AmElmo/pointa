@@ -204,6 +204,10 @@ class VibeBadgeManager {
     if (annotation.type === 'design-edit') {
       badge.setAttribute('data-type', 'design-edit');
     }
+    // Add status attribute for in-review badges (different color)
+    if (annotation.status) {
+      badge.setAttribute('data-status', annotation.status);
+    }
     // No title to avoid default browser tooltip interfering
 
     // Add hover handlers to highlight element (Figma-style)
@@ -660,13 +664,30 @@ class VibeBadgeManager {
       this.badgePositions.set(badgeId, { left, top, size: badgeSize });
     }
 
+    // Detect if expanded badge (up to 320px) would overflow the right edge
+    const expandedMaxWidth = 320;
+    const nearRightEdge = left + expandedMaxWidth > viewportWidth;
+    if (nearRightEdge) {
+      badge.classList.add('pointa-badge-edge-right');
+    } else {
+      badge.classList.remove('pointa-badge-edge-right');
+    }
+
     // Apply position - only if element is visible
     badge.style.setProperty('display', 'flex', 'important');
     badge.style.position = 'fixed';
     badge.style.zIndex = '2147483646'; // Below design editor modal (2147483647)
-    badge.style.left = `${left}px`;
     badge.style.top = `${top}px`;
     badge.style.transform = 'none';
+
+    // For right-edge badges, anchor from the right so expansion grows leftward
+    if (nearRightEdge) {
+      badge.style.left = 'auto';
+      badge.style.right = `${viewportWidth - left - badgeSize}px`;
+    } else {
+      badge.style.left = `${left}px`;
+      badge.style.right = 'auto';
+    }
   }
 
   /**
