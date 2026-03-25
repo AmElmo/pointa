@@ -1,3 +1,9 @@
+## [1.3.5](https://github.com/AmElmo/pointa/compare/v1.3.4...v1.3.5) (2026-03-25)
+
+### Bug Fixes
+
+* **extension:** scope onboarding CSS selectors under [#pointa](https://github.com/AmElmo/pointa/issues/pointa)-onboarding-overlay ([#48](https://github.com/AmElmo/pointa/issues/48)) ([6284b05](https://github.com/AmElmo/pointa/commit/6284b05ff892d7b66c16fd655b8d03a7cdca10d8)), closes [#pointa-onboarding-overlay](https://github.com/AmElmo/pointa/issues/pointa-onboarding-overlay)
+
 ## [1.3.4](https://github.com/AmElmo/pointa/compare/v1.3.3...v1.3.4) (2026-03-23)
 
 ### Bug Fixes
