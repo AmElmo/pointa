@@ -387,7 +387,7 @@ const PointaToolbar = {
       });
 
       const allAnnotations = response.success ? response.annotations || [] : [];
-      const active = allAnnotations.filter(a => a.status === 'pending' || !a.status || a.status === 'in-review');
+      const active = allAnnotations.filter(a => a.status === 'pending' || !a.status);
 
       if (active.length === 0) {
         if (typeof PointaUtils !== 'undefined' && PointaUtils.showToast) {
