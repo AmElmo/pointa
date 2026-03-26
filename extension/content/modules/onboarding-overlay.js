@@ -5,7 +5,7 @@
  * Shows a full-screen overlay with multi-step wizard for setup.
  */
 
-const VibeOnboarding = {
+const PointaOnboarding = {
   overlay: null,
   currentStep: 0,
   serverDetected: false,
@@ -848,5 +848,5 @@ pointa-server start</pre>
 };
 
 // Expose globally for access from other modules
-window.VibeOnboarding = VibeOnboarding;
+window.PointaOnboarding = PointaOnboarding;
 

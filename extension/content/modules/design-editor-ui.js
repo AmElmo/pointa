@@ -7,7 +7,7 @@
  * Extracted from content.js as part of Step 10 (final refactoring step).
  */
 
-const VibeDesignEditorUI = {
+const PointaDesignEditorUI = {
   /**
    * Show the design editor panel for an element
    * @param {Pointa} pointa - Reference to main Pointa instance
@@ -753,7 +753,7 @@ const VibeDesignEditorUI = {
    */
   calculateScopeOptions(pointa, element) {
     // Get source mapping info to check for component file
-    const sourceMapping = VibeContextAnalyzer.generateSourceMapping(element);
+    const sourceMapping = PointaContextAnalyzer.generateSourceMapping(element);
     const sourceFile = sourceMapping?.source_file_path;
     const componentName = sourceFile ? sourceFile.split('/').pop().split('.')[0] : null;
 
@@ -1889,7 +1889,7 @@ const VibeDesignEditorUI = {
         const hasPendingComment = pointa.pendingAnnotation && pointa.pendingAnnotation.commentText;
 
         // Create new design annotation
-        const designAnnotation = VibeAnnotationFactory.createDesignAnnotation(element, context, pointa.pendingCSSChanges, {
+        const designAnnotation = PointaAnnotationFactory.createDesignAnnotation(element, context, pointa.pendingCSSChanges, {
           designEditScope: pointa.designEditScope,
           componentInfo: pointa.componentInfo,
           affectedElements: pointa.affectedElements

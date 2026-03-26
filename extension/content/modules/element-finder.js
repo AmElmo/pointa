@@ -1,7 +1,7 @@
 // Element Finding and Searching Module
 // Handles all element location, retrieval, and searching strategies
 
-const VibeElementFinder = {
+const PointaElementFinder = {
 
   /**
    * Find an element by its path descriptor (e.g., "div.container#main")
@@ -98,10 +98,10 @@ const VibeElementFinder = {
     }
 
     // Check if this is a data-pointa-id selector (non-persistent, needs reconstruction)
-    const isDataVibeSelectorUsed = annotation.selector && annotation.selector.includes('data-pointa-id');
+    const isDataPointaSelectorUsed = annotation.selector && annotation.selector.includes('data-pointa-id');
 
     // PRIORITY 3: Try the original selector (only if it's not a data-pointa-id)
-    if (!isDataVibeSelectorUsed) {
+    if (!isDataPointaSelectorUsed) {
       try {
         const candidates = document.querySelectorAll(annotation.selector);
 
@@ -174,7 +174,7 @@ const VibeElementFinder = {
     }
 
     // Last resort: try the data-pointa-id if nothing else worked
-    if (isDataVibeSelectorUsed) {
+    if (isDataPointaSelectorUsed) {
       const dataIdMatch = annotation.selector.match(/data-pointa-id="([^"]+)"/);
       if (dataIdMatch) {
         const element = document.querySelector(`[data-pointa-id="${dataIdMatch[1]}"]`);
@@ -291,7 +291,7 @@ const VibeElementFinder = {
         if (parentInfo.id) {
           parentSelector = `${parentInfo.tag}#${CSS.escape(parentInfo.id)}`;
         } else if (parentInfo.classes && parentInfo.classes.length > 0) {
-          const stableClasses = parentInfo.classes.filter((cls) => VibeSelectorGenerator.isStableClass(cls));
+          const stableClasses = parentInfo.classes.filter((cls) => PointaSelectorGenerator.isStableClass(cls));
           if (stableClasses.length > 0) {
             parentSelector = `${parentInfo.tag}.${stableClasses.map((cls) => CSS.escape(cls)).join('.')}`;
           }
@@ -390,7 +390,7 @@ const VibeElementFinder = {
     let selector = context.tag;
 
     if (context.classes && context.classes.length > 0) {
-      const stableClasses = context.classes.filter((cls) => VibeSelectorGenerator.isStableClass(cls));
+      const stableClasses = context.classes.filter((cls) => PointaSelectorGenerator.isStableClass(cls));
       if (stableClasses.length > 0) {
         selector = `${context.tag}.${stableClasses.map((cls) => CSS.escape(cls)).join('.')}`;
       }

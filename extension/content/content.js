@@ -19,7 +19,7 @@ class Pointa {
     this.componentInfo = null; // Component file info if available
 
     // Initialize badge manager
-    this.badgeManager = new VibeBadgeManager(this);
+    this.badgeManager = new PointaBadgeManager(this);
     // Provide backward compatibility for code that references this.badgePositions
     this.badgePositions = this.badgeManager.badgePositions;
 
@@ -55,8 +55,8 @@ class Pointa {
 
 
     // Link selector generator to this instance for access to pendingCSSChanges and originalStyles
-    VibeSelectorGenerator.pendingCSSChanges = this.pendingCSSChanges;
-    VibeSelectorGenerator.originalStyles = this.originalStyles;
+    PointaSelectorGenerator.pendingCSSChanges = this.pendingCSSChanges;
+    PointaSelectorGenerator.originalStyles = this.originalStyles;
 
     // Load existing annotations
     await this.loadAnnotations();
@@ -209,8 +209,8 @@ class Pointa {
           break;
 
         case 'showOnboarding':
-          if (window.VibeOnboarding) {
-            window.VibeOnboarding.show();
+          if (window.PointaOnboarding) {
+            window.PointaOnboarding.show();
             sendResponse({ success: true, message: 'Onboarding shown' });
           } else {
             sendResponse({ success: false, error: 'Onboarding module not loaded' });
@@ -531,7 +531,7 @@ class Pointa {
   }
 
   findElementByPath(path) {
-    return VibeElementFinder.findElementByPath(path);
+    return PointaElementFinder.findElementByPath(path);
   }
 
   revertDOMPositionChange(element, domPositionData) {
@@ -569,7 +569,7 @@ class Pointa {
   // Keep generateElementContext in content.js as it's shared by both annotation mode and design mode
   async generateElementContext(element) {
     // Generate CSS selector
-    const selector = VibeSelectorGenerator.generate(element);
+    const selector = PointaSelectorGenerator.generate(element);
 
     // Get element styles
     const computedStyle = window.getComputedStyle(element);
@@ -599,10 +599,10 @@ class Pointa {
     };
 
     // Get source mapping information
-    const sourceMapping = VibeContextAnalyzer.generateSourceMapping(element);
+    const sourceMapping = PointaContextAnalyzer.generateSourceMapping(element);
 
     // Get parent chain context for better element disambiguation
-    const parentChain = VibeContextAnalyzer.getParentChainContext(element);
+    const parentChain = PointaContextAnalyzer.getParentChainContext(element);
 
     return {
       selector,
@@ -1568,7 +1568,7 @@ class Pointa {
    * @returns {Object} Lean annotation object
    */
   createLeanAnnotation(context, comment) {
-    return VibeAnnotationFactory.createLeanAnnotation(context, comment);
+    return PointaAnnotationFactory.createLeanAnnotation(context, comment);
   }
 
   /**
@@ -1580,7 +1580,7 @@ class Pointa {
    * @returns {Object} Verbose annotation object
    */
   createVerboseAnnotation(context, comment) {
-    return VibeAnnotationFactory.createVerboseAnnotation(context, comment);
+    return PointaAnnotationFactory.createVerboseAnnotation(context, comment);
   }
 
   /**
@@ -1600,7 +1600,7 @@ class Pointa {
       designEditScope: this.designEditScope,
       affectedElements: this.affectedElements
     };
-    return VibeAnnotationFactory.createDesignAnnotation(element, context, cssChanges, designState);
+    return PointaAnnotationFactory.createDesignAnnotation(element, context, cssChanges, designState);
   }
 
 
@@ -1610,7 +1610,7 @@ class Pointa {
       designEditScope: this.designEditScope,
       affectedElements: this.affectedElements
     };
-    return VibeAnnotationFactory.generateScopeInstruction(designState);
+    return PointaAnnotationFactory.generateScopeInstruction(designState);
   }
 
 
@@ -1632,7 +1632,7 @@ class Pointa {
         console.warn(`[SAVE_ANNOTATION_SELECTOR_MISMATCH] Found element:`, testElement);
 
         // Regenerate selector and update context
-        const newSelector = VibeSelectorGenerator.generate(element);
+        const newSelector = PointaSelectorGenerator.generate(element);
         context.selector = newSelector;
 
 
@@ -1904,27 +1904,27 @@ class Pointa {
   }
 
   findElementBySelector(annotation) {
-    return VibeElementFinder.findElementBySelector(annotation);
+    return PointaElementFinder.findElementBySelector(annotation);
   }
 
   findByParentChainAndContext(annotation) {
-    return VibeElementFinder.findByParentChainAndContext(annotation);
+    return PointaElementFinder.findByParentChainAndContext(annotation);
   }
 
   findByTextContent(context) {
-    return VibeElementFinder.findByTextContent(context);
+    return PointaElementFinder.findByTextContent(context);
   }
 
   findByTagClassesAndPosition(context) {
-    return VibeElementFinder.findByTagClassesAndPosition(context);
+    return PointaElementFinder.findByTagClassesAndPosition(context);
   }
 
   findByPosition(context) {
-    return VibeElementFinder.findByPosition(context);
+    return PointaElementFinder.findByPosition(context);
   }
 
   findClosestByPosition(elements, expectedPosition) {
-    return VibeElementFinder.findClosestByPosition(elements, expectedPosition);
+    return PointaElementFinder.findClosestByPosition(elements, expectedPosition);
   }
 
   waitForHydrationAndShowAnnotations() {
@@ -2141,83 +2141,83 @@ class Pointa {
   }
 
   showDesignEditor(element, restoreScope = null) {
-    VibeDesignEditorUI.showDesignEditor(this, element, restoreScope);
+    PointaDesignEditorUI.showDesignEditor(this, element, restoreScope);
   }
 
   showDesignEditorForEdit(element, annotation) {
-    VibeDesignEditorUI.showDesignEditorForEdit(this, element, annotation);
+    PointaDesignEditorUI.showDesignEditorForEdit(this, element, annotation);
   }
 
   calculateScopeOptions(element) {
-    return VibeDesignEditorUI.calculateScopeOptions(this, element);
+    return PointaDesignEditorUI.calculateScopeOptions(this, element);
   }
 
   changeScopeSelection(newScope, editor) {
-    VibeDesignEditorUI.changeScopeSelection(this, newScope, editor);
+    PointaDesignEditorUI.changeScopeSelection(this, newScope, editor);
   }
 
   highlightAffectedElements() {
-    VibeDesignEditorUI.highlightAffectedElements(this);
+    PointaDesignEditorUI.highlightAffectedElements(this);
   }
 
   applyPendingChangesToAllElements() {
-    VibeDesignEditorUI.applyPendingChangesToAllElements(this);
+    PointaDesignEditorUI.applyPendingChangesToAllElements(this);
   }
 
   setupDesignEditorListeners(editor, element) {
-    VibeDesignEditorUI.setupDesignEditorListeners(this, editor, element);
+    PointaDesignEditorUI.setupDesignEditorListeners(this, editor, element);
   }
 
   showNumberDropdown(input, element) {
-    VibeDesignEditorUI.showNumberDropdown(this, input, element);
+    PointaDesignEditorUI.showNumberDropdown(this, input, element);
   }
 
   showSpacingDropdown(input, element) {
-    VibeDesignEditorUI.showSpacingDropdown(this, input, element);
+    PointaDesignEditorUI.showSpacingDropdown(this, input, element);
   }
 
   hideSpacingDropdown() {
-    VibeDesignEditorUI.hideSpacingDropdown(this);
+    PointaDesignEditorUI.hideSpacingDropdown(this);
   }
 
   toggleCustomSelect(wrapper, element) {
-    VibeDesignEditorUI.toggleCustomSelect(this, wrapper, element);
+    PointaDesignEditorUI.toggleCustomSelect(this, wrapper, element);
   }
 
   showCustomSelectDropdown(wrapper, element) {
-    VibeDesignEditorUI.showCustomSelectDropdown(this, wrapper, element);
+    PointaDesignEditorUI.showCustomSelectDropdown(this, wrapper, element);
   }
 
   applyCustomSelectChange(property, value, element) {
-    VibeDesignEditorUI.applyCustomSelectChange(this, property, value, element);
+    PointaDesignEditorUI.applyCustomSelectChange(this, property, value, element);
   }
 
   handleNumericInputArrowKey(input, key, element) {
-    VibeDesignEditorUI.handleNumericInputArrowKey(this, input, key, element);
+    PointaDesignEditorUI.handleNumericInputArrowKey(this, input, key, element);
   }
 
   setupGlobalDropdownListeners() {
-    VibeDesignEditorUI.setupGlobalDropdownListeners(this);
+    PointaDesignEditorUI.setupGlobalDropdownListeners(this);
   }
 
   handleToggleButtonClick(button, element, editor) {
-    VibeDesignEditorUI.handleToggleButtonClick(this, button, element, editor);
+    PointaDesignEditorUI.handleToggleButtonClick(this, button, element, editor);
   }
 
   handlePropertyChange(input, element) {
-    VibeDesignEditorUI.handlePropertyChange(this, input, element);
+    PointaDesignEditorUI.handlePropertyChange(this, input, element);
   }
 
   revertChanges(element) {
-    VibeDesignEditorUI.revertChanges(this, element);
+    PointaDesignEditorUI.revertChanges(this, element);
   }
 
   makeEditorDraggable(editor) {
-    VibeDesignEditorUI.makeEditorDraggable(editor);
+    PointaDesignEditorUI.makeEditorDraggable(editor);
   }
 
   async submitDesignChanges(element) {
-    return await VibeDesignEditorUI.submitDesignChanges(this, element);
+    return await PointaDesignEditorUI.submitDesignChanges(this, element);
   }
 
   revertDesignChanges(element, annotation) {

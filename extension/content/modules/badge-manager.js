@@ -1,7 +1,7 @@
 // Badge Manager Module
 // Handles annotation badge display, positioning, and collision detection
 
-class VibeBadgeManager {
+class PointaBadgeManager {
   constructor(pointa) {
     this.pointa = pointa;
     this.badgePositions = new Map(); // Track badge positions for collision detection
@@ -58,7 +58,7 @@ class VibeBadgeManager {
           // regenerate a better selector and update the annotation
           if (annotation.selector && annotation.selector.includes('data-pointa-id')) {
 
-            const newSelector = VibeSelectorGenerator.generate(element);
+            const newSelector = PointaSelectorGenerator.generate(element);
             if (newSelector && !newSelector.includes('data-pointa-id')) {
               // Update the annotation with the new selector
               annotation.selector = newSelector;
@@ -742,10 +742,10 @@ class VibeBadgeManager {
    */
   generateElementId(element) {
     // Generate unique ID for element if it doesn't have one
-    if (!element.dataset.vibeAnnotationId) {
-      element.dataset.vibeAnnotationId = 'pointa-element-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    if (!element.dataset.pointaAnnotationId) {
+      element.dataset.pointaAnnotationId = 'pointa-element-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
-    return element.dataset.vibeAnnotationId;
+    return element.dataset.pointaAnnotationId;
   }
 
   /**
@@ -763,4 +763,4 @@ class VibeBadgeManager {
 }
 
 // Make available globally
-window.VibeBadgeManager = VibeBadgeManager;
+window.PointaBadgeManager = PointaBadgeManager;

@@ -3903,10 +3903,10 @@ body.sidebar-resizing * {
   padding: 8px 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   z-index: 10;
-  animation: pointa-slideInRight 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: pointa-nudgeInRight 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@keyframes pointa-slideInRight {
+@keyframes pointa-nudgeInRight {
   from {
     opacity: 0;
     transform: translateX(10px);

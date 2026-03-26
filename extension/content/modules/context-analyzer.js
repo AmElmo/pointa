@@ -1,7 +1,7 @@
 // Context Analyzer & Source Mapping Module
 // Handles framework detection, source code mapping, and element context analysis
 
-const VibeContextAnalyzer = {
+const PointaContextAnalyzer = {
   
   /**
    * Get parent chain context for element (up to maxDepth levels)

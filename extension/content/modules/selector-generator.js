@@ -513,5 +513,5 @@ class SelectorGenerator {
 }
 
 // Create and export singleton instance
-window.VibeSelectorGenerator = new SelectorGenerator();
+window.PointaSelectorGenerator = new SelectorGenerator();
 
