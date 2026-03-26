@@ -357,6 +357,10 @@ See the [Development Guide](docs/DEVELOPMENT.md) for local setup, repo structure
 
 MIT — see [LICENSE](LICENSE) for details.
 
+## Acknowledgments
+
+Pointa originally started from [Vibe Annotations](https://github.com/RaphaelRegnier/vibe-annotations) by Raphaël Régnier, licensed under MIT.
+
 ---
 
 Built by [Julien Berthomier](https://github.com/amelmo) at [Argil.io](https://argil.io)

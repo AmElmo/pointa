@@ -5,7 +5,7 @@
  * Compresses images to WebP format and uploads to server.
  */
 
-const VibeImageUploader = {
+const PointaImageUploader = {
   /**
    * Handle image file upload
    * @param {File} file - Image file to upload

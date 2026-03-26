@@ -506,7 +506,7 @@ const PointaDesignMode = {
     let originalParent = currentParent;
 
     if (oldPosition.parent && oldPosition.parent !== 'body') {
-      const foundParent = VibeElementFinder.findElementByPath(oldPosition.parent);
+      const foundParent = PointaElementFinder.findElementByPath(oldPosition.parent);
       if (foundParent) {
         originalParent = foundParent;
       } else {
@@ -516,7 +516,7 @@ const PointaDesignMode = {
 
     // STEP 2: Try sibling-based positioning first (most reliable)
     if (oldPosition.nextSibling && oldPosition.nextSibling.selector) {
-      const originalNextSib = VibeElementFinder.findElementByPath(oldPosition.nextSibling.selector);
+      const originalNextSib = PointaElementFinder.findElementByPath(oldPosition.nextSibling.selector);
 
       if (originalNextSib && originalNextSib.parentElement === originalParent) {
         originalParent.insertBefore(element, originalNextSib);
@@ -592,7 +592,7 @@ const PointaDesignMode = {
     // Step 1: Find target parent
     let targetParent = element.parentElement; // Default to current
     if (newPosition.parent) {
-      const found = VibeElementFinder.findElementByPath(newPosition.parent);
+      const found = PointaElementFinder.findElementByPath(newPosition.parent);
       if (found) {
         targetParent = found;
       } else {
@@ -605,7 +605,7 @@ const PointaDesignMode = {
 
     // Try sibling-based first (most reliable)
     if (newPosition.nextSibling && newPosition.nextSibling.selector) {
-      targetSibling = VibeElementFinder.findElementByPath(newPosition.nextSibling.selector);
+      targetSibling = PointaElementFinder.findElementByPath(newPosition.nextSibling.selector);
 
       // Fallback: try by ID
       if (!targetSibling && newPosition.nextSibling.id) {

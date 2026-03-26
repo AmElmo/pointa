@@ -979,7 +979,7 @@ class PointaAnnotationMode {
           const annotationId = annotation ? annotation.id : PointaUtils.generateId();
 
           // Upload image
-          const imageData = await VibeImageUploader.uploadImage(file, annotationId);
+          const imageData = await PointaImageUploader.uploadImage(file, annotationId);
 
           // Add to reference images array
           widget.referenceImages.push(imageData);
@@ -1096,7 +1096,7 @@ class PointaAnnotationMode {
 
       try {
         // Delete image from server
-        await VibeImageUploader.deleteImage(imageData.file_path);
+        await PointaImageUploader.deleteImage(imageData.file_path);
 
         // Remove from array
         const index = referenceImages.findIndex((img) => img.id === imageData.id);
@@ -1442,8 +1442,8 @@ class PointaAnnotationMode {
       // Get or generate annotation ID
       const annotationId = annotation ? annotation.id : PointaUtils.generateId();
 
-      // Upload via VibeImageUploader
-      const imageData = await VibeImageUploader.uploadImage(file, annotationId);
+      // Upload via PointaImageUploader
+      const imageData = await PointaImageUploader.uploadImage(file, annotationId);
 
       // Save references before clearing state
       const savedWidget = widget;

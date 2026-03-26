@@ -98,7 +98,7 @@ The Chrome extension is published to the Chrome Web Store by maintainers only.
 ### Server Publishing
 
 The server is published as an npm package from the separate repository:
-https://github.com/RaphaelRegnier/pointa-server
+https://github.com/AmElmo/pointa-app
 
 ## Questions?
 

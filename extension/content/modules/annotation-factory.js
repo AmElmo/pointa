@@ -9,7 +9,7 @@
  * Extracted from content.js as part of Step 8 refactoring.
  */
 
-const VibeAnnotationFactory = {
+const PointaAnnotationFactory = {
   /**
    * Creates a lean version of annotation data (optimized for LLM tokens).
    * Strips verbose data while keeping essential context for element finding and code location.
@@ -184,23 +184,23 @@ const VibeAnnotationFactory = {
     // Auto-detect context (zero user friction)
     const autoDetectedContext = {
       // CSS Framework Detection (Tailwind, Bootstrap, etc.)
-      css_framework: VibeContextAnalyzer.detectCSSFramework(context.classes, computedStyle),
+      css_framework: PointaContextAnalyzer.detectCSSFramework(context.classes, computedStyle),
       
       // Element Reusability Analysis (is this a component instance?)
-      reusability: VibeContextAnalyzer.analyzeElementReusability(element, context),
+      reusability: PointaContextAnalyzer.analyzeElementReusability(element, context),
       
       // Styling Approach (utility classes, CSS-in-JS, inline, etc.)
-      styling_approach: VibeContextAnalyzer.detectStylingApproach(element, context.classes),
+      styling_approach: PointaContextAnalyzer.detectStylingApproach(element, context.classes),
       
       // Change Pattern Analysis (what kind of change is this?)
-      change_pattern: VibeContextAnalyzer.analyzeChangePattern(cssChanges, fullComputedStyles),
+      change_pattern: PointaContextAnalyzer.analyzeChangePattern(cssChanges, fullComputedStyles),
       
       // Component Architecture Hints (React component? Vue? Plain HTML?)
-      component_context: VibeContextAnalyzer.analyzeComponentContext(element, context)
+      component_context: PointaContextAnalyzer.analyzeComponentContext(element, context)
     };
     
     // Generate human-readable summary of changes
-    const changesSummary = VibeContextAnalyzer.generateChangesSummary(cssChanges);
+    const changesSummary = PointaContextAnalyzer.generateChangesSummary(cssChanges);
     
     // Keep more detailed parent chain for design mode (2 levels)
     const detailedParentChain = context.parent_chain 
@@ -223,7 +223,7 @@ const VibeAnnotationFactory = {
     };
     
     // Generate a clean selector without temporary attributes
-    const cleanSelector = VibeSelectorGenerator.generateClean(element);
+    const cleanSelector = PointaSelectorGenerator.generateClean(element);
     
     return {
       id: PointaUtils.generateId(),

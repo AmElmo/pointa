@@ -1275,8 +1275,8 @@ const ToolbarPanels = {
     if (setupGuideBtn) {
       setupGuideBtn.addEventListener('click', () => {
         toolbar.closePanel();
-        if (window.VibeOnboarding) {
-          window.VibeOnboarding.show();
+        if (window.PointaOnboarding) {
+          window.PointaOnboarding.show();
         }
       });
     }
