@@ -1,3 +1,9 @@
+## [1.3.6](https://github.com/AmElmo/pointa/compare/v1.3.5...v1.3.6) (2026-03-26)
+
+### Bug Fixes
+
+* **extension:** exclude in-review annotations from Copy All action ([#50](https://github.com/AmElmo/pointa/issues/50)) ([978dbdb](https://github.com/AmElmo/pointa/commit/978dbdb50cdb04cbb103287440d3566207108ba1))
+
 ## [1.3.5](https://github.com/AmElmo/pointa/compare/v1.3.4...v1.3.5) (2026-03-25)
 
 ### Bug Fixes
