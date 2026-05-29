@@ -1,9 +1,10 @@
 # Pointa Context Pack
 
 This folder is the current Delano context pack for Pointa. It should describe the
-repo as it exists now: a Chrome extension plus local Node/MCP server for visual
+repo as it exists now: a browser extension plus local Node/MCP server for visual
 localhost annotations, issue reports, design capture, and AI coding-agent
-integration.
+integration. Chrome uses the shared `extension/` package directly; Firefox/Zen
+uses the generated package under `dist/firefox/`.
 
 Read order for new work:
 

@@ -5,7 +5,7 @@ This document describes the comprehensive update notification system implemented
 ## Overview
 
 The update system consists of three main components:
-1. **Extension Update Detection** - Detects Chrome extension updates automatically
+1. **Extension Update Detection** - Detects installed extension updates automatically
 2. **Server Update Checking** - Monitors GitHub releases for server package updates  
 3. **Version Compatibility** - Ensures extension and server versions work together
 
@@ -13,7 +13,7 @@ The update system consists of three main components:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│ Chrome Extension│    │ Local Server     │    │ GitHub Releases │
+│Browser Extension│    │ Local Server     │    │ GitHub Releases │
 │                 │    │                  │    │                 │
 │ Update Detection│◄──►│ Version API      │◄──►│ Latest Releases │
 │ Badge Notification   │ Compatibility    │    │ Version Tags    │
@@ -25,7 +25,7 @@ The update system consists of three main components:
 
 ### How It Works
 
-The Chrome extension automatically detects when it has been updated using the `chrome.runtime.onInstalled` API.
+The installed extension automatically detects when it has been updated using the `chrome.runtime.onInstalled` API. Chrome Web Store updates happen automatically; Firefox/Zen local beta builds are updated manually until the AMO release path is active.
 
 **File**: `extension/background/background.js`
 
@@ -39,7 +39,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 ### Update Flow
 
-1. **Chrome Updates Extension** - Happens automatically via Chrome Web Store
+1. **Browser Updates Extension** - Happens automatically for the Chrome Web Store package; Firefox/Zen local builds are reloaded manually
 2. **Background Script Detects Update** - `onInstalled` event fires with reason 'update'
 3. **Store Update Info** - Saves update details to Chrome storage
 4. **Show Badge** - Displays "NEW" badge on extension icon
@@ -187,8 +187,9 @@ async checkAPIConnectionStatus() {
 
 ### Update Flow for Users
 
-1. **Extension Updates** (automatic via Chrome):
-   - Chrome updates extension silently
+1. **Extension Updates**:
+   - Chrome updates the Web Store extension silently
+   - Firefox/Zen local beta builds are rebuilt and reloaded manually
    - User sees "NEW" badge on extension icon
    - Clicking extension shows update banner
    - User can view changelog or dismiss notification
@@ -240,7 +241,8 @@ Update notifications can be configured in the extension:
    - Update `manifest.json` version
    - Add changelog entry to `getChangelogForVersion()`
    - Test update notification locally
-   - Submit to Chrome Web Store
+   - Submit Chrome builds to Chrome Web Store
+   - Package Firefox builds with `npm run firefox:package` for AMO/internal beta release
 
 2. **Server Updates**:
    - Update `package.json` version
@@ -304,7 +306,7 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ### Extension Security
 
-- Update notifications use Chrome Storage API (local only)
+- Update notifications use extension local storage (Chrome-compatible `chrome.storage.local`)
 - No external network requests from extension
 - Version data validated before use
 - XSS protection in changelog display
@@ -324,7 +326,7 @@ curl https://registry.npmjs.org/pointa-server/latest
 
 **Extension badge not clearing**:
 - Open extension popup (badge clears automatically)
-- Check Chrome storage: `chrome.storage.local.get(['updateInfo'])`
+- Check extension storage: `chrome.storage.local.get(['updateInfo'])`
 
 **Version compatibility errors**:
 - Verify extension and server versions

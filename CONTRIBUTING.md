@@ -51,7 +51,7 @@ Unsure where to begin contributing? You can start by looking through these issue
 
 ```
 pointa/
-├── extension/          # Chrome extension source code
+├── extension/          # Shared browser extension source code
 ├── annotations-server/ # MCP server (npm package)
 ├── docs/              # Documentation
 └── README.md          # Main documentation
@@ -65,8 +65,20 @@ pointa/
    - Click "Load unpacked"
    - Select the `extension/` directory
 
-2. Make your changes
-3. Reload the extension to test
+2. For Firefox or Zen, generate the browser-specific package and load it
+   temporarily:
+   ```bash
+   npm install
+   npm run firefox:build
+   ```
+   Then open `about:debugging#/runtime/this-firefox`, choose **Load Temporary
+   Add-on...**, and select `dist/firefox/manifest.json`.
+
+3. Make your changes
+4. Reload the extension or generated add-on to test
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) and
+[docs/FIREFOX_PORT.md](docs/FIREFOX_PORT.md) for browser-specific workflows.
 
 ### Server Development
 
@@ -94,6 +106,8 @@ pointa/
 ### Extension Publishing
 
 The Chrome extension is published to the Chrome Web Store by maintainers only.
+The Firefox/Zen package is generated from the shared extension source and is
+currently prepared for AMO/internal beta release by maintainers.
 
 ### Server Publishing
 

@@ -16,7 +16,8 @@
 
 ## Runtime Areas
 - `extension/manifest.json`: Chrome extension metadata, permissions, host
-  permissions, icons, and service worker declaration.
+  permissions, icons, and service worker declaration. Firefox/Zen manifests are
+  generated from this source by `scripts/build-firefox-extension.js`.
 - `extension/background/`: service worker and API-server bridge logic.
 - `extension/content/`: content script entrypoint, CSS, and feature modules for
   annotations, design mode, bug/performance recording, sidebar, toolbar, theming,
@@ -30,6 +31,8 @@
   and backend log capture support.
 - `scripts/sync-versions.js`: synchronizes root package, server package, and
   extension manifest versions.
+- `scripts/build-firefox-extension.js`: generates the Firefox/Zen package under
+  `dist/firefox/` from the shared extension source.
 - `scripts/load-demo.sh` and `scripts/clear-demo.sh`: fixture loading and restore
   around `~/.pointa/`.
 
@@ -45,6 +48,8 @@
 - `docs/ANNOTATION_DATA_FORMATS.md`: annotation, message, and status schemas.
 - `docs/UPDATE_SYSTEM.md`: extension/server update notification behavior and
   version compatibility.
+- `docs/FIREFOX_PORT.md`, `docs/FIREFOX_RELEASE.md`, and related Firefox docs:
+  Firefox/Zen packaging, evidence capture, AMO readiness, and release status.
 - `testing/DEMO.md`: demo fixture workflow and troubleshooting.
 - `CHROME_STORE_SUBMISSION_CHECKLIST.md`: store readiness issues and submission
   requirements.

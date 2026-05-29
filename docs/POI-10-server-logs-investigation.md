@@ -13,7 +13,7 @@ import 'pointa-server-logger';  // Side-effect import
 **How it works:**
 1. SDK intercepts `console.log/warn/error/info/debug`
 2. Connects via WebSocket to `ws://127.0.0.1:4242/backend-logs`
-3. Only sends logs when Chrome extension signals "recording active"
+3. Only sends logs when the Pointa browser extension signals "recording active"
 4. Logs are timestamped and included in bug report timeline
 
 **Pain points:**
@@ -665,7 +665,7 @@ $ pointa dev npm run dev
 
 ### 2.4 Recording Flow (Same as Current)
 
-1. User opens their app in Chrome with Pointa extension
+1. User opens their app in a supported browser with the Pointa extension
 2. User triggers bug recording in extension
 3. Extension calls `POST /api/backend-logs/start`
 4. Server broadcasts `{ type: 'start_recording' }` to all connected preload instances

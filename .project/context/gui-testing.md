@@ -8,7 +8,8 @@
   changes unless they affect browser behavior.
 
 ## Smoke Routes
-- Unpacked extension in `chrome://extensions/` with `extension/` selected.
+- Unpacked Chrome extension in `chrome://extensions/` with `extension/`
+  selected, or generated Firefox/Zen package loaded from `dist/firefox/`.
 - A localhost app route such as `http://localhost:3000`, `http://localhost:5173`,
   or the repo demo page at `http://localhost:8080/testing/demo-app/index.html`.
 - Extension popup and sidebar open/close flow.
@@ -24,13 +25,13 @@
   worker, or popup that break the tested flow.
 - Blocking: failed calls to `http://127.0.0.1:4242` when the server is expected
   to be running.
-- Blocking: Chrome extension permission, injection, debugger attach/detach, or
-  content script load errors on supported localhost pages.
+- Blocking: browser extension permission, injection, debugger attach/detach where
+  supported, or content script load errors on supported localhost pages.
 - Non-blocking only when explained: pre-existing app console noise unrelated to
   the touched Pointa feature.
 
 ## Evidence Requirements
-- Note the browser, extension load state, server command, and tested URL.
+- Note the browser, extension package/load state, server command, and tested URL.
 - Capture screenshots or short recordings for visible UI changes.
 - Capture browser console and background service worker errors when debugging
   extension behavior.

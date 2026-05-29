@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Pointa** is a Chrome extension + local MCP server for AI-powered development annotations. Point at any UI element, leave feedback, and let AI implement changes.
+**Pointa** is a browser extension + local MCP server for AI-powered development annotations. Point at any UI element, leave feedback, and let AI implement changes.
 
-- **Chrome Extension** (Manifest V3) — Runs in browser, captures annotations, bugs, performance issues
+- **Browser Extension** (Chrome Manifest V3 plus generated Firefox/Zen package) — Runs in browser, captures annotations, bugs, performance issues
 - **MCP Server** (`pointa-server` npm package) — Local Node.js server that runs on developer's machine
 - **Monorepo** — Both live in this single repo
 
@@ -12,8 +12,8 @@
 
 ```
 pointa-app/
-├── extension/              # Chrome extension (Manifest V3)
-│   ├── manifest.json       # Extension config (VERSION synced here)
+├── extension/              # Shared browser extension source
+│   ├── manifest.json       # Chrome extension config (VERSION synced here)
 │   ├── background/         # Service worker
 │   ├── content/            # Content scripts + CSS
 │   └── popup/              # Extension popup UI
@@ -100,7 +100,7 @@ The `pointa-server` package is published to npm at:
 - https://www.npmjs.com/package/pointa-server
 - Users install: `npm install -g pointa-server` or `npx pointa-server`
 
-**Not auto-published to Chrome Web Store** — that's manual (download zip from GitHub Release, upload to Web Store).
+**Not auto-published to extension stores** — Chrome Web Store and AMO submission are manual. Download the Chrome zip from the GitHub Release for Chrome Web Store upload; generate/package the Firefox build with `npm run firefox:package` for AMO/internal beta work.
 
 ## Development
 
@@ -125,7 +125,7 @@ Pre-built annotations and bug reports for demos and testing. See `testing/DEMO.m
 ./scripts/load-demo.sh                    # Load fixtures into ~/.pointa/
 cd annotations-server && npm run dev      # Start MCP server
 python3 -m http.server 8080               # Serve demo page (from repo root)
-# Open http://localhost:8080/testing/demo-app/index.html with Pointa extension
+# Open http://localhost:8080/testing/demo-app/index.html with Pointa extension enabled
 ./scripts/clear-demo.sh                   # Restore original data
 ```
 
@@ -143,8 +143,8 @@ python3 -m http.server 8080               # Serve demo page (from repo root)
 ### annotations-server/.gitignore has a blanket *.json rule
 The `*.json` rule in `annotations-server/.gitignore` excludes all JSON files except those explicitly allowlisted (`!package.json`, `!package-lock.json`). If you add a new JSON config file to that directory, you must add a corresponding `!filename.json` exception or it will be silently ignored by git.
 
-### Extension has no build step
-The Chrome extension (`extension/`) is plain JS with no bundler. Files are used as-is. Don't introduce build tooling without discussion.
+### Extension packaging
+The Chrome extension (`extension/`) is plain JS with no bundler. Files are used as-is for the Chrome package. The Firefox/Zen package is generated from that shared source by `scripts/build-firefox-extension.js`; don't introduce unrelated build tooling without discussion.
 
 ### NPM publish requires NPM_TOKEN secret
 The release workflow uses `secrets.NPM_TOKEN` to publish `pointa-server` to npm. If publishing fails, check that the secret is configured in the repo's GitHub settings.
@@ -165,7 +165,7 @@ Extension code in `extension/content/` and `extension/background/` uses plain Ja
 Most extension features (annotations, bug reports) only activate on localhost URLs: `localhost`, `127.0.0.1`, `0.0.0.0`, `*.local`, `*.test`, `*.localhost`. Non-localhost pages only get the sidebar for onboarding/settings.
 
 ### Server has multiple run modes
-- **HTTP daemon** (`pointa-server start`) — background process for Chrome extension API + WebSocket + MCP over HTTP
+- **HTTP daemon** (`pointa-server start`) — background process for browser extension API + WebSocket + MCP over HTTP
 - **Stdio mode** (`POINTA_STDIO_MODE=true`) — MCP protocol via stdin/stdout for Claude Code
 - **Dev mode** (`pointa-server dev <command>`) — wraps user's dev server, injects Node.js preload script via `NODE_OPTIONS` to capture backend logs
 

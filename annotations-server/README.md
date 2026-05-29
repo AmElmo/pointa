@@ -1,6 +1,6 @@
 # pointa-server
 
-MCP server for [Pointa](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane) — a Chrome extension that lets you leave visual annotations on your localhost for AI coding agents to pick up and implement.
+MCP server for [Pointa](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane) — a browser extension for Chrome, Firefox, and Zen that lets you leave visual annotations on your localhost for AI coding agents to pick up and implement.
 
 Point at UI issues, add comments, and your AI agent sees exactly what you see.
 
@@ -59,7 +59,7 @@ export POINTA_PORT=4243
 ```
 
 **Note:** If you change the port, you'll also need to update:
-1. Chrome extension settings (to connect to the new port)
+1. Pointa extension settings (to connect to the new port)
 2. Any custom configurations pointing to the server
 
 ---
@@ -292,7 +292,7 @@ This tool solves a common problem when using Linear's MCP server: attachment URL
 
 The server provides:
 - **SSE Endpoint** (`/sse`): For AI coding agent MCP connections
-- **HTTP API** (`/api/annotations`): For Chrome extension communication
+- **HTTP API** (`/api/annotations`): For browser extension communication
 - **Image Upload** (`/api/upload-image`): For uploading annotation images
 - **Health Check** (`/health`): For status monitoring
 

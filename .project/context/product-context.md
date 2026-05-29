@@ -3,13 +3,13 @@
 ## Users
 - Primary users are developers working on localhost web apps who want precise,
   visual feedback loops with AI coding agents.
-- Secondary users are maintainers publishing the Chrome extension and
-  `pointa-server` npm package.
+- Secondary users are maintainers publishing the Chrome extension, Firefox/Zen
+  package, and `pointa-server` npm package.
 - AI coding agents consume Pointa through MCP tools and need URL-filtered,
   token-efficient annotation or issue-report data.
 
 ## Core Flows
-- Install the Chrome extension, configure an MCP-capable editor to run
+- Install the Pointa browser extension, configure an MCP-capable editor to run
   `npx -y pointa-server` or connect to `http://127.0.0.1:4242/mcp`, then annotate
   localhost pages.
 - Create annotations by clicking UI elements, storing selectors, messages,
@@ -33,6 +33,8 @@
 - Cross-project safety matters: MCP annotation reads should filter by URL when
   multiple localhost projects exist.
 - The Chrome `debugger` permission is sensitive and must remain narrowly used and
-  well justified.
+  well justified. Firefox/Zen builds do not expose Chrome CDP-only capabilities.
 - Shadow DOM elements are a known limitation for annotation targeting.
-- Chromium-based browsers are the supported extension target.
+- Chrome/Chromium browsers are supported through the Chrome package.
+- Firefox/Zen support is available through the generated beta package, with
+  responsive viewport capture and other CDP-only features unavailable.

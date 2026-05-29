@@ -24,7 +24,8 @@ pointa-app/
 
 **Extension:**
 - Vanilla JavaScript (no frameworks)
-- Chrome Extension Manifest V3
+- Chrome Extension Manifest V3 source package
+- Generated Firefox/Zen package from the shared extension source
 - CSS with custom properties for theming
 
 **Server:**
@@ -34,7 +35,10 @@ pointa-app/
 
 ## Extension Development
 
-### Initial Setup
+The `extension/` directory is the shared source. Chrome loads it directly.
+Firefox and Zen use a generated package in `dist/firefox/`.
+
+### Chrome Initial Setup
 
 1. **Load the Extension in Chrome:**
    - Open Chrome and navigate to `chrome://extensions/`
@@ -106,6 +110,7 @@ For faster iteration, you can:
 - [ ] Content scripts work on localhost pages
 - [ ] Background script functions properly
 - [ ] No console errors in DevTools
+- [ ] Firefox/Zen beta package still builds when shared extension code changes
 
 ## Local Server Development  
 

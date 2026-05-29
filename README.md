@@ -16,12 +16,14 @@
   <a href="https://pointa.dev">Website</a> •
   <a href="#quick-start">Quick Start</a> •
   <a href="https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane">Chrome Extension</a> •
+  <a href="docs/FIREFOX_RELEASE.md">Firefox / Zen Build</a> •
   <a href="https://www.npmjs.com/package/pointa-server">npm</a>
 </p>
 
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane"><img src="https://img.shields.io/badge/Chrome-Extension-green" alt="Chrome Web Store"></a>
+  <a href="docs/FIREFOX_RELEASE.md"><img src="https://img.shields.io/badge/Firefox%20%2F%20Zen-Beta-orange" alt="Firefox and Zen beta build"></a>
   <a href="https://www.npmjs.com/package/pointa-server"><img src="https://img.shields.io/badge/npm-pointa--server-blue" alt="npm"></a>
   <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs Welcome"></a>
 </p>
@@ -91,15 +93,15 @@ You can also use Pointa to...
 - Node.js 18+
 - A supported browser:
   - Chrome, Edge, Brave, or another Chromium-based browser
-  - Firefox for local development builds
+  - Firefox or Zen for local beta/development builds
 - An AI coding agent that supports MCP (Cursor, Claude Code, Windsurf, etc.)
 
 ### 1. Install the browser extension
 
-Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane) (recommended), or [load unpacked](docs/DEVELOPMENT.md) for development.
+Install the Chrome build from the [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane) (recommended), or [load unpacked](docs/DEVELOPMENT.md) for local Chrome development.
 
-Firefox support is available as a local development build while AMO release
-work is in progress:
+Firefox and Zen support is available as a local beta/development build while AMO
+release work is in progress:
 
 ```bash
 npm install
@@ -136,10 +138,10 @@ This automatically installs the server, starts the HTTP daemon for the extension
 4. Add your feedback
 5. Ask your AI agent to "implement the Pointa annotations"
 
-In Firefox, annotation CRUD, element-linked screenshots, console/error/network
-evidence, and backend logs use the shared Pointa server flow. Responsive
-viewport capture is hidden because Firefox does not expose the required
-viewport-emulation capability to this package.
+In Firefox and Zen, annotation CRUD, element-linked screenshots,
+console/error/network evidence, and backend logs use the shared Pointa server
+flow. Responsive viewport capture is hidden because Firefox does not expose the
+required viewport-emulation capability to this package.
 
 ## AI Agent Setup
 
@@ -345,12 +347,16 @@ If you use the `npx` approach from Quick Start, the server is managed automatica
 **Known limitations**
 - Elements inside Shadow DOM (Web Components) cannot be annotated
 - Designed for localhost/local domains only
-- Currently supports Chromium-based browsers only (Chrome, Edge, Brave)
+- Chrome and Chromium-based browsers are supported through the Chrome package
+- Firefox and Zen support is available through the generated beta package; CDP-only capture features are unavailable there
 
 <details>
 <summary><b>Uninstalling</b></summary>
 
-**Remove the extension:** Go to `chrome://extensions/` and remove Pointa
+**Remove the Chrome extension:** Go to `chrome://extensions/` and remove Pointa
+
+**Remove the Firefox/Zen build:** Go to `about:debugging#/runtime/this-firefox`
+or your browser's add-ons page and remove Pointa
 
 **Uninstall the server:**
 ```bash
