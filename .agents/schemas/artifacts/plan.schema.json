@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/plan.schema.json",
+  "title": "Delano project plan frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "status",
+    "lead",
+    "created",
+    "updated",
+    "linear_project_id",
+    "risk_level",
+    "spec_status_at_plan_time"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "active",
+        "done",
+        "deferred"
+      ]
+    },
+    "lead": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "linear_project_id": {
+      "type": "string"
+    },
+    "risk_level": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "spec_status_at_plan_time": {
+      "enum": [
+        "planned",
+        "active",
+        "complete",
+        "deferred"
+      ]
+    },
+    "target_version": {
+      "type": "string"
+    },
+    "operating_mode": {
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "patch",
+        "scoped-change",
+        "feature",
+        "uncertain-feature",
+        "multi-stream"
+      ]
+    }
+  }
+}

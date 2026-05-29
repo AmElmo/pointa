@@ -132,7 +132,16 @@ const PointaElementFinder = {
     if (annotation.element_context) {
       const context = annotation.element_context;
 
-      // Strategy 1: Use parent chain + position to find element
+      // Strategy 1: Use stable attributes captured when the annotation was saved.
+      if (context.stable_attributes || context.id) {
+        const element = this.findByStableAttributes(context);
+        if (element) {
+          element.setAttribute('data-pointa-id', annotation.id);
+          return element;
+        }
+      }
+
+      // Strategy 2: Use parent chain + position to find element
       if (annotation.parent_chain && annotation.parent_chain.length > 0) {
         const element = this.findByParentChainAndContext(annotation);
         if (element) {
@@ -142,7 +151,7 @@ const PointaElementFinder = {
         }
       }
 
-      // Strategy 2: Find by text content (most reliable for text elements)
+      // Strategy 3: Find by text content (most reliable for text elements)
       if (context.text && context.text.trim().length > 0) {
         const element = this.findByTextContent(context);
         if (element) {
@@ -152,7 +161,7 @@ const PointaElementFinder = {
         }
       }
 
-      // Strategy 3: Find by tag + classes + position
+      // Strategy 4: Find by tag + classes + position
       if (context.tag) {
         const element = this.findByTagClassesAndPosition(context);
         if (element) {
@@ -162,7 +171,7 @@ const PointaElementFinder = {
         }
       }
 
-      // Strategy 4: Find by position as last resort
+      // Strategy 5: Find by position as last resort
       if (context.position) {
         const element = this.findByPosition(context);
         if (element) {
@@ -267,6 +276,72 @@ const PointaElementFinder = {
     }
 
     return true;
+  },
+
+  /**
+   * Find an element by stable attributes captured in element_context.
+   */
+  findByStableAttributes(context) {
+    const tag = context.tag || '*';
+    const attributes = {
+      ...(context.stable_attributes || {}),
+      ...(context.id ? { id: context.id } : {})
+    };
+    const priority = [
+      'id',
+      'data-testid',
+      'data-test',
+      'data-cy',
+      'data-qa',
+      'aria-label',
+      'aria-labelledby',
+      'name',
+      'type',
+      'role',
+      'href',
+      'alt',
+      'title'
+    ];
+
+    for (const attr of priority) {
+      const value = attributes[attr];
+      if (!value) continue;
+
+      const selector = attr === 'id'
+        ? `${tag}#${CSS.escape(value)}`
+        : `${tag}[${attr}="${this.escapeAttributeValue(value)}"]`;
+
+      try {
+        const candidates = Array.from(document.querySelectorAll(selector));
+        if (candidates.length === 1 && this.validateElementSignature(candidates[0], context)) {
+          return candidates[0];
+        }
+
+        if (candidates.length > 1) {
+          const validCandidates = candidates.filter((candidate) => this.validateElementSignature(candidate, context));
+          if (validCandidates.length === 1) {
+            return validCandidates[0];
+          }
+
+          const positionMatch = this.findClosestByPosition(validCandidates.length > 0 ? validCandidates : candidates, context.position);
+          if (positionMatch) {
+            return positionMatch;
+          }
+        }
+      } catch (error) {
+        console.warn('[findByStableAttributes] Invalid selector:', selector, error);
+      }
+    }
+
+    return null;
+  },
+
+  escapeAttributeValue(value) {
+    if (window.PointaSelectorGenerator?.escapeAttributeValue) {
+      return window.PointaSelectorGenerator.escapeAttributeValue(value);
+    }
+
+    return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   },
 
   /**

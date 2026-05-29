@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/task.schema.json",
+  "title": "Delano task frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "name",
+    "status",
+    "workstream",
+    "created",
+    "updated",
+    "linear_issue_id",
+    "github_issue",
+    "github_pr",
+    "depends_on",
+    "conflicts_with",
+    "parallel",
+    "priority",
+    "estimate"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3}$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "in-progress",
+        "blocked",
+        "done",
+        "deferred"
+      ]
+    },
+    "workstream": {
+      "type": "string",
+      "pattern": "^WS-[A-Za-z0-9]+$"
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "linear_issue_id": {
+      "type": "string"
+    },
+    "github_issue": {
+      "type": "string"
+    },
+    "github_pr": {
+      "type": "string"
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^T-[0-9]{3}$"
+      },
+      "uniqueItems": true
+    },
+    "conflicts_with": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^T-[0-9]{3}$"
+      },
+      "uniqueItems": true
+    },
+    "parallel": {
+      "enum": [
+        "true",
+        "false",
+        true,
+        false
+      ]
+    },
+    "priority": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "estimate": {
+      "enum": [
+        "S",
+        "M",
+        "L",
+        "XL"
+      ]
+    },
+    "operating_mode": {
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "patch",
+        "scoped-change",
+        "feature",
+        "uncertain-feature",
+        "multi-stream"
+      ]
+    }
+  }
+}

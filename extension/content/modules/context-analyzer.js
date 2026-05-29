@@ -16,6 +16,9 @@ const PointaContextAnalyzer = {
         tag: current.tagName.toLowerCase(),
         classes: Array.from(current.classList),
         id: current.id || null,
+        stable_attributes: window.PointaSelectorGenerator?.getStableAttributes
+          ? window.PointaSelectorGenerator.getStableAttributes(current)
+          : {},
         role: current.getAttribute('role') || null,
         text_sample: current.textContent.substring(0, 50).trim()
       };

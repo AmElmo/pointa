@@ -3063,6 +3063,10 @@ const InspirationMode = {
    * Only larger container elements need responsive capture
    */
   shouldShowResponsiveCapture(element) {
+    if (!this.canUseResponsiveCapture()) {
+      return false;
+    }
+
     const tag = element.tagName.toLowerCase();
     const role = element.getAttribute('role');
     const rect = element.getBoundingClientRect();
@@ -3094,6 +3098,17 @@ const InspirationMode = {
     }
 
     return false;
+  },
+
+  /**
+   * Responsive capture depends on browser viewport emulation support.
+   */
+  canUseResponsiveCapture() {
+    return Boolean(
+      window.PointaBrowser &&
+      typeof window.PointaBrowser.hasCapability === 'function' &&
+      window.PointaBrowser.hasCapability('debugger')
+    );
   },
 
   /**

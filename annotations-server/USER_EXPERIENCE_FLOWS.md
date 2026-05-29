@@ -7,7 +7,7 @@ This document covers all user experience flows and edge cases for the Pointa MCP
 ### Flow 1: Fresh User - Cursor Auto-Start (Recommended)
 
 **Steps:**
-1. User installs Pointa Chrome extension
+1. User installs the Pointa browser extension
 2. User adds config to Cursor's mcp.json:
    ```json
    {
@@ -26,11 +26,11 @@ This document covers all user experience flows and edge cases for the Pointa MCP
 - Bridge starts daemon in background on port 4242
 - Bridge forwards stdio ↔ HTTP to daemon
 - Cursor connects successfully ✅
-- Chrome extension connects to daemon on port 4242 ✅
+- Browser extension connects to daemon on port 4242 ✅
 
 **User sees:**
 - Cursor: MCP tools available (read_annotations, etc.)
-- Chrome extension: "Server online" indicator
+- Browser extension: "Server online" indicator
 - Everything just works!
 
 ---
@@ -38,14 +38,14 @@ This document covers all user experience flows and edge cases for the Pointa MCP
 ### Flow 2: Fresh User - Manual Start
 
 **Steps:**
-1. User installs Pointa Chrome extension
+1. User installs the Pointa browser extension
 2. User runs: `npx pointa-server start`
 3. User adds URL config to Cursor
 
 **What happens:**
 - Command downloads pointa-server (first time)
 - Daemon starts on port 4242
-- Chrome extension connects ✅
+- Browser extension connects ✅
 - User manually adds Cursor config
 - Cursor connects via HTTP ✅
 
@@ -64,13 +64,13 @@ This document covers all user experience flows and edge cases for the Pointa MCP
 
 **During work:**
 - User uses Cursor → Stdio MCP works ✅
-- User browses web → Chrome extension (HTTP) works ✅
+- User browses web → browser extension (HTTP) works ✅
 - Both share same data files (annotations.json)
 
 **Evening:**
 - User closes Cursor
 - Stdio process dies (attached to Cursor)
-- HTTP daemon keeps running (for Chrome extension) ✅
+- HTTP daemon keeps running (for browser extension) ✅
 
 ---
 
@@ -102,13 +102,13 @@ This document covers all user experience flows and edge cases for the Pointa MCP
 **Scenario:**
 - HTTP daemon crashes (OOM, bug, etc.)
 - Stdio process is still running (for MCP)
-- Chrome extension can't connect
+- Browser extension can't connect
 
 **What happens:**
 - **Cursor MCP still works!** ✅ (stdio process independent)
-- Chrome extension shows "offline" ❌
+- Browser extension shows "offline" ❌
 
-**Recovery for Chrome extension:**
+**Recovery for browser extension:**
 - User runs: `npx pointa-server start`
 - Or closes/reopens Cursor (auto-restarts daemon)
 - Everything works again
@@ -169,7 +169,7 @@ No-op, helpful message ✅
 - CLI times out waiting for daemon
 - **Cursor shows MCP connection failed** ✅
 
-**BUT:** If you only use Cursor MCP (not Chrome extension), you could skip HTTP entirely in the future.
+**BUT:** If you only use Cursor MCP (not the browser extension), you could skip HTTP entirely in the future.
 
 **User action:**
 1. Check what's using port: `lsof -i :4242`
@@ -178,10 +178,10 @@ No-op, helpful message ✅
 
 ---
 
-### Edge Case 5: Chrome Extension Can't Connect
+### Edge Case 5: Browser Extension Can't Connect
 
 **Scenario:**
-- Chrome extension shows "Server offline"
+- Browser extension shows "Server offline"
 - But user has Cursor open with auto-start
 
 **Diagnosis:**
@@ -257,7 +257,7 @@ npx pointa-server status
 ### Edge Case 8: Concurrent Writes to annotations.json
 
 **Scenario:**
-- Chrome extension writes annotation
+- Browser extension writes annotation
 - MCP reads annotations at same moment
 - Potential race condition
 
@@ -298,7 +298,7 @@ npx pointa-server status
 **What happens:**
 - Cursor detects MCP connection lost
 - Shows "MCP server disconnected"
-- HTTP daemon keeps running (for Chrome extension) ✅
+- HTTP daemon keeps running (for browser extension) ✅
 
 **Recovery:**
 - Cursor restarts MCP connection
@@ -347,7 +347,7 @@ Then add URL to mcp.json
 - ✅ Auto-starts daemon
 - ✅ Errors visible in Cursor
 - ✅ Auto-recovery (reopen Cursor)
-- ✅ Works with Chrome extension
+- ✅ Works with browser extension
 - ✅ Multiple Cursor windows supported
 - ✅ Uses official MCP SDK (StdioServerTransport)
 - ✅ Standard, well-supported approach
@@ -390,7 +390,7 @@ Then add URL to mcp.json
     │                                     │
     │  • HTTP server on :4242             │
     │  • /api/annotations endpoint        │
-    │  • Serves Chrome extension          │
+    │  • Serves browser extension         │
     │  • Persistent, stays running        │
     └────────┬────────────────────────────┘
              │
@@ -408,12 +408,12 @@ Then add URL to mcp.json
              ▲
              │ HTTP :4242/api
     ┌────────┴────────────────────────────┐
-    │  Chrome Extension                   │
+    │  Browser Extension                  │
     └─────────────────────────────────────┘
 ```
 
 **Key points:**
-- **Two separate processes:** Stdio (for Cursor MCP) + HTTP Daemon (for Chrome extension)
+- **Two separate processes:** Stdio (for Cursor MCP) + HTTP Daemon (for browser extension)
 - **Both use official MCP SDK:** No custom protocol hacks ✅
 - **Shared data files:** Both read/write same JSON files
 - **Clean separation:** Stdio dies with Cursor, daemon persists
@@ -426,7 +426,7 @@ Then add URL to mcp.json
 
 **What's logged:**
 - Daemon startup/shutdown
-- API requests (Chrome extension)
+- API requests (browser extension)
 - MCP tool calls
 - Errors and warnings
 
@@ -456,7 +456,7 @@ npx pointa-server restart
 
 ---
 
-### Chrome Extension Shows "Offline"
+### Browser Extension Shows "Offline"
 
 **Check:**
 ```bash
@@ -493,7 +493,7 @@ npx pointa-server start
 ✅ **Zero-friction setup** - No installation, just add config
 ✅ **Visible errors** - Cursor shows if MCP fails
 ✅ **Auto-recovery** - Reopen Cursor to fix issues
-✅ **Persistent daemon** - Chrome extension works independently
+✅ **Persistent daemon** - Browser extension works independently
 ✅ **Shared state** - All clients see same data
 ✅ **No port conflicts** - Multiple Cursor windows work
 ✅ **Better UX** - "Set and forget" experience
@@ -502,4 +502,3 @@ npx pointa-server start
 - Manual control option (start/stop/restart commands)
 - Simple architecture (just adds lightweight bridge)
 - Backward compatibility (URL config still works)
-

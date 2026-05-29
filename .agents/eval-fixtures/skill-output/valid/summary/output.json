@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "skill": "learning-skill",
+  "outcome": "summary-only delivery metrics recorded",
+  "evidence": ["scripts/summarize-project-metrics.mjs", ".project/registry/linear-map.json"],
+  "privacy": "metadata-only"
+}

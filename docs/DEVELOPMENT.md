@@ -24,7 +24,8 @@ pointa-app/
 
 **Extension:**
 - Vanilla JavaScript (no frameworks)
-- Chrome Extension Manifest V3
+- Chrome Extension Manifest V3 source package
+- Generated Firefox/Zen package from the shared extension source
 - CSS with custom properties for theming
 
 **Server:**
@@ -34,7 +35,10 @@ pointa-app/
 
 ## Extension Development
 
-### Initial Setup
+The `extension/` directory is the shared source. Chrome loads it directly.
+Firefox and Zen use a generated package in `dist/firefox/`.
+
+### Chrome Initial Setup
 
 1. **Load the Extension in Chrome:**
    - Open Chrome and navigate to `chrome://extensions/`
@@ -106,6 +110,7 @@ For faster iteration, you can:
 - [ ] Content scripts work on localhost pages
 - [ ] Background script functions properly
 - [ ] No console errors in DevTools
+- [ ] Firefox/Zen beta package still builds when shared extension code changes
 
 ## Local Server Development  
 
@@ -141,3 +146,52 @@ Test on common localhost setups:
    - Click the extension icon to open popup
    - Click elements on the page to create annotations
    - Verify annotations are saved and displayed
+
+## Firefox Extension Development
+
+Firefox builds are generated from the shared `extension/` source into
+`dist/firefox/`. The Chrome manifest remains the source for the Chrome package;
+the Firefox build script writes a browser-specific manifest with Gecko settings,
+Firefox background scripts, and without Chrome-only permissions.
+
+See `docs/FIREFOX_PORT.md` for the package architecture, lint baseline, and
+release notes.
+
+```bash
+npm run firefox:build    # Generate dist/firefox/
+npm run firefox:lint     # Build, then run web-ext lint against dist/firefox/
+npm run firefox:run      # Build, then launch Firefox with the generated add-on
+npm run firefox:package  # Build an unsigned Firefox package under dist/firefox-artifacts/
+```
+
+Current expected lint baseline during the port:
+
+- `firefox:lint` must have zero errors.
+- Static warnings for `chrome.debugger` calls are expected in the generated
+  Firefox build, but runtime code gates these paths behind capability checks.
+- `innerHTML` warnings are tracked in the AMO-readiness audit before public
+  Firefox submission.
+
+Firefox uses visible-tab screenshots and page-level console/error/network
+instrumentation where Chrome can use browser-level debugging APIs. Responsive
+viewport capture is hidden in Firefox because the generated package cannot
+emulate viewport sizes there. See `docs/FIREFOX_EVIDENCE_CAPTURE.md` for the
+Available, Approximate, and Unavailable evidence matrix.
+
+When testing locally, start the Pointa server first:
+
+```bash
+cd annotations-server
+npm run dev
+```
+
+Then run the Firefox add-on and test a localhost page, for example:
+
+```bash
+python3 -m http.server 8080
+npm run firefox:run
+```
+
+Open `http://localhost:8080/testing/demo-app/index.html` in the launched Firefox
+profile and verify toolbar/sidebar injection, annotation creation, screenshot
+capture, and server offline/online behavior.

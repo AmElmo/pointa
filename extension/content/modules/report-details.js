@@ -361,9 +361,8 @@ const PointaReportDetails = {
       if (event.type === 'network') {
         const url = event.data?.url || '';
         const method = event.data?.method || '';
-        if (url.includes('127.0.0.1:4242/health')) return false;
-        if (url.includes('localhost:4242/health')) return false;
-        if (url.includes('127.0.0.1:4242/api/backend')) return false;
+        if (window.PointaBrowser.isLocalServerHealthUrl(url)) return false;
+        if (window.PointaBrowser.isLocalServerBackendUrl(url)) return false;
         if (method === 'OPTIONS') return false;
       }
       return true;

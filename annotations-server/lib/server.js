@@ -96,8 +96,9 @@ class LocalAnnotationsServer {
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
-        // Allow Chrome extension origins
-        if (origin.startsWith('chrome-extension://')) {
+        // Allow browser extension origins
+        if (origin.startsWith('chrome-extension://') ||
+            origin.startsWith('moz-extension://')) {
           return callback(null, true);
         }
 
@@ -326,17 +327,11 @@ class LocalAnnotationsServer {
       try {
         const { id } = req.params;
 
-        const annotations = await this.loadAnnotations();
-        const index = annotations.findIndex((a) => a.id === id);
+        const deletedAnnotation = await this.deleteAnnotationById(id);
 
-        if (index === -1) {
+        if (!deletedAnnotation) {
           return res.status(404).json({ error: 'Annotation not found' });
         }
-
-        const deletedAnnotation = annotations[index];
-        annotations.splice(index, 1);
-
-        await this.saveAnnotations(annotations);
 
         // Also delete associated images if they exist
         const imageDir = path.join(IMAGES_DIR, id);
@@ -1879,11 +1874,17 @@ class LocalAnnotationsServer {
 
   async saveAnnotations(annotations) {
     // Serialize all save operations to prevent race conditions
-    this.saveLock = this.saveLock.then(async () => {
+    this.saveLock = this.recoverSaveLock('annotations').then(async () => {
       return this._saveAnnotationsInternal(annotations);
     });
 
     return this.saveLock;
+  }
+
+  recoverSaveLock(label) {
+    return this.saveLock.catch((error) => {
+      console.warn(`Recovering ${label} save queue after failure:`, error.message);
+    });
   }
 
   async _saveAnnotationsInternal(annotations) {
@@ -1963,9 +1964,27 @@ class LocalAnnotationsServer {
   }
 
   async saveArchive(archive) {
-    this.saveLock = this.saveLock.then(async () => {
+    this.saveLock = this.recoverSaveLock('archive').then(async () => {
       return this._saveArchiveInternal(archive);
     });
+    return this.saveLock;
+  }
+
+  async deleteAnnotationById(id) {
+    this.saveLock = this.recoverSaveLock('annotation delete').then(async () => {
+      const annotations = await this.loadAnnotations();
+      const index = annotations.findIndex((a) => a.id === id);
+
+      if (index === -1) {
+        return null;
+      }
+
+      const deletedAnnotation = annotations[index];
+      annotations.splice(index, 1);
+      await this._saveAnnotationsInternal(annotations);
+      return deletedAnnotation;
+    });
+
     return this.saveLock;
   }
 
@@ -2521,7 +2540,7 @@ class LocalAnnotationsServer {
    * @param {Array<string>} ids - Array of issue report IDs to delete
    */
   async deleteIssueReportsByIds(ids) {
-    this.issueReportsSaveLock = this.issueReportsSaveLock.then(async () => {
+    this.issueReportsSaveLock = this.recoverIssueReportsSaveLock('issue report delete').then(async () => {
       const issueReports = await this.loadBugReports();
       const toDelete = issueReports.filter(r => ids.includes(r.id));
       const remaining = issueReports.filter(r => !ids.includes(r.id));
@@ -2553,7 +2572,7 @@ class LocalAnnotationsServer {
    */
   async deleteAnnotationsByIds(ids) {
     // Use save lock to prevent race conditions
-    this.saveLock = this.saveLock.then(async () => {
+    this.saveLock = this.recoverSaveLock('annotation bulk delete').then(async () => {
       const annotations = await this.loadAnnotations();
       const toDelete = annotations.filter(a => ids.includes(a.id));
       const remaining = annotations.filter(a => !ids.includes(a.id));
@@ -2615,11 +2634,17 @@ class LocalAnnotationsServer {
 
   async saveBugReports(issueReports) {
     // Serialize all save operations to prevent race conditions
-    this.issueReportsSaveLock = this.issueReportsSaveLock.then(async () => {
+    this.issueReportsSaveLock = this.recoverIssueReportsSaveLock('issue reports').then(async () => {
       return this._saveBugReportsInternal(issueReports);
     });
 
     return this.issueReportsSaveLock;
+  }
+
+  recoverIssueReportsSaveLock(label) {
+    return this.issueReportsSaveLock.catch((error) => {
+      console.warn(`Recovering ${label} save queue after failure:`, error.message);
+    });
   }
 
   async _saveBugReportsInternal(issueReports) {
@@ -2738,11 +2763,17 @@ class LocalAnnotationsServer {
 
   async saveInspirations(inspirations) {
     // Serialize all save operations to prevent race conditions
-    this.inspirationsSaveLock = this.inspirationsSaveLock.then(async () => {
+    this.inspirationsSaveLock = this.recoverInspirationsSaveLock('inspirations').then(async () => {
       return this._saveInspirationsInternal(inspirations);
     });
 
     return this.inspirationsSaveLock;
+  }
+
+  recoverInspirationsSaveLock(label) {
+    return this.inspirationsSaveLock.catch((error) => {
+      console.warn(`Recovering ${label} save queue after failure:`, error.message);
+    });
   }
 
   async _saveInspirationsInternal(inspirations) {
@@ -2835,7 +2866,7 @@ class LocalAnnotationsServer {
    */
   async applyAnnotationsUpdate(mutator) {
     // Chain onto saveLock to serialize read→mutate→save
-    this.saveLock = this.saveLock.then(async () => {
+    this.saveLock = this.recoverSaveLock('annotation update').then(async () => {
       const current = await this.loadAnnotations();
       const result = await mutator(current);
       await this._saveAnnotationsInternal(current);

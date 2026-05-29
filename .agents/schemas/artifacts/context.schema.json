@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/context.schema.json",
+  "title": "Delano context document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path"],
+  "properties": {
+    "path": { "type": "string", "pattern": "^\\.project/context/[^/]+\\.md$" }
+  }
+}

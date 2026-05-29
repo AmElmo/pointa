@@ -1,5 +1,39 @@
 // Pointa Background Service Worker
 
+function loadPointaBrowserCompat(callback) {
+  const root = typeof globalThis !== 'undefined' ? globalThis : self;
+
+  if (root.PointaBrowser) {
+    callback();
+    return;
+  }
+
+  if (typeof importScripts === 'function') {
+    try {
+      importScripts('../common/browser-compat.js');
+    } catch (error) {
+      console.warn('[Background] Failed to load browser compatibility helper:', error.message);
+    }
+    callback();
+    return;
+  }
+
+  const extensionApi = root.browser || root.chrome;
+  if (typeof document !== 'undefined' && extensionApi?.runtime?.getURL) {
+    const script = document.createElement('script');
+    script.src = extensionApi.runtime.getURL('common/browser-compat.js');
+    script.onload = () => callback();
+    script.onerror = () => {
+      console.warn('[Background] Failed to load browser compatibility helper script');
+      callback();
+    };
+    (document.head || document.documentElement).appendChild(script);
+    return;
+  }
+
+  callback();
+}
+
 // Note: FileStorageManager is NOT imported here because:
 // - File System Access API is only available in window contexts (not service workers)
 // - Background service worker only communicates with API server
@@ -8,16 +42,21 @@
 
 class PointaBackground {
   constructor() {
-    this.apiServerUrl = 'http://127.0.0.1:4242'; // Port 4242 - the answer to life, the universe, and everything
+    this.browserCompat = globalThis.PointaBrowser;
+    if (!this.browserCompat) {
+      throw new Error('Pointa browser compatibility helper failed to load.');
+    }
+    this.apiServerUrl = this.browserCompat.getLocalServerBaseUrl();
     this.apiConnected = false;
+    this.capabilities = this.getCapabilities();
     // Note: FileStorageManager is NOT used in service worker context
     // File System Access API is only available in window contexts
     // All file operations go through the API server instead
     // this.fileStorage = new FileStorageManager();
     this.viewportOverrides = new Map(); // Track viewport overrides for responsive capture
     
-    // 🔒 Injection lock: Prevent concurrent content script injections for the same tab
-    this.injectionLocks = new Set(); // Set of tabIds currently being injected
+    // Injection lock: reuse one in-flight injection per tab.
+    this.injectionLocks = new Map(); // tabId -> Promise
 
     // 🎯 CDP Recording: Track active CDP recordings per tab
     // This captures network/console via Chrome DevTools Protocol (CDP)
@@ -30,6 +69,33 @@ class PointaBackground {
     this.init();
   }
 
+  getCapabilities() {
+    if (globalThis.PointaBrowser?.getCapabilities) {
+      return globalThis.PointaBrowser.getCapabilities();
+    }
+
+    return {
+      namespace: typeof browser !== 'undefined' ? 'browser' : typeof chrome !== 'undefined' ? 'chrome' : 'none',
+      hasBrowserNamespace: typeof browser !== 'undefined',
+      hasChromeNamespace: typeof chrome !== 'undefined',
+      isFirefox: typeof navigator !== 'undefined' && /Firefox\//.test(navigator.userAgent),
+      isChromium: typeof navigator !== 'undefined' && /(?:Chrome|Chromium|Edg)\//.test(navigator.userAgent) && !/Firefox\//.test(navigator.userAgent),
+      action: typeof chrome !== 'undefined' && Boolean(chrome.action),
+      runtime: typeof chrome !== 'undefined' && Boolean(chrome.runtime),
+      storage: typeof chrome !== 'undefined' && Boolean(chrome.storage?.local),
+      tabs: typeof chrome !== 'undefined' && Boolean(chrome.tabs),
+      captureVisibleTab: typeof chrome !== 'undefined' && Boolean(chrome.tabs?.captureVisibleTab),
+      scripting: typeof chrome !== 'undefined' && Boolean(chrome.scripting?.executeScript && chrome.scripting?.insertCSS),
+      debugger: typeof chrome !== 'undefined' &&
+        !(typeof navigator !== 'undefined' && /Firefox\//.test(navigator.userAgent)) &&
+        Boolean(chrome.debugger?.attach && chrome.debugger?.detach && chrome.debugger?.sendCommand && chrome.debugger?.onEvent && chrome.debugger?.onDetach)
+    };
+  }
+
+  hasCapability(name) {
+    return Boolean(this.capabilities && this.capabilities[name]);
+  }
+
   init() {
 
     // Set up event listeners
@@ -38,7 +104,9 @@ class PointaBackground {
     this.setupTabListener();
     this.setupStorageListener();
     this.setupActionClickListener();
-    this.setupCDPEventListener(); // CDP network/console capture
+    if (this.hasCapability('debugger')) {
+      this.setupCDPEventListener(); // CDP network/console capture
+    }
 
     // Sync bug reports from API server on startup
     this.syncBugReportsFromAPI().catch((err) => {
@@ -124,6 +192,11 @@ class PointaBackground {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       switch (request.action) {
+        case 'getCapabilities':
+        case 'getExtensionCapabilities':
+          sendResponse({ success: true, capabilities: this.getCapabilities() });
+          break;
+
         case 'getAnnotations':
           this.getAnnotations(request.url, request.limit).
           then((annotations) => sendResponse({ success: true, annotations })).
@@ -181,9 +254,14 @@ class PointaBackground {
           break;
 
         case 'captureScreenshot':
-          this.captureScreenshot(sender.tab.id).
+          this.captureScreenshot(sender.tab?.id, sender.tab?.windowId).
           then((dataUrl) => sendResponse({ success: true, dataUrl })).
-          catch((error) => sendResponse({ success: false, error: error.message }));
+          catch((error) => sendResponse({
+            success: false,
+            error: error.message,
+            code: error.code || 'SCREENSHOT_CAPTURE_FAILED',
+            details: error.details || null
+          }));
           break;
 
         case 'getBugReports':
@@ -267,7 +345,7 @@ class PointaBackground {
           break;
 
         case 'ensureContentScriptsInjected':
-          this.ensureContentScriptsInjected(request.tabId).
+          this.ensureContentScriptsInjected(request.tabId, request.url || null).
           then(() => sendResponse({ success: true })).
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
@@ -283,6 +361,30 @@ class PointaBackground {
         case 'stopCDPRecording':
           this.stopCDPRecording(sender.tab.id).
           then((events) => sendResponse({ success: true, events })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        case 'startPageNetworkInstrumentation':
+          this.startPageNetworkInstrumentation(sender.tab?.id, request.config).
+          then(() => sendResponse({ success: true })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        case 'stopPageNetworkInstrumentation':
+          this.stopPageNetworkInstrumentation(sender.tab?.id, request.config).
+          then(() => sendResponse({ success: true })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        case 'startPageConsoleInstrumentation':
+          this.startPageConsoleInstrumentation(sender.tab?.id, request.config).
+          then(() => sendResponse({ success: true })).
+          catch((error) => sendResponse({ success: false, error: error.message }));
+          break;
+
+        case 'stopPageConsoleInstrumentation':
+          this.stopPageConsoleInstrumentation(sender.tab?.id, request.config).
+          then(() => sendResponse({ success: true })).
           catch((error) => sendResponse({ success: false, error: error.message }));
           break;
 
@@ -404,7 +506,7 @@ class PointaBackground {
           // Re-inject content scripts when navigating to a localhost page
           // This ensures the extension works after full page reloads (e.g., from dropdown navigation)
           try {
-            await this.ensureContentScriptsInjected(tabId);
+            await this.ensureContentScriptsInjected(tabId, tab.url);
           } catch (error) {
             console.error('Error re-injecting content scripts on navigation:', error);
           }
@@ -422,53 +524,157 @@ class PointaBackground {
 
     // No longer needed - we don't use local storage for annotations
     // Keeping method for potential future use with other settings
-  }setupActionClickListener() {
-    // Handle extension icon click to toggle sidebar or show onboarding
+  }
+
+  setupActionClickListener() {
+    // Handle extension icon click to toggle sidebar or show onboarding.
     chrome.action.onClicked.addListener(async (tab) => {
+      const unsupportedReason = this.getUnsupportedInjectionReason(tab?.url);
+      if (unsupportedReason) {
+        console.debug('[Background] Pointa is unavailable on this page:', unsupportedReason);
+        return;
+      }
+
       try {
-        // Skip chrome:// and chrome-extension:// pages
-        if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+        const injection = await this.ensureContentScriptsInjected(tab.id, tab.url);
+        if (!injection.injected && !injection.alreadyInjected) {
           return;
         }
 
-        // Inject content scripts if not already injected
-        await this.ensureContentScriptsInjected(tab.id);
-
-        // Small delay to ensure scripts are loaded
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Check if we should show onboarding (first time use)
         const result = await chrome.storage.local.get(['onboardingCompleted']);
+        const action = !result.onboardingCompleted && this.isLocalhostUrl(tab.url)
+          ? 'showOnboarding'
+          : 'toggleSidebar';
 
-        // Check if on localhost/local development URL
-        const isLocalhost = this.isLocalhostUrl(tab.url);
-
-        if (!result.onboardingCompleted && isLocalhost) {
-          // First time on localhost - show onboarding
-          await chrome.tabs.sendMessage(tab.id, { action: 'showOnboarding' });
-        } else {
-          // Normal use - toggle sidebar
-          await chrome.tabs.sendMessage(tab.id, { action: 'toggleSidebar' });
-        }
+        await this.sendTabMessage(tab.id, { action });
       } catch (error) {
-        console.error('Error handling extension click:', error);
-        // If content script not loaded, try to inject it
-        try {
-          await this.ensureContentScriptsInjected(tab.id);
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          await chrome.tabs.sendMessage(tab.id, { action: 'toggleSidebar' });
-        } catch (injectError) {
-          console.error('Error injecting content scripts:', injectError);
+        console.warn('[Background] Extension click could not be handled:', error.message);
+      }
+    });
+  }
+
+  getUnsupportedInjectionReason(url) {
+    if (!url) {
+      return 'No active tab URL is available';
+    }
+
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return 'The active tab URL is invalid';
+    }
+
+    const blockedProtocols = new Set([
+      'about:',
+      'chrome:',
+      'chrome-extension:',
+      'devtools:',
+      'edge:',
+      'moz-extension:',
+      'view-source:'
+    ]);
+
+    if (blockedProtocols.has(parsedUrl.protocol)) {
+      return `${parsedUrl.protocol} pages do not allow extension content scripts`;
+    }
+
+    if (!['http:', 'https:', 'file:'].includes(parsedUrl.protocol)) {
+      return `${parsedUrl.protocol} pages are not supported`;
+    }
+
+    return null;
+  }
+
+  async sendTabMessage(tabId, message) {
+    try {
+      return await chrome.tabs.sendMessage(tabId, message);
+    } catch (error) {
+      if (/receiving end does not exist|Could not establish connection/i.test(error.message || '')) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  getContentScriptFiles() {
+    return [
+      'common/browser-compat.js',
+      'content/modules/utils.js',
+      'content/modules/theme-manager.js',
+      'content/modules/selector-generator.js',
+      'content/modules/element-finder.js',
+      'content/modules/context-analyzer.js',
+      'content/modules/badge-manager.js',
+      'content/modules/image-uploader.js',
+      'content/modules/annotation-mode.js',
+      'content/modules/annotation-factory.js',
+      'content/modules/design-mode.js',
+      'content/modules/design-editor-ui.js',
+      'content/modules/onboarding-overlay.js',
+      'content/modules/bug-recorder.js',
+      'content/modules/bug-report-ui.js',
+      'content/modules/bug-replay-engine.js',
+      'content/modules/performance-recorder.js',
+      'content/modules/performance-report-ui.js',
+      'content/modules/sidebar-ui.js',
+      'content/modules/report-details.js',
+      'content/modules/toolbar-drag.js',
+      'content/modules/toolbar-panels.js',
+      'content/modules/floating-toolbar.js',
+      'content/content.js'
+    ];
+  }
+
+  async getInjectionState(tabId) {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => ({
+        pointaReady: typeof window.pointa !== 'undefined',
+        cssInserted: Boolean(window.__POINTA_CSS_INSERTED__),
+        injectedFiles: Array.isArray(window.__POINTA_INJECTED_FILES__)
+          ? window.__POINTA_INJECTED_FILES__
+          : []
+      })
+    });
+
+    return results?.[0]?.result || {
+      pointaReady: false,
+      cssInserted: false,
+      injectedFiles: []
+    };
+  }
+
+  async markCssInjected(tabId) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        window.__POINTA_CSS_INSERTED__ = true;
+      }
+    });
+  }
+
+  async markScriptInjected(tabId, file) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      args: [file],
+      func: (scriptFile) => {
+        window.__POINTA_INJECTED_FILES__ = Array.isArray(window.__POINTA_INJECTED_FILES__)
+          ? window.__POINTA_INJECTED_FILES__
+          : [];
+
+        if (!window.__POINTA_INJECTED_FILES__.includes(scriptFile)) {
+          window.__POINTA_INJECTED_FILES__.push(scriptFile);
         }
       }
     });
   }
 
   /**
-   * Ensure content scripts are injected into the tab
-   * Only injects if not already present (checks for window.pointa)
+   * Legacy injection implementation retained for compatibility while the
+   * Firefox-safe implementation below owns current call sites.
    */
-  async ensureContentScriptsInjected(tabId) {
+  async ensureContentScriptsInjectedLegacy(tabId) {
     // 🔒 Prevent concurrent injections for the same tab (race condition fix)
     if (this.injectionLocks.has(tabId)) {
       console.log(`[Background] Injection already in progress for tab ${tabId}, skipping`);
@@ -488,7 +694,7 @@ class PointaBackground {
       }
       
       // Acquire lock before injecting
-      this.injectionLocks.add(tabId);
+      this.injectionLocks.set(tabId, Promise.resolve());
 
       // Inject CSS first
       await chrome.scripting.insertCSS({
@@ -498,6 +704,7 @@ class PointaBackground {
 
       // Inject all JavaScript modules in order
       const scriptFiles = [
+      'common/browser-compat.js',
       'content/modules/utils.js',
       'content/modules/theme-manager.js',
       'content/modules/selector-generator.js',
@@ -550,6 +757,74 @@ class PointaBackground {
 
   // 🗑️ REMOVED: onAnnotationsChanged() - No longer needed without local storage sync
   // 🗑️ REMOVED: syncAnnotationsToAPI() - No longer needed without local storage sync
+
+  /**
+   * Ensure content scripts are injected into the tab.
+   * Per-file markers make retries safe after partial injection failures.
+   */
+  async ensureContentScriptsInjected(tabId, url = null) {
+    if (!url) {
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        url = tab?.url || null;
+      } catch {
+        url = null;
+      }
+    }
+
+    const unsupportedReason = this.getUnsupportedInjectionReason(url);
+    if (unsupportedReason) {
+      return { injected: false, alreadyInjected: false, reason: unsupportedReason };
+    }
+
+    if (!this.hasCapability('scripting')) {
+      throw new Error('The scripting API is unavailable in this browser.');
+    }
+
+    if (this.injectionLocks.has(tabId)) {
+      return this.injectionLocks.get(tabId);
+    }
+
+    const injectionPromise = this.injectContentScripts(tabId);
+    this.injectionLocks.set(tabId, injectionPromise);
+
+    try {
+      return await injectionPromise;
+    } finally {
+      this.injectionLocks.delete(tabId);
+    }
+  }
+
+  async injectContentScripts(tabId) {
+    const initialState = await this.getInjectionState(tabId);
+    if (initialState.pointaReady) {
+      return { injected: false, alreadyInjected: true };
+    }
+
+    if (!initialState.cssInserted) {
+      await chrome.scripting.insertCSS({
+        target: { tabId },
+        files: ['content/content.css']
+      });
+      await this.markCssInjected(tabId);
+    }
+
+    const injectedFiles = new Set(initialState.injectedFiles || []);
+    for (const file of this.getContentScriptFiles()) {
+      if (injectedFiles.has(file)) {
+        continue;
+      }
+
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: [file]
+      });
+      await this.markScriptInjected(tabId, file);
+      injectedFiles.add(file);
+    }
+
+    return { injected: true, alreadyInjected: false };
+  }
 
   // Helper to get normalized origin + pathname (ignoring query params, hash, trailing slash)
   getUrlPath(url) {
@@ -890,9 +1165,16 @@ class PointaBackground {
 
   async updateBadgeForUrl(url) {
     try {
-      const tabs = await chrome.tabs.query({ url: url });
-      for (const tab of tabs) {
-        await this.updateBadgeFromAPI(tab.id, url);
+      const targetPath = this.getUrlPath(url);
+      const tabs = await chrome.tabs.query({});
+      const matchingTabs = tabs.filter((tab) => (
+        tab.url &&
+        this.isLocalhostUrl(tab.url) &&
+        this.getUrlPath(tab.url) === targetPath
+      ));
+
+      for (const tab of matchingTabs) {
+        await this.updateBadgeFromAPI(tab.id, tab.url);
       }
     } catch (error) {
       console.error('Error updating badge for URL:', url, error);
@@ -914,13 +1196,12 @@ class PointaBackground {
 
   async checkAPIConnectionStatus() {
     try {
-      const response = await fetch(`${this.apiServerUrl}/health`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000) // 5 second timeout
+      const status = await this.browserCompat.checkLocalServerHealth({
+        timeoutMs: 5000
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (status.connected) {
+        const data = status.data || {};
         this.apiConnected = true;
 
         // Check version compatibility
@@ -945,31 +1226,32 @@ class PointaBackground {
         }
 
         return {
+          ...status,
           connected: true,
           server_url: this.apiServerUrl,
           server_version: data.version,
           server_status: data.status,
           version_compatible: versionCompatible,
           compatibility_message: compatibilityMessage,
-          last_check: new Date().toISOString()
+          last_check: status.last_check
         };
       } else {
         this.apiConnected = false;
         return {
+          ...status,
           connected: false,
           server_url: this.apiServerUrl,
-          error: `Server returned ${response.status}`,
-          last_check: new Date().toISOString()
+          error: status.error,
+          last_check: status.last_check
         };
       }
     } catch (error) {
       this.apiConnected = false;
-      return {
+      return this.browserCompat.normalizeLocalServerStatus({
         connected: false,
         server_url: this.apiServerUrl,
-        error: error.message,
-        last_check: new Date().toISOString()
-      };
+        error: error.message
+      });
     }
   }
 
@@ -1079,7 +1361,7 @@ class PointaBackground {
      * 
      * SECURITY: This is safe because:
      * 1. Only checks server health (read-only, no data sent)
-     * 2. Only connects to 127.0.0.1:4242 (local loopback, not accessible externally)
+     * 2. Only connects to the canonical local loopback server URL
      * 3. Only used during onboarding setup flow
      * 4. Background scripts have proper permissions for local network access
      * 
@@ -1087,37 +1369,44 @@ class PointaBackground {
      * to navigate to localhost just to complete setup, which is poor UX.
      */
     try {
-      const response = await fetch(`${this.apiServerUrl}/health`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(5000) // 5 second timeout
+      const status = await this.browserCompat.checkLocalServerHealth({
+        timeoutMs: 5000
       });
 
-      if (response.ok) {
-        const data = await response.json();
+      if (status.connected) {
         return {
           serverOnline: true,
-          serverVersion: data.version,
-          serverStatus: data.status
+          serverUrl: this.apiServerUrl,
+          serverVersion: status.server_version,
+          serverStatus: status.server_status
         };
       } else {
         return {
           serverOnline: false,
-          error: `Server returned status ${response.status}`
+          serverUrl: this.apiServerUrl,
+          error: status.error
         };
       }
     } catch (error) {
       return {
         serverOnline: false,
+        serverUrl: this.apiServerUrl,
         error: error.message || 'Failed to connect to server'
       };
     }
   }
 
-  async captureScreenshot(tabId) {
+  async captureScreenshot(tabId, windowId = null) {
     try {
+      if (!tabId) {
+        throw this.createScreenshotError(
+          'NO_ACTIVE_TAB',
+          'No active tab is available for screenshot capture. Open the target page and activate Pointa from that tab.'
+        );
+      }
+
       // Check if this tab has viewport override active (Feature 5: Responsive Capture)
-      if (this.viewportOverrides.has(tabId)) {
+      if (this.viewportOverrides.has(tabId) && this.hasCapability('debugger')) {
 
 
         // Capture full viewport - content script handles element cropping
@@ -1138,16 +1427,123 @@ class PointaBackground {
         return 'data:image/png;base64,' + result.data;
       }
 
-      // Normal capture for non-overridden viewports
-      const dataUrl = await chrome.tabs.captureVisibleTab(null, {
-        format: 'png',
-        quality: 90
-      });
-      return dataUrl;
+      // Firefox and normal Chrome captures use the visible-tab image; content scripts crop element selections.
+      return await this.captureVisibleTab(windowId);
     } catch (error) {
-      console.error('Error capturing screenshot:', error);
-      throw error;
+      const screenshotError = this.normalizeScreenshotError(error);
+      console.error('Error capturing screenshot:', screenshotError);
+      throw screenshotError;
     }
+  }
+
+  async captureVisibleTab(windowId) {
+    if (!this.hasCapability('captureVisibleTab')) {
+      throw this.createScreenshotError(
+        'CAPTURE_VISIBLE_TAB_UNAVAILABLE',
+        'Visible-tab screenshot capture is unavailable in this browser build.'
+      );
+    }
+
+    const captureOptions = {
+      format: 'png',
+      quality: 90
+    };
+
+    const tabsApi = this.browserCompat?.getApi
+      ? this.browserCompat.getApi('tabs')
+      : chrome.tabs;
+
+    if (!tabsApi || typeof tabsApi.captureVisibleTab !== 'function') {
+      throw this.createScreenshotError(
+        'CAPTURE_VISIBLE_TAB_UNAVAILABLE',
+        'Visible-tab screenshot capture is unavailable in this browser build.'
+      );
+    }
+
+    const hasWindowId = typeof windowId === 'number';
+
+    if (this.capabilities?.hasBrowserNamespace && this.browserCompat?.browser?.tabs?.captureVisibleTab) {
+      return hasWindowId
+        ? this.browserCompat.browser.tabs.captureVisibleTab(windowId, captureOptions)
+        : this.browserCompat.browser.tabs.captureVisibleTab(captureOptions);
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        const handleCaptured = (dataUrl) => {
+          const runtimeError = chrome.runtime?.lastError;
+          if (runtimeError) {
+            reject(runtimeError);
+            return;
+          }
+          if (!dataUrl) {
+            reject(new Error('Browser returned an empty screenshot.'));
+            return;
+          }
+          resolve(dataUrl);
+        };
+
+        const maybePromise = hasWindowId
+          ? tabsApi.captureVisibleTab(windowId, captureOptions, handleCaptured)
+          : tabsApi.captureVisibleTab(captureOptions, handleCaptured);
+
+        if (maybePromise && typeof maybePromise.then === 'function') {
+          maybePromise.then(resolve, reject);
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  createScreenshotError(code, message, details = null) {
+    const error = new Error(message);
+    error.code = code;
+    error.details = details;
+    return error;
+  }
+
+  normalizeScreenshotError(error) {
+    if (error?.code) {
+      return error;
+    }
+
+    const originalMessage = error?.message || String(error || 'Unknown screenshot capture error');
+    const capabilities = {
+      isFirefox: Boolean(this.capabilities?.isFirefox),
+      hasDebugger: this.hasCapability('debugger'),
+      hasCaptureVisibleTab: this.hasCapability('captureVisibleTab')
+    };
+
+    if (!capabilities.hasCaptureVisibleTab) {
+      return this.createScreenshotError(
+        'CAPTURE_VISIBLE_TAB_UNAVAILABLE',
+        'Visible-tab screenshot capture is unavailable in this browser build.',
+        { originalMessage, capabilities }
+      );
+    }
+
+    if (/permission|activeTab|host permission|not allowed|access/i.test(originalMessage)) {
+      return this.createScreenshotError(
+        'SCREENSHOT_PERMISSION_DENIED',
+        'Screenshot capture was blocked by browser permissions. Activate Pointa on the target tab and try again; Firefox requires activeTab access for visible-tab screenshots.',
+        { originalMessage, capabilities }
+      );
+    }
+
+    if (/cannot access|restricted|special page|privileged|internal|about:|chrome:|moz-extension:/i.test(originalMessage)) {
+      return this.createScreenshotError(
+        'SCREENSHOT_RESTRICTED_PAGE',
+        'Screenshot capture is not available on browser-internal or restricted pages. Try again from a normal http, https, localhost, or file page.',
+        { originalMessage, capabilities }
+      );
+    }
+
+    return this.createScreenshotError(
+      'SCREENSHOT_CAPTURE_FAILED',
+      `Screenshot capture failed: ${originalMessage}`,
+      { originalMessage, capabilities }
+    );
   }
 
   async getBugReports(status = 'active', url = null) {
@@ -1712,6 +2108,10 @@ class PointaBackground {
    */
   async setViewport(tabId, width, height) {
     try {
+      if (!this.hasCapability('debugger')) {
+        throw new Error('Responsive viewport capture is unavailable in this browser. Use the visible screenshot capture instead.');
+      }
+
       // Only attach debugger if not already attached
       const isAttached = this.viewportOverrides.has(tabId);
 
@@ -1751,6 +2151,11 @@ class PointaBackground {
    */
   async resetViewport(tabId) {
     try {
+      if (!this.hasCapability('debugger')) {
+        this.viewportOverrides.delete(tabId);
+        return;
+      }
+
       // Clear device metrics override
       await chrome.debugger.sendCommand(
         { tabId },
@@ -1865,6 +2270,89 @@ class PointaBackground {
     }
   }
 
+  async startPageNetworkInstrumentation(tabId, config) {
+    if (!tabId) {
+      throw new Error('No active tab is available for network instrumentation.');
+    }
+    if (!config?.id || !config.eventName || !config.stopEventName) {
+      throw new Error('Network instrumentation config is incomplete.');
+    }
+    if (!this.hasCapability('scripting')) {
+      throw new Error('Page network instrumentation requires the scripting API.');
+    }
+
+    await this.setPageRecorderConfig(tabId, 'network', config);
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      injectImmediately: true,
+      files: ['content/page-network-recorder.js']
+    });
+  }
+
+  async stopPageNetworkInstrumentation(tabId, config) {
+    if (!tabId || !config?.id || !config.stopEventName || !this.hasCapability('scripting')) {
+      return;
+    }
+
+    await this.dispatchPageRecorderStop(tabId, config.stopEventName);
+  }
+
+  async startPageConsoleInstrumentation(tabId, config) {
+    if (!tabId) {
+      throw new Error('No active tab is available for console instrumentation.');
+    }
+    if (!config?.id || !config.eventName || !config.stopEventName) {
+      throw new Error('Console instrumentation config is incomplete.');
+    }
+    if (!this.hasCapability('scripting')) {
+      throw new Error('Page console instrumentation requires the scripting API.');
+    }
+
+    await this.setPageRecorderConfig(tabId, 'console', config);
+
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      injectImmediately: true,
+      files: ['content/page-console-recorder.js']
+    });
+  }
+
+  async stopPageConsoleInstrumentation(tabId, config) {
+    if (!tabId || !config?.id || !config.stopEventName || !this.hasCapability('scripting')) {
+      return;
+    }
+
+    await this.dispatchPageRecorderStop(tabId, config.stopEventName);
+  }
+
+  async setPageRecorderConfig(tabId, recorderType, config) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      injectImmediately: true,
+      args: [recorderType, JSON.stringify(config)],
+      func: (type, serializedConfig) => {
+        const attrName = `data-pointa-${type}-recorder-config`;
+        document.documentElement.setAttribute(attrName, serializedConfig);
+      }
+    });
+  }
+
+  async dispatchPageRecorderStop(tabId, stopEventName) {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      injectImmediately: true,
+      args: [stopEventName],
+      func: (eventName) => {
+        const event = new Event(eventName);
+        window.dispatchEvent(event);
+        document.dispatchEvent(new Event(eventName));
+      }
+    });
+  }
+
   // ============================================================
   // CDP Recording: Chrome DevTools Protocol Network/Console Capture
   // ============================================================
@@ -1874,6 +2362,10 @@ class PointaBackground {
    * This listener handles ALL CDP events and routes them to active recordings
    */
   setupCDPEventListener() {
+    if (!this.hasCapability('debugger')) {
+      return;
+    }
+
     chrome.debugger.onEvent.addListener((source, method, params) => {
       const tabId = source.tabId;
       const recording = this.cdpRecordings.get(tabId);
@@ -2078,6 +2570,10 @@ class PointaBackground {
    */
   async startCDPRecording(tabId) {
     try {
+      if (!this.hasCapability('debugger')) {
+        throw new Error('Browser-level network and console capture is unavailable in this browser. Page-level recording remains available.');
+      }
+
       // Check if already recording
       if (this.cdpRecordings.has(tabId)) {
         console.warn(`[CDP] Already recording for tab ${tabId}`);
@@ -2121,6 +2617,10 @@ class PointaBackground {
    */
   async stopCDPRecording(tabId) {
     try {
+      if (!this.hasCapability('debugger')) {
+        return { network: [], console: [] };
+      }
+
       const recording = this.cdpRecordings.get(tabId);
       
       if (!recording) {
@@ -2425,4 +2925,6 @@ class PointaBackground {
 }
 
 // Initialize the background service worker
-new PointaBackground();
+loadPointaBrowserCompat(() => {
+  new PointaBackground();
+});

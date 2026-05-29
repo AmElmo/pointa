@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/spec.schema.json",
+  "title": "Delano project spec frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "slug",
+    "owner",
+    "status",
+    "created",
+    "updated",
+    "outcome",
+    "uncertainty",
+    "probe_required",
+    "probe_status"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "active",
+        "complete",
+        "deferred"
+      ]
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "outcome": {
+      "type": "string",
+      "minLength": 1
+    },
+    "uncertainty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "probe_required": {
+      "enum": [
+        "true",
+        "false",
+        true,
+        false
+      ]
+    },
+    "probe_status": {
+      "enum": [
+        "not-started",
+        "pending",
+        "completed",
+        "skipped"
+      ]
+    },
+    "source_review": {
+      "type": "string"
+    },
+    "external_reference": {
+      "type": "string"
+    },
+    "target_version": {
+      "type": "string"
+    },
+    "operating_mode": {
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "patch",
+        "scoped-change",
+        "feature",
+        "uncertain-feature",
+        "multi-stream"
+      ]
+    }
+  }
+}

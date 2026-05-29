@@ -39,12 +39,13 @@ const PointaAnnotationFactory = {
       position: context.styles?.position
     };
     
-    // Simplified parent chain - only 1 level, minimal info
+    // Simplified parent chain - enough context to survive nearby DOM shifts.
     const minimalParentChain = context.parent_chain 
-      ? [context.parent_chain[0]].map(parent => ({
+      ? context.parent_chain.slice(0, 2).map(parent => ({
           tag: parent.tag,
           classes: parent.classes.slice(0, 2), // Just first 2 classes
-          id: parent.id
+          id: parent.id,
+          stable_attributes: parent.stable_attributes || {}
         }))
       : null;
     
@@ -57,10 +58,14 @@ const PointaAnnotationFactory = {
       // Essential context - stripped down
       element_context: {
         tag: context.tag,
+        id: context.id || null,
+        stable_attributes: context.stable_attributes || {},
         classes: classes,
         text: context.text, // Keep full text (100 chars) for fallback matching
         styles: minimalStyles,
-        position: context.position // Keep position for fallback element finding
+        position: context.position, // Keep position for fallback element finding
+        sibling_index: context.sibling_index,
+        same_tag_index: context.same_tag_index
       },
       
       // Critical for finding the right code
@@ -100,10 +105,14 @@ const PointaAnnotationFactory = {
       viewport: context.viewport,
       element_context: {
         tag: context.tag,
+        id: context.id || null,
+        stable_attributes: context.stable_attributes || {},
         classes: context.classes,
         text: context.text,
         styles: context.styles,
-        position: context.position
+        position: context.position,
+        sibling_index: context.sibling_index,
+        same_tag_index: context.same_tag_index
       },
       source_file_path: context.source_mapping?.source_file_path || null,
       source_line_range: context.source_mapping?.source_line_range || null,
@@ -208,6 +217,7 @@ const PointaAnnotationFactory = {
           tag: parent.tag,
           classes: parent.classes || [],
           id: parent.id || null,
+          stable_attributes: parent.stable_attributes || {},
           role: parent.role || null
         }))
       : [];
@@ -243,9 +253,13 @@ const PointaAnnotationFactory = {
       // ENHANCED: Full element context for design mode
       element_context: {
         tag: context.tag,
+        id: context.id || null,
+        stable_attributes: context.stable_attributes || {},
         classes: context.classes,  // Keep ALL classes (important for framework detection)
         text: context.text,
         position: context.position,
+        sibling_index: context.sibling_index,
+        same_tag_index: context.same_tag_index,
         
         // Full computed styles BEFORE changes (critical for AI)
         computed_styles: fullComputedStyles

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "purpose": "Defines local validation rules for Delano task status readiness and blocked-state hygiene.",
+  "task_rules": [
+    {
+      "id": "ready-dependencies-done",
+      "status": "ready",
+      "description": "A ready task must not depend on a local task that is not done.",
+      "requires": ["all local depends_on task statuses are done"]
+    },
+    {
+      "id": "in-progress-dependencies-done",
+      "status": "in-progress",
+      "description": "An in-progress task must not start while local dependencies remain unresolved.",
+      "requires": ["all local depends_on task statuses are done"]
+    },
+    {
+      "id": "done-dependencies-done",
+      "status": "done",
+      "description": "A done task must not close over unresolved local dependencies.",
+      "requires": ["all local depends_on task statuses are done"]
+    },
+    {
+      "id": "progressed-task-requires-active-project",
+      "status": "in-progress|done",
+      "description": "A task must not start or complete while the parent project spec or plan is still planned.",
+      "requires": [
+        "spec.status is active or complete",
+        "plan.status is active or done"
+      ]
+    },
+    {
+      "id": "closed-task-set-requires-closed-project",
+      "status": "done|deferred",
+      "description": "A project with no open tasks must not remain open through stale spec or plan statuses.",
+      "requires": [
+        "spec.status is complete or deferred",
+        "plan.status is done or deferred"
+      ]
+    },
+    {
+      "id": "progressed-task-requires-active-workstream",
+      "status": "in-progress|done",
+      "description": "A task must not start or complete before its parent workstream has started.",
+      "requires": [
+        "in-progress tasks require workstream.status active",
+        "done tasks require workstream.status active or done"
+      ]
+    },
+    {
+      "id": "closed-task-set-requires-closed-workstream",
+      "status": "done|deferred",
+      "description": "A workstream with no open tasks must not remain open through a stale status.",
+      "requires": [
+        "workstream.status is done or deferred"
+      ]
+    },
+    {
+      "id": "blocked-owner-check-back",
+      "status": "blocked",
+      "description": "A blocked task must name who owns unblocking and when to check back.",
+      "requires": ["blocked_owner", "blocked_check_back"]
+    }
+  ]
+}

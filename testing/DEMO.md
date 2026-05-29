@@ -14,7 +14,7 @@ cd annotations-server && npm run dev
 # 3. Serve the demo page (in another terminal, from repo root)
 python3 -m http.server 8080
 
-# 4. Open in Chrome with Pointa extension enabled
+# 4. Open in a supported browser with Pointa extension enabled
 open http://localhost:8080/testing/demo-app/index.html
 ```
 

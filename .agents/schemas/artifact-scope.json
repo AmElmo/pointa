@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "purpose": "Defines the first enforceable Delano artifact contract surface before JSON schemas are introduced.",
+  "artifact_types": {
+    "spec": {
+      "path_patterns": [
+        ".project/projects/<project>/spec.md"
+      ],
+      "frontmatter": true,
+      "required_fields": [
+        "name",
+        "slug",
+        "owner",
+        "status",
+        "created",
+        "updated",
+        "outcome",
+        "uncertainty",
+        "probe_required",
+        "probe_status"
+      ],
+      "optional_fields": [
+        "source_review",
+        "external_reference",
+        "target_version",
+        "operating_mode"
+      ],
+      "enum_fields": {
+        "status": [
+          "planned",
+          "active",
+          "complete",
+          "deferred"
+        ],
+        "probe_required": [
+          "true",
+          "false"
+        ],
+        "probe_status": [
+          "not-started",
+          "pending",
+          "completed",
+          "skipped"
+        ]
+      },
+      "derived_fields": [
+        "slug may be derived from the project directory name when absent in future migration tooling"
+      ],
+      "schema_path": ".agents/schemas/artifacts/spec.schema.json"
+    },
+    "plan": {
+      "path_patterns": [
+        ".project/projects/<project>/plan.md"
+      ],
+      "frontmatter": true,
+      "required_fields": [
+        "name",
+        "status",
+        "lead",
+        "created",
+        "updated",
+        "linear_project_id",
+        "risk_level",
+        "spec_status_at_plan_time"
+      ],
+      "optional_fields": [
+        "target_version",
+        "operating_mode"
+      ],
+      "enum_fields": {
+        "status": [
+          "planned",
+          "active",
+          "done",
+          "deferred"
+        ],
+        "risk_level": [
+          "low",
+          "medium",
+          "high"
+        ]
+      },
+      "derived_fields": [
+        "spec_status_at_plan_time is copied from spec.status when the plan is created"
+      ],
+      "schema_path": ".agents/schemas/artifacts/plan.schema.json"
+    },
+    "workstream": {
+      "path_patterns": [
+        ".project/projects/<project>/workstreams/*.md"
+      ],
+      "frontmatter": true,
+      "required_fields": [
+        "name",
+        "status",
+        "owner",
+        "created",
+        "updated"
+      ],
+      "optional_fields": [
+        "id",
+        "child_project",
+        "operating_mode"
+      ],
+      "enum_fields": {
+        "status": [
+          "planned",
+          "active",
+          "done",
+          "deferred"
+        ]
+      },
+      "derived_fields": [
+        "id may be derived from a canonical filename prefix like WS-A"
+      ],
+      "schema_path": ".agents/schemas/artifacts/workstream.schema.json"
+    },
+    "task": {
+      "path_patterns": [
+        ".project/projects/<project>/tasks/*.md"
+      ],
+      "frontmatter": true,
+      "required_fields": [
+        "id",
+        "name",
+        "status",
+        "workstream",
+        "created",
+        "updated",
+        "linear_issue_id",
+        "github_issue",
+        "github_pr",
+        "depends_on",
+        "conflicts_with",
+        "parallel",
+        "priority",
+        "estimate"
+      ],
+      "optional_fields": [
+        "operating_mode"
+      ],
+      "enum_fields": {
+        "status": [
+          "ready",
+          "in-progress",
+          "blocked",
+          "done",
+          "deferred"
+        ],
+        "parallel": [
+          "true",
+          "false"
+        ],
+        "priority": [
+          "low",
+          "medium",
+          "high"
+        ],
+        "estimate": [
+          "S",
+          "M",
+          "L",
+          "XL"
+        ]
+      },
+      "derived_fields": [
+        "workstream must match a workstream id available in the same project"
+      ],
+      "schema_path": ".agents/schemas/artifacts/task.schema.json"
+    },
+    "decision_log": {
+      "path_patterns": [
+        ".project/projects/<project>/decisions.md"
+      ],
+      "frontmatter": false,
+      "required_sections": [
+        "# Decisions"
+      ],
+      "optional_fields": [],
+      "enum_fields": {},
+      "derived_fields": [],
+      "schema_path": ".agents/schemas/artifacts/decision_log.schema.json"
+    },
+    "update": {
+      "path_patterns": [
+        ".project/projects/<project>/updates/**/*.md"
+      ],
+      "frontmatter": "optional",
+      "required_sections": [],
+      "optional_fields": [
+        "date",
+        "related_task",
+        "status"
+      ],
+      "enum_fields": {},
+      "derived_fields": [
+        "related_task should reference a local task id when present"
+      ],
+      "schema_path": ".agents/schemas/artifacts/update.schema.json"
+    },
+    "context": {
+      "path_patterns": [
+        ".project/context/*.md"
+      ],
+      "frontmatter": false,
+      "required_sections": [],
+      "optional_fields": [],
+      "enum_fields": {},
+      "derived_fields": [],
+      "schema_path": ".agents/schemas/artifacts/context.schema.json"
+    },
+    "evidence": {
+      "path_patterns": [
+        "Evidence Log sections inside task files",
+        ".project/projects/<project>/updates/**/*.md"
+      ],
+      "frontmatter": false,
+      "required_fields": [
+        "timestamp",
+        "claim",
+        "validation_or_artifact"
+      ],
+      "optional_fields": [
+        "command",
+        "result",
+        "log_path",
+        "commit"
+      ],
+      "enum_fields": {},
+      "derived_fields": [
+        "timestamp is the leading ISO8601 UTC value in a task Evidence Log bullet"
+      ],
+      "schema_path": ".agents/schemas/artifacts/evidence.schema.json"
+    }
+  }
+}

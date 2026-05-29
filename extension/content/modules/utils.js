@@ -1,6 +1,163 @@
 // Pointa Utility Functions
 // Shared utility functions used across the extension
 
+if (!window.PointaBrowser ||
+  typeof window.PointaBrowser.normalizeLocalServerStatus !== 'function' ||
+  typeof window.PointaBrowser.getLocalServerUrl !== 'function') {
+  const POINTA_LOCAL_SERVER_URL = 'http://127.0.0.1:4242';
+  const POINTA_LOCAL_SERVER_HEALTH_PATH = '/health';
+  const POINTA_LOCAL_SERVER_HOSTS = ['127.0.0.1', 'localhost'];
+
+  const normalizePointaServerPath = (path) => {
+    if (!path) return '';
+    const normalizedPath = String(path);
+    if (normalizedPath.charAt(0) === '?' || normalizedPath.charAt(0) === '#') {
+      return normalizedPath;
+    }
+    return normalizedPath.charAt(0) === '/' ? normalizedPath : '/' + normalizedPath;
+  };
+
+  const getPointaDefaultPort = (protocol) => protocol === 'https:' ? '443' : '80';
+  const getPointaLocalServerBaseUrl = () => POINTA_LOCAL_SERVER_URL;
+  const getPointaLocalServerUrl = (path) => POINTA_LOCAL_SERVER_URL + normalizePointaServerPath(path);
+  const getPointaLocalServerHealthUrl = () => getPointaLocalServerUrl(POINTA_LOCAL_SERVER_HEALTH_PATH);
+
+  const isPointaLocalServerUrl = (url, pathPrefix) => {
+    try {
+      const parsedUrl = new URL(url);
+      const canonicalUrl = new URL(POINTA_LOCAL_SERVER_URL);
+      const parsedPort = parsedUrl.port || getPointaDefaultPort(parsedUrl.protocol);
+      const canonicalPort = canonicalUrl.port || getPointaDefaultPort(canonicalUrl.protocol);
+      const pathMatches = pathPrefix
+        ? parsedUrl.pathname.indexOf(normalizePointaServerPath(pathPrefix)) === 0
+        : true;
+
+      return parsedUrl.protocol === canonicalUrl.protocol &&
+        parsedPort === canonicalPort &&
+        POINTA_LOCAL_SERVER_HOSTS.includes(parsedUrl.hostname) &&
+        pathMatches;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const normalizePointaLocalServerStatus = (status) => {
+    const input = status || {};
+    const connected = Boolean(input.connected || input.serverOnline);
+    const normalized = {
+      connected,
+      serverOnline: connected,
+      server_url: input.server_url || POINTA_LOCAL_SERVER_URL,
+      last_check: input.last_check || new Date().toISOString()
+    };
+
+    if (typeof input.http_status !== 'undefined') normalized.http_status = input.http_status;
+    if (typeof input.server_version !== 'undefined' || typeof input.serverVersion !== 'undefined') {
+      normalized.server_version = input.server_version || input.serverVersion;
+    }
+    if (typeof input.server_status !== 'undefined' || typeof input.serverStatus !== 'undefined') {
+      normalized.server_status = input.server_status || input.serverStatus;
+    }
+    if (typeof input.version_compatible !== 'undefined') normalized.version_compatible = input.version_compatible;
+    if (typeof input.compatibility_message !== 'undefined') {
+      normalized.compatibility_message = input.compatibility_message;
+    }
+    if (input.data) normalized.data = input.data;
+    if (!connected) normalized.error = input.error || 'Pointa server is offline';
+
+    return normalized;
+  };
+
+  const checkPointaLocalServerHealth = async (options = {}) => {
+    if (typeof fetch !== 'function') {
+      return normalizePointaLocalServerStatus({
+        connected: false,
+        error: 'Fetch API is unavailable in this extension context'
+      });
+    }
+
+    const requestOptions = {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    };
+    let controller = null;
+    let timeoutId = null;
+
+    if (options.mode) requestOptions.mode = options.mode;
+    if (options.credentials) requestOptions.credentials = options.credentials;
+
+    if (options.timeoutMs && typeof AbortController === 'function') {
+      controller = new AbortController();
+      requestOptions.signal = controller.signal;
+      timeoutId = setTimeout(() => controller.abort(), options.timeoutMs);
+    }
+
+    try {
+      const response = await fetch(getPointaLocalServerHealthUrl(), requestOptions);
+      if (!response.ok) {
+        return normalizePointaLocalServerStatus({
+          connected: false,
+          error: 'Server returned ' + response.status,
+          http_status: response.status
+        });
+      }
+
+      let data = {};
+      try {
+        data = await response.json();
+      } catch (_) {
+        data = {};
+      }
+
+      return normalizePointaLocalServerStatus({
+        connected: true,
+        data,
+        server_version: data.version,
+        server_status: data.status
+      });
+    } catch (error) {
+      return normalizePointaLocalServerStatus({
+        connected: false,
+        error: error && error.name === 'AbortError'
+          ? 'Timed out connecting to Pointa server'
+          : error && error.message ? error.message : 'Pointa server is offline'
+      });
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  };
+
+  const existingBrowser = window.PointaBrowser || {};
+  const fallbackCapabilities = Object.freeze(Object.assign({
+    namespace: typeof browser !== 'undefined' ? 'browser' : typeof chrome !== 'undefined' ? 'chrome' : 'none',
+    runtime: typeof chrome !== 'undefined' && Boolean(chrome.runtime),
+    storage: typeof chrome !== 'undefined' && Boolean(chrome.storage?.local),
+    tabs: typeof chrome !== 'undefined' && Boolean(chrome.tabs),
+    captureVisibleTab: typeof chrome !== 'undefined' && Boolean(chrome.tabs?.captureVisibleTab),
+    scripting: typeof chrome !== 'undefined' && Boolean(chrome.scripting?.executeScript && chrome.scripting?.insertCSS),
+    debugger: false
+  }, existingBrowser.capabilities || {}));
+
+  window.PointaBrowser = Object.freeze(Object.assign({}, existingBrowser, {
+    capabilities: fallbackCapabilities,
+    localServer: Object.freeze({
+      url: POINTA_LOCAL_SERVER_URL,
+      healthPath: POINTA_LOCAL_SERVER_HEALTH_PATH,
+      healthUrl: getPointaLocalServerHealthUrl(),
+      offlineError: 'Pointa server is offline'
+    }),
+    getLocalServerBaseUrl: getPointaLocalServerBaseUrl,
+    getLocalServerUrl: getPointaLocalServerUrl,
+    getLocalServerHealthUrl: getPointaLocalServerHealthUrl,
+    checkLocalServerHealth: checkPointaLocalServerHealth,
+    normalizeLocalServerStatus: normalizePointaLocalServerStatus,
+    isLocalServerUrl: isPointaLocalServerUrl,
+    isLocalServerHealthUrl: (url) => isPointaLocalServerUrl(url, POINTA_LOCAL_SERVER_HEALTH_PATH),
+    isLocalServerBackendUrl: (url) => isPointaLocalServerUrl(url, '/api/backend'),
+    hasCapability: (name) => Boolean(fallbackCapabilities[name])
+  }));
+}
+
 const PointaUtils = {
   /**
    * Convert RGB/RGBA color to hex format
@@ -41,8 +198,22 @@ const PointaUtils = {
    */
   escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
+  },
+
+  /**
+   * Escape text used inside quoted HTML attribute values.
+   * @param {string} text - Text to escape
+   * @returns {string} Escaped attribute value
+   */
+  escapeAttribute(text) {
+    return (text == null ? '' : String(text)).
+    replace(/&/g, '&amp;').
+    replace(/"/g, '&quot;').
+    replace(/'/g, '&#39;').
+    replace(/</g, '&lt;').
+    replace(/>/g, '&gt;');
   },
 
   /**

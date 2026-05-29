@@ -5,6 +5,10 @@
   "private": true,
   "description": "Pointa - AI-powered development annotations",
   "scripts": {
+    "firefox:build": "node scripts/build-firefox-extension.js",
+    "firefox:lint": "npm run firefox:build && npx --yes web-ext lint --source-dir dist/firefox",
+    "firefox:run": "npm run firefox:build && npx --yes web-ext run --source-dir dist/firefox",
+    "firefox:package": "npm run firefox:build && npx --yes web-ext build --source-dir dist/firefox --artifacts-dir dist/firefox-artifacts --overwrite-dest",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },

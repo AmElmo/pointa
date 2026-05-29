@@ -253,13 +253,14 @@ const BugReplayEngine = {
     const modal = document.createElement('div');
     modal.className = 'pointa-comment-modal bug-replay-success-modal';
     const promptText = `Check new bug report with console logs for ${bugId}`;
+    const promptValue = PointaUtils.escapeAttribute(promptText);
     modal.innerHTML = `
       <div class="pointa-comment-modal-content">
         <h3>✅ Auto-Replay Complete!</h3>
         <p>New recording captured with updated logs.</p>
         <p><strong>Next step:</strong> Copy prompt and paste into your AI coding tool.</p>
         <div class="bug-id-copy-container">
-          <input type="text" readonly value="${promptText}" id="bug-id-copy-input" />
+          <input type="text" readonly value="${promptValue}" id="bug-id-copy-input" />
           <button class="pointa-btn pointa-btn-primary" id="copy-bug-id-btn">📋 Copy Prompt</button>
         </div>
         <button class="pointa-btn pointa-btn-secondary" id="close-success-btn">Close</button>
@@ -292,23 +293,25 @@ const BugReplayEngine = {
     const modal = document.createElement('div');
     modal.className = 'pointa-comment-modal bug-replay-failed-modal';
     
-    const originalSteps = this.extractSteps(bugReport.recordings[0]);
+    const originalSteps = this.extractSteps(bugReport?.recordings?.[0]);
+    const errorMessage = PointaUtils.escapeHtml(error?.message || 'Auto-replay could not complete.');
+    const iteration = Number(bugReport?.recordings?.length || 0) + 1;
     
     modal.innerHTML = `
       <div class="pointa-comment-modal-content">
         <h3>⚠️ Auto-Replay Failed</h3>
-        <p>${error.message}</p>
+        <p>${errorMessage}</p>
         <p>Some elements may have changed. Please record manually following these steps:</p>
         
         <div class="manual-recording-guide">
           <h4>Original Steps:</h4>
           <ol>
-            ${originalSteps.map(step => `<li>${step}</li>`).join('')}
+            ${originalSteps.map(step => `<li>${PointaUtils.escapeHtml(step)}</li>`).join('')}
           </ol>
         </div>
         
         <button class="pointa-btn pointa-btn-primary" id="manual-record-btn">
-          📹 Record Manually (Iteration ${bugReport.recordings.length + 1})
+          📹 Record Manually (Iteration ${iteration})
         </button>
         <button class="pointa-btn pointa-btn-secondary" id="cancel-replay-btn">Cancel</button>
       </div>
@@ -330,10 +333,10 @@ const BugReplayEngine = {
    * Extract steps from recording for display
    */
   extractSteps(recording) {
-    return recording.timeline.events
+    return (recording?.timeline?.events || [])
       .filter(e => e.type === 'user-interaction')
       .map((e, i) => {
-        const elem = e.data.element;
+        const elem = e.data?.element || {};
         const action = e.subtype === 'click' ? 'Click' : e.subtype === 'input' ? 'Type in' : e.subtype;
         const target = elem.textContent || elem.id || `${elem.tagName}${elem.className ? '.' + elem.className : ''}`;
         return `${action} "${target}"`;

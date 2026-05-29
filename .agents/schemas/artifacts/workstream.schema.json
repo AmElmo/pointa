@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/workstream.schema.json",
+  "title": "Delano workstream frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "name",
+    "status",
+    "owner",
+    "created",
+    "updated"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^WS-[A-Za-z0-9]+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "planned",
+        "active",
+        "done",
+        "deferred"
+      ]
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "child_project": {
+      "type": "string"
+    },
+    "operating_mode": {
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "patch",
+        "scoped-change",
+        "feature",
+        "uncertain-feature",
+        "multi-stream"
+      ]
+    }
+  }
+}

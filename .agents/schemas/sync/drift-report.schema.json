@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/sync/drift-report.schema.json",
+  "title": "Delano dry-run drift report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "mode", "generated_at", "summary", "drift", "repair_recommendations"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "mode": { "const": "dry-run" },
+    "generated_at": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "required": ["projects", "tasks", "drift_count", "repair_count"],
+      "properties": {
+        "projects": { "type": "integer", "minimum": 0 },
+        "tasks": { "type": "integer", "minimum": 0 },
+        "drift_count": { "type": "integer", "minimum": 0 },
+        "repair_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "drift": { "type": "array" },
+    "repair_recommendations": { "type": "array" }
+  }
+}

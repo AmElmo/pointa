@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/evidence.schema.json",
+  "title": "Delano evidence record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["timestamp", "claim", "validation_or_artifact"],
+  "properties": {
+    "timestamp": { "type": "string", "format": "date-time" },
+    "claim": { "type": "string", "minLength": 1 },
+    "validation_or_artifact": { "type": "string", "minLength": 1 },
+    "command": { "type": "string" },
+    "result": { "type": "string" },
+    "log_path": { "type": "string" },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+  }
+}

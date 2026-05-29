@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "purpose": "Typed local-first taxonomy for Delano operational sync drift and repair recommendations.",
+  "drift_types": [
+    {
+      "id": "mapping-drift",
+      "description": "A local project/task/workstream mapping disagrees with the registry or external identifiers.",
+      "severity": ["info", "warning", "error"],
+      "repair_posture": "dry-run-plan-first"
+    },
+    {
+      "id": "status-drift",
+      "description": "Local status and inspected external status differ.",
+      "severity": ["warning", "error"],
+      "repair_posture": "dry-run-plan-first"
+    },
+    {
+      "id": "dependency-drift",
+      "description": "Local dependencies and inspected external dependency links differ.",
+      "severity": ["warning", "error"],
+      "repair_posture": "dry-run-plan-first"
+    },
+    {
+      "id": "orphan-drift",
+      "description": "A local or external record lacks its expected counterpart.",
+      "severity": ["info", "warning", "error"],
+      "repair_posture": "manual-review-before-apply"
+    },
+    {
+      "id": "repair-recommendation",
+      "description": "A proposed local or external repair action generated from drift inspection.",
+      "severity": ["info", "warning", "error"],
+      "repair_posture": "never-apply-without-explicit-approval"
+    }
+  ],
+  "repair_recommendation_fields": ["drift_type", "target", "summary", "proposed_action", "apply_posture", "evidence"]
+}

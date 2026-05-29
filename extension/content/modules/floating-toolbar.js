@@ -42,7 +42,7 @@ const PointaToolbar = {
     // Check server status
     const isLocalhost = PointaUtils.isLocalhostUrl();
     const serverOnline = isLocalhost
-      ? await this.checkServerStatus()
+      ? await this.checkServerStatus(pointa)
       : (await pointa.checkAPIStatus()).connected;
     this.serverOnline = serverOnline;
 
@@ -459,16 +459,30 @@ const PointaToolbar = {
    * Check if the Pointa server is online
    * @returns {Promise<boolean>}
    */
-  async checkServerStatus() {
+  async checkServerStatus(pointa) {
     const isLocalhost = PointaUtils.isLocalhostUrl(window.location.href);
     if (!isLocalhost) return false;
 
     try {
-      const response = await fetch('http://127.0.0.1:4242/health', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+      if (pointa && typeof pointa.checkAPIStatus === 'function') {
+        const status = await pointa.checkAPIStatus();
+        return status.connected;
+      }
+
+      const bgResponse = await chrome.runtime.sendMessage({
+        action: 'checkMCPStatus'
       });
-      return response.ok;
+
+      if (bgResponse?.success && bgResponse.status) {
+        return window.PointaBrowser.normalizeLocalServerStatus(bgResponse.status).connected;
+      }
+
+      const status = await window.PointaBrowser.checkLocalServerHealth({
+        timeoutMs: 2000,
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      return status.connected;
     } catch {
       return false;
     }
@@ -483,7 +497,7 @@ const PointaToolbar = {
 
     this.statusPollInterval = setInterval(async () => {
       const wasOnline = this.serverOnline;
-      this.serverOnline = await this.checkServerStatus();
+      this.serverOnline = await this.checkServerStatus(pointa);
 
       // Update status dot
       const dot = this.toolbar?.querySelector('.toolbar-status-dot');

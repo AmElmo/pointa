@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/decision-log.schema.json",
+  "title": "Delano decision log document",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["path", "required_sections"],
+  "properties": {
+    "path": { "type": "string", "pattern": "^\\.project/projects/[^/]+/decisions\\.md$" },
+    "required_sections": { "type": "array", "contains": { "const": "# Decisions" } }
+  }
+}

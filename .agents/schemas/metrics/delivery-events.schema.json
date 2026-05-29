@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/metrics/delivery-events.schema.json",
+  "title": "Delano delivery metric event contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "event_type", "timestamp", "project", "actor", "summary"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "pattern": "^evt-[0-9TZ._-]+-[a-z0-9-]+$" },
+    "event_type": {
+      "enum": [
+        "task_status_changed",
+        "validation_run",
+        "lease_acquired",
+        "lease_released",
+        "drift_report_generated",
+        "repair_plan_created",
+        "closeout_recorded"
+      ]
+    },
+    "timestamp": { "type": "string" },
+    "project": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "actor": { "enum": ["agent", "system", "user"] },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "privacy"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "privacy": { "const": "metadata-only" },
+        "counts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "status_from": { "type": "string" },
+        "status_to": { "type": "string" },
+        "result": { "enum": ["passed", "failed", "blocked", "warning", "generated"] }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repo_paths": { "type": "array", "items": { "type": "string", "not": { "pattern": "^/" } } },
+        "commands": { "type": "array", "items": { "type": "string" } },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" }
+      }
+    }
+  }
+}

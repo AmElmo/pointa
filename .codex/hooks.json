@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.agents/hooks/codex-session-status.js\"",
+            "timeout": 5,
+            "statusMessage": "Loading Delano open projects"
+          }
+        ]
+      }
+    ]
+  }
+}

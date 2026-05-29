@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/learning/closeout-learning-proposal.schema.json",
+  "title": "Delano closeout learning proposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project", "task_ids", "proposal_type", "title", "rationale", "target_paths", "review_gate", "adoption_status"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "project": { "type": "string", "minLength": 1 },
+    "task_ids": { "type": "array", "items": { "type": "string", "pattern": "^T-[0-9]{3}$" }, "minItems": 1 },
+    "proposal_type": { "enum": ["rule", "skill", "schema", "fixture"] },
+    "title": { "type": "string", "minLength": 1 },
+    "rationale": { "type": "string", "minLength": 1 },
+    "target_paths": { "type": "array", "items": { "type": "string", "not": { "pattern": "^/" } }, "minItems": 1 },
+    "review_gate": { "enum": ["required-before-adoption"] },
+    "adoption_status": { "enum": ["proposed", "accepted", "rejected", "deferred"] },
+    "evidence": { "type": "array", "items": { "type": "string" } }
+  }
+}
