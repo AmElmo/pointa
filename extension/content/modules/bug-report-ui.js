@@ -15,8 +15,9 @@ const BugReportUI = {
    */
   formatBugId(bugId) {
     // Extract timestamp from bug ID (e.g., "BUG-1763347240602" -> 1763347240602)
-    const match = bugId.match(/BUG-(\d+)/);
-    if (!match) return bugId;
+    const idText = bugId == null ? '' : String(bugId);
+    const match = idText.match(/BUG-(\d+)/);
+    if (!match) return this.escapeHtml(idText);
 
     const timestamp = parseInt(match[1], 10);
     const date = new Date(timestamp);
@@ -32,7 +33,7 @@ const BugReportUI = {
     };
     const friendlyDate = date.toLocaleString('en-US', options);
 
-    return `${bugId} <span class="bug-id-date">(${friendlyDate})</span>`;
+    return `${this.escapeHtml(idText)} <span class="bug-id-date">(${friendlyDate})</span>`;
   },
 
   /**
@@ -282,18 +283,20 @@ const BugReportUI = {
           return `Clicked "${this.escapeHtml(desc)}"`;
         }
         if (event.subtype === 'input') {
-          return `Input to ${event.data.element.tagName}`;
+          return `Input to ${this.escapeHtml(event.data.element.tagName)}`;
         }
         if (event.subtype === 'keypress') {
-          return `Pressed ${event.data.key}`;
+          return `Pressed ${this.escapeHtml(event.data.key)}`;
         }
         return 'User interaction';
       case 'network':
-        const statusOrError = event.data.status || event.data.error || 'Network Error';
+        const method = this.escapeHtml(event.data.method || 'GET');
+        const url = this.escapeHtml(this.truncateUrl(event.data.url || ''));
+        const statusOrError = this.escapeHtml(event.data.status || event.data.error || 'Network Error');
         if (event.subtype === 'failed') {
-          return `${event.data.method} ${this.truncateUrl(event.data.url)} - Failed (${statusOrError})`;
+          return `${method} ${url} - Failed (${statusOrError})`;
         }
-        return `${event.data.method} ${this.truncateUrl(event.data.url)} - ${event.data.status}`;
+        return `${method} ${url} - ${this.escapeHtml(event.data.status || '')}`;
       case 'console-error':
         return this.escapeHtml(this.truncateText(event.data.message, 100));
       case 'console-warning':
@@ -422,7 +425,7 @@ const BugReportUI = {
         <div class="bug-ai-prompt">
           <p>Tell your AI:</p>
           <div class="bug-ai-prompt-container">
-            <code id="bug-ai-prompt-text">"Analyze and fix bug report ${bugReportId}"</code>
+            <code id="bug-ai-prompt-text">"Analyze and fix bug report ${this.escapeHtml(bugReportId)}"</code>
             <div class="bug-ai-actions">
               <button class="bug-ai-copy-btn" id="bug-ai-copy-btn" title="Copy to clipboard">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -787,7 +790,7 @@ const BugReportUI = {
    */
   escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
   },
 
@@ -795,6 +798,7 @@ const BugReportUI = {
    * Utility: Truncate text
    */
   truncateText(text, maxLength) {
+    text = text == null ? '' : String(text);
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   },
@@ -803,6 +807,7 @@ const BugReportUI = {
    * Utility: Truncate URL
    */
   truncateUrl(url) {
+    url = url == null ? '' : String(url);
     try {
       const urlObj = new URL(url);
       let path = urlObj.pathname;

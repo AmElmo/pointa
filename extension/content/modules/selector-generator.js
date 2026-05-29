@@ -65,6 +65,66 @@ class SelectorGenerator {
     // 8. Last resort: use data attribute
     return this.generateDataAttribute(element);
   }
+
+  /**
+   * Escape an attribute value for use inside a quoted CSS attribute selector.
+   * @param {string} value
+   * @returns {string}
+   */
+  escapeAttributeValue(value) {
+    return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  }
+
+  /**
+   * Return stable element attributes that can survive DOM reordering.
+   * @param {HTMLElement} element
+   * @returns {Object}
+   */
+  getStableAttributes(element) {
+    const attributes = {};
+    const stableAttributes = [
+      'data-testid',
+      'data-test',
+      'data-cy',
+      'data-qa',
+      'aria-label',
+      'aria-labelledby',
+      'name',
+      'type',
+      'role',
+      'href',
+      'alt',
+      'title'
+    ];
+
+    if (element.id && !element.id.startsWith('pointa-')) {
+      attributes.id = element.id;
+    }
+
+    for (const attr of stableAttributes) {
+      const value = element.getAttribute(attr);
+      if (value) {
+        attributes[attr] = value;
+      }
+    }
+
+    return attributes;
+  }
+
+  /**
+   * Build a selector from one stable attribute.
+   * @param {string} tag
+   * @param {string} attr
+   * @param {string} value
+   * @returns {string}
+   */
+  buildAttributeSelector(tag, attr, value) {
+    if (attr === 'id') {
+      return `${tag}#${CSS.escape(value)}`;
+    }
+
+    return `${tag}[${attr}="${this.escapeAttributeValue(value)}"]`;
+  }
   
   /**
    * Find unique selector based on semantic attributes
@@ -72,13 +132,28 @@ class SelectorGenerator {
    * @returns {string|null} Selector or null
    */
   findUniqueAttribute(element) {
-    // Check for unique attributes like aria-label, title, data-*, etc.
-    const uniqueAttributes = ['aria-label', 'title', 'data-testid', 'data-test', 'role'];
+    // Check stable attributes before positional selectors.
+    const uniqueAttributes = [
+      'id',
+      'data-testid',
+      'data-test',
+      'data-cy',
+      'data-qa',
+      'aria-label',
+      'aria-labelledby',
+      'name',
+      'type',
+      'role',
+      'href',
+      'alt',
+      'title'
+    ];
+    const stableAttributes = this.getStableAttributes(element);
     
     for (const attr of uniqueAttributes) {
-      const value = element.getAttribute(attr);
+      const value = stableAttributes[attr];
       if (value) {
-        const selector = `${element.tagName.toLowerCase()}[${attr}="${CSS.escape(value)}"]`;
+        const selector = this.buildAttributeSelector(element.tagName.toLowerCase(), attr, value);
         if (this.isUnique(selector, element)) {
           return selector;
         }
@@ -119,6 +194,21 @@ class SelectorGenerator {
     // Add parent context for more specificity, but limit depth
     const parent = element.parentElement;
     if (parent && parent.tagName !== 'BODY') {
+      const parentStableAttributes = this.getStableAttributes(parent);
+      const parentStableSelector = Object.entries(parentStableAttributes)
+        .map(([attr, value]) => this.buildAttributeSelector(parent.tagName.toLowerCase(), attr, value))
+        .find((selector) => {
+          try {
+            return document.querySelectorAll(selector).length === 1;
+          } catch {
+            return false;
+          }
+        });
+
+      if (parentStableSelector) {
+        return `${parentStableSelector} > ${classSelector}`;
+      }
+
       const parentClasses = Array.from(parent.classList)
         .filter(cls => !cls.startsWith('pointa-'))
         .filter(cls => this.isStableClass(cls))
@@ -150,25 +240,40 @@ class SelectorGenerator {
       
       // Try to find a meaningful identifier for this level
       let identifier = tag;
-      
-      // 1. Check for stable classes
+
+      // 1. Check for a stable id or data/ARIA attribute
+      const stableAttributes = this.getStableAttributes(current);
+      const stableAttributeSelector = Object.entries(stableAttributes)
+        .map(([attr, value]) => this.buildAttributeSelector(tag, attr, value))
+        .find((selector) => {
+          try {
+            return document.querySelectorAll(selector).length >= 1;
+          } catch {
+            return false;
+          }
+        });
+
+      if (stableAttributeSelector) {
+        identifier = stableAttributeSelector;
+      }
+      // 2. Check for stable classes
       const stableClasses = Array.from(current.classList)
         .filter(cls => !cls.startsWith('pointa-'))
         .filter(cls => this.isStableClass(cls))
         .slice(0, 2);
-      
-      if (stableClasses.length > 0) {
+
+      if (identifier === tag && stableClasses.length > 0) {
         identifier = `${tag}.${stableClasses.map(cls => CSS.escape(cls)).join('.')}`;
       }
-      // 2. Check for unique attributes
-      else if (current.id) {
+      // 3. Check for unique id
+      else if (identifier === tag && current.id) {
         identifier = `${tag}#${CSS.escape(current.id)}`;
       }
-      else if (current.getAttribute('role')) {
-        identifier = `${tag}[role="${current.getAttribute('role')}"]`;
+      else if (identifier === tag && current.getAttribute('role')) {
+        identifier = `${tag}[role="${this.escapeAttributeValue(current.getAttribute('role'))}"]`;
       }
-      // 3. For elements with distinctive inline styles, use style attributes
-      else if (current.hasAttribute('style')) {
+      // 4. For elements with distinctive inline styles, use style attributes
+      else if (identifier === tag && current.hasAttribute('style')) {
         const style = current.getAttribute('style');
         // Look for distinctive style patterns
         if (style.includes('linear-gradient')) {
@@ -203,7 +308,7 @@ class SelectorGenerator {
           }
         }
       }
-      // 4. Use nth-of-type for position if no classes/attributes/styles
+      // 5. Use nth-of-type for position if no classes/attributes/styles
       else {
         const siblings = Array.from(current.parentElement?.children || []);
         const sameTagSiblings = siblings.filter(sibling => 
@@ -251,8 +356,7 @@ class SelectorGenerator {
         );
         
         if (matches.length === 1) {
-          // Create a selector that finds elements by text content
-          return `${tag}[data-text-content="${CSS.escape(textSanitized)}"]`;
+          return null;
         }
       }
     }
@@ -275,16 +379,31 @@ class SelectorGenerator {
     // Get parent identifier
     let parentIdentifier = parent.tagName.toLowerCase();
     
-    // Try to get parent classes for more specificity
-    const parentClasses = Array.from(parent.classList)
-      .filter(cls => !cls.startsWith('pointa-'))
-      .filter(cls => this.isStableClass(cls))
-      .slice(0, 2);
-    
-    if (parentClasses.length > 0) {
-      parentIdentifier += '.' + parentClasses.map(cls => CSS.escape(cls)).join('.');
+    const parentStableAttributes = this.getStableAttributes(parent);
+    const parentStableSelector = Object.entries(parentStableAttributes)
+      .map(([attr, value]) => this.buildAttributeSelector(parent.tagName.toLowerCase(), attr, value))
+      .find((selector) => {
+        try {
+          return document.querySelectorAll(selector).length >= 1;
+        } catch {
+          return false;
+        }
+      });
+
+    if (parentStableSelector) {
+      parentIdentifier = parentStableSelector;
     } else if (parent.id) {
       parentIdentifier += '#' + CSS.escape(parent.id);
+    } else {
+      // Try to get parent classes for more specificity
+      const parentClasses = Array.from(parent.classList)
+        .filter(cls => !cls.startsWith('pointa-'))
+        .filter(cls => this.isStableClass(cls))
+        .slice(0, 2);
+
+      if (parentClasses.length > 0) {
+        parentIdentifier += '.' + parentClasses.map(cls => CSS.escape(cls)).join('.');
+      }
     }
     
     // Get element position among same-type siblings

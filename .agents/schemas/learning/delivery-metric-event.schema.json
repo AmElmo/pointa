@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/learning/delivery-metric-event.schema.json",
+  "title": "Delano delivery metric event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "event_type", "project", "task_id", "occurred_at", "privacy"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "pattern": "^evt-[0-9TZ-]+-[a-z0-9-]+$" },
+    "event_type": { "enum": ["task_started", "validation_passed", "validation_failed", "task_completed", "blocked", "handoff_created"] },
+    "project": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "occurred_at": { "type": "string" },
+    "duration_seconds": { "type": "number", "minimum": 0 },
+    "validation_command": { "type": "string" },
+    "outcome": { "enum": ["pass", "fail", "blocked", "info"] },
+    "privacy": { "enum": ["summary-only", "local-detail"] },
+    "notes": { "type": "string" }
+  }
+}

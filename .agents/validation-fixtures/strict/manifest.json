@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    { "name": "minimal-project", "kind": "valid", "path": "valid/minimal-project", "expected": "pass" },
+    { "name": "missing-evidence", "kind": "invalid", "path": "invalid/missing-evidence", "expected_rule": "missing-evidence" },
+    { "name": "broken-dependencies", "kind": "invalid", "path": "invalid/broken-dependencies", "expected_rule": "broken-dependencies" },
+    { "name": "stale-context", "kind": "invalid", "path": "invalid/stale-context", "expected_rule": "stale-context" },
+    { "name": "path-leak", "kind": "invalid", "path": "invalid/path-leak", "expected_rule": "path-leak" },
+    { "name": "invalid-transition", "kind": "invalid", "path": "invalid/invalid-transition", "expected_rule": "invalid-transition" }
+  ]
+}

@@ -26,6 +26,21 @@ const BugRecorder = {
   captureStdout: false,       // Whether to capture full terminal output (stdout/stderr)
   backendLogStatus: null,     // Current backend log connection status
 
+  // Page-level network fallback used when CDP/debugger data is unavailable.
+  cdpRecordingActive: false,
+  networkInstrumentationActive: false,
+  networkInstrumentationId: null,
+  networkInstrumentationEventName: null,
+  networkInstrumentationStopEventName: null,
+  networkInstrumentationMessageHandler: null,
+  networkInstrumentationEvents: [],
+  consoleInstrumentationActive: false,
+  consoleInstrumentationId: null,
+  consoleInstrumentationEventName: null,
+  consoleInstrumentationStopEventName: null,
+  consoleInstrumentationMessageHandler: null,
+  consoleInstrumentationEvents: [],
+
   // ========== TOKEN OPTIMIZATION HELPERS ==========
   
   /**
@@ -109,14 +124,13 @@ const BugRecorder = {
     const method = event.data?.method || '';
     
     // Filter out Pointa's own health check requests
-    if (url.includes('127.0.0.1:4242/health')) return true;
-    if (url.includes('localhost:4242/health')) return true;
+    if (window.PointaBrowser.isLocalServerHealthUrl(url)) return true;
     
     // Filter out OPTIONS/preflight requests (CORS preflight)
     if (method === 'OPTIONS') return true;
     
     // Filter out Pointa backend recording API calls
-    if (url.includes('127.0.0.1:4242/api/backend')) return true;
+    if (window.PointaBrowser.isLocalServerBackendUrl(url)) return true;
     
     return false;
   },
@@ -128,6 +142,343 @@ const BugRecorder = {
     if (!message || typeof message !== 'string') return message;
     if (message.length <= maxLength) return message;
     return message.substring(0, maxLength) + '...';
+  },
+
+  /**
+   * Start reversible page-level fetch/XHR instrumentation.
+   * Events are buffered separately and merged only when CDP has no network data.
+   */
+  async startNetworkInstrumentation() {
+    await this.stopNetworkInstrumentation();
+
+    this.networkInstrumentationEvents = [];
+    this.networkInstrumentationId = `pointa_network_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    const instrumentationId = this.networkInstrumentationId;
+    const eventName = `pointa-network-recorder-event-${instrumentationId}`;
+    const stopEventName = `pointa-network-recorder-stop-${instrumentationId}`;
+    this.networkInstrumentationEventName = eventName;
+    this.networkInstrumentationStopEventName = stopEventName;
+    this.networkInstrumentationActive = false;
+
+    this.networkInstrumentationMessageHandler = (event) => {
+      let message = null;
+
+      try {
+        message = JSON.parse(event.detail);
+      } catch (_) {
+        return;
+      }
+
+      if (!message || message.id !== instrumentationId) return;
+      if (message.ready) {
+        this.networkInstrumentationActive = true;
+        return;
+      }
+      if (message.error) {
+        console.warn('[BugRecorder] Page network instrumentation failed:', message.error);
+        return;
+      }
+      if (!this.isRecording || !message.event) return;
+
+      this.captureNetworkInstrumentationEvent(message.event);
+    };
+
+    window.addEventListener(eventName, this.networkInstrumentationMessageHandler);
+
+    const config = {
+      id: instrumentationId,
+      eventName,
+      stopEventName
+    };
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'startPageNetworkInstrumentation',
+        config
+      });
+
+      if (response?.success) {
+        return true;
+      }
+
+      console.warn('[BugRecorder] MAIN-world network instrumentation failed:', response?.error);
+    } catch (error) {
+      console.warn('[BugRecorder] Could not start MAIN-world network instrumentation:', error.message);
+    }
+
+    window.removeEventListener(eventName, this.networkInstrumentationMessageHandler);
+    this.networkInstrumentationMessageHandler = null;
+    this.networkInstrumentationActive = false;
+    this.networkInstrumentationId = null;
+    this.networkInstrumentationEventName = null;
+    this.networkInstrumentationStopEventName = null;
+    this.networkInstrumentationEvents = [];
+    return false;
+  },
+
+  /**
+   * Stop page-level network instrumentation and return buffered events.
+   */
+  async stopNetworkInstrumentation() {
+    const events = this.networkInstrumentationEvents || [];
+
+    if (this.networkInstrumentationId) {
+      const config = {
+        id: this.networkInstrumentationId,
+        stopEventName: this.networkInstrumentationStopEventName || `pointa-network-recorder-stop-${this.networkInstrumentationId}`
+      };
+
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'stopPageNetworkInstrumentation',
+          config
+        });
+
+        if (!response?.success) {
+          window.dispatchEvent(new Event(config.stopEventName));
+        }
+      } catch (_) {
+        window.dispatchEvent(new Event(config.stopEventName));
+      }
+    }
+
+    if (this.networkInstrumentationMessageHandler && this.networkInstrumentationEventName) {
+      window.removeEventListener(this.networkInstrumentationEventName, this.networkInstrumentationMessageHandler);
+    }
+
+    this.networkInstrumentationActive = false;
+    this.networkInstrumentationId = null;
+    this.networkInstrumentationEventName = null;
+    this.networkInstrumentationStopEventName = null;
+    this.networkInstrumentationMessageHandler = null;
+    this.networkInstrumentationEvents = [];
+
+    return events;
+  },
+
+  /**
+   * Normalize a page-instrumented network event into the existing timeline shape.
+   */
+  captureNetworkInstrumentationEvent(event) {
+    if (!event || event.type !== 'network') return;
+
+    const data = event.data || {};
+    const observedAt = typeof event.observedAt === 'number' ? event.observedAt : Date.now();
+
+    this.networkInstrumentationEvents.push({
+      timestamp: event.timestamp || new Date(observedAt).toISOString(),
+      relativeTime: Math.max(0, observedAt - this.startTime),
+      type: 'network',
+      subtype: event.subtype === 'failed' ? 'failed' : 'success',
+      severity: event.severity === 'error' || event.subtype === 'failed' ? 'error' : 'info',
+      data: {
+        url: data.url || 'unknown',
+        method: String(data.method || 'GET').toUpperCase(),
+        status: data.status,
+        statusText: data.statusText,
+        error: data.error,
+        ok: data.ok,
+        resourceType: data.resourceType || data.type || 'Fetch',
+        type: data.type || 'content-network',
+        requestId: data.requestId,
+        duration: data.duration
+      }
+    });
+  },
+
+  normalizeNetworkUrlForComparison(url) {
+    if (!url) return '';
+
+    try {
+      return new URL(url, window.location.href).href;
+    } catch (_) {
+      return String(url);
+    }
+  },
+
+  isDuplicateNetworkEvent(existingEvent, candidateEvent) {
+    const existingData = existingEvent.data || {};
+    const candidateData = candidateEvent.data || {};
+    const existingStatus = typeof existingData.status === 'undefined' ? '' : String(existingData.status);
+    const candidateStatus = typeof candidateData.status === 'undefined' ? '' : String(candidateData.status);
+
+    return existingEvent.subtype === candidateEvent.subtype &&
+      String(existingData.method || '').toUpperCase() === String(candidateData.method || '').toUpperCase() &&
+      this.normalizeNetworkUrlForComparison(existingData.url) === this.normalizeNetworkUrlForComparison(candidateData.url) &&
+      existingStatus === candidateStatus &&
+      Math.abs((existingEvent.relativeTime || 0) - (candidateEvent.relativeTime || 0)) < 500;
+  },
+
+  mergeNetworkEvents(cdpNetworkEvents, fallbackNetworkEvents) {
+    if (!cdpNetworkEvents.length) return fallbackNetworkEvents;
+    if (!fallbackNetworkEvents.length) return cdpNetworkEvents;
+
+    const merged = [...cdpNetworkEvents];
+    fallbackNetworkEvents.forEach((fallbackEvent) => {
+      const isDuplicate = merged.some((existingEvent) =>
+        this.isDuplicateNetworkEvent(existingEvent, fallbackEvent)
+      );
+
+      if (!isDuplicate) {
+        merged.push(fallbackEvent);
+      }
+    });
+
+    return merged;
+  },
+
+  async startConsoleInstrumentation() {
+    await this.stopConsoleInstrumentation();
+
+    this.consoleInstrumentationEvents = [];
+    this.consoleInstrumentationId = `pointa_console_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+
+    const instrumentationId = this.consoleInstrumentationId;
+    const eventName = `pointa-console-recorder-event-${instrumentationId}`;
+    const stopEventName = `pointa-console-recorder-stop-${instrumentationId}`;
+    this.consoleInstrumentationEventName = eventName;
+    this.consoleInstrumentationStopEventName = stopEventName;
+    this.consoleInstrumentationActive = false;
+
+    this.consoleInstrumentationMessageHandler = (event) => {
+      let message = null;
+
+      try {
+        message = JSON.parse(event.detail);
+      } catch (_) {
+        return;
+      }
+
+      if (!message || message.id !== instrumentationId) return;
+      if (message.ready) {
+        this.consoleInstrumentationActive = true;
+        return;
+      }
+      if (message.error) {
+        console.warn('[BugRecorder] Page console instrumentation failed:', message.error);
+        return;
+      }
+      if (!this.isRecording || !message.event) return;
+
+      this.captureConsoleInstrumentationEvent(message.event);
+    };
+
+    window.addEventListener(eventName, this.consoleInstrumentationMessageHandler);
+
+    const config = {
+      id: instrumentationId,
+      eventName,
+      stopEventName
+    };
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'startPageConsoleInstrumentation',
+        config
+      });
+
+      if (response?.success) {
+        return true;
+      }
+
+      console.warn('[BugRecorder] MAIN-world console instrumentation failed:', response?.error);
+    } catch (error) {
+      console.warn('[BugRecorder] Could not start MAIN-world console instrumentation:', error.message);
+    }
+
+    this.cleanupConsoleInstrumentationState();
+    return false;
+  },
+
+  async stopConsoleInstrumentation() {
+    const events = this.consoleInstrumentationEvents || [];
+
+    if (this.consoleInstrumentationId) {
+      const config = {
+        id: this.consoleInstrumentationId,
+        stopEventName: this.consoleInstrumentationStopEventName || `pointa-console-recorder-stop-${this.consoleInstrumentationId}`
+      };
+
+      try {
+        const response = await chrome.runtime.sendMessage({
+          action: 'stopPageConsoleInstrumentation',
+          config
+        });
+
+        if (!response?.success) {
+          window.dispatchEvent(new Event(config.stopEventName));
+        }
+      } catch (_) {
+        window.dispatchEvent(new Event(config.stopEventName));
+      }
+    }
+
+    this.cleanupConsoleInstrumentationState();
+    return events;
+  },
+
+  cleanupConsoleInstrumentationState() {
+    if (this.consoleInstrumentationMessageHandler && this.consoleInstrumentationEventName) {
+      window.removeEventListener(this.consoleInstrumentationEventName, this.consoleInstrumentationMessageHandler);
+    }
+
+    this.consoleInstrumentationActive = false;
+    this.consoleInstrumentationId = null;
+    this.consoleInstrumentationEventName = null;
+    this.consoleInstrumentationStopEventName = null;
+    this.consoleInstrumentationMessageHandler = null;
+    this.consoleInstrumentationEvents = [];
+  },
+
+  captureConsoleInstrumentationEvent(event) {
+    if (!event || !event.type || !event.type.startsWith('console')) return;
+
+    const data = event.data || {};
+    const observedAt = typeof event.observedAt === 'number' ? event.observedAt : Date.now();
+
+    this.consoleInstrumentationEvents.push({
+      timestamp: event.timestamp || new Date(observedAt).toISOString(),
+      relativeTime: Math.max(0, observedAt - this.startTime),
+      type: event.type,
+      subtype: event.subtype,
+      severity: event.severity || (event.type === 'console-error' ? 'error' : event.type === 'console-warning' ? 'warning' : 'info'),
+      data: {
+        level: data.level || (event.type === 'console-error' ? 'error' : event.type === 'console-warning' ? 'warn' : 'log'),
+        message: data.message || '',
+        source: data.source || window.location.href,
+        url: data.url || window.location.href,
+        lineNumber: data.lineNumber,
+        columnNumber: data.columnNumber,
+        stack: data.stack,
+        reason: data.reason,
+        capturedBy: data.capturedBy || 'page-console-recorder'
+      }
+    });
+  },
+
+  isDuplicateConsoleEvent(existingEvent, candidateEvent) {
+    return existingEvent.type === candidateEvent.type &&
+      (existingEvent.data?.message || '') === (candidateEvent.data?.message || '') &&
+      Math.abs((existingEvent.relativeTime || 0) - (candidateEvent.relativeTime || 0)) < 500;
+  },
+
+  mergeConsoleEvents(cdpConsoleEvents, fallbackConsoleEvents) {
+    if (!cdpConsoleEvents.length) return fallbackConsoleEvents;
+    if (!fallbackConsoleEvents.length) return cdpConsoleEvents;
+
+    const merged = [...cdpConsoleEvents];
+    fallbackConsoleEvents.forEach((fallbackEvent) => {
+      const isDuplicate = merged.some((existingEvent) =>
+        this.isDuplicateConsoleEvent(existingEvent, fallbackEvent)
+      );
+
+      if (!isDuplicate) {
+        merged.push(fallbackEvent);
+      }
+    });
+
+    return merged;
   },
 
   /**
@@ -159,9 +510,13 @@ const BugRecorder = {
     let repeatCount = 0;
     
     for (const event of events) {
+      const lastMessage = lastEvent?.data?.message;
+      const eventMessage = event.data?.message;
       const isSameMessage = lastEvent && 
         lastEvent.type === event.type &&
-        lastEvent.data?.message === event.data?.message &&
+        typeof lastMessage === 'string' &&
+        lastMessage.length > 0 &&
+        lastMessage === eventMessage &&
         Math.abs(event.relativeTime - lastEvent.relativeTime) < 100;
       
       if (isSameMessage) {
@@ -268,17 +623,41 @@ const BugRecorder = {
 
     // Screenshot will be captured at the END of recording to show the bug state
 
+    // Start the page-level network fallback up front. It is merged only if CDP
+    // is unavailable, fails, or returns no network events.
+    const networkInstrumentationStarted = await this.startNetworkInstrumentation();
+    if (!networkInstrumentationStarted) {
+      console.warn('[BugRecorder] Page network instrumentation could not be started');
+    }
+
+    // Start page-level console instrumentation for browsers without CDP.
+    const consoleInstrumentationStarted = await this.startConsoleInstrumentation();
+    if (!consoleInstrumentationStarted) {
+      console.warn('[BugRecorder] Page console instrumentation could not be started');
+    }
+
     // Start CDP recording via background script
     // This captures network and console via Chrome DevTools Protocol (CDP)
     // which runs in the page's MAIN world, capturing ALL requests and console messages
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'startCDPRecording' });
-      if (!response.success) {
-        console.warn('[BugRecorder] CDP recording failed to start:', response.error);
-        // Continue anyway - we'll still capture interactions and error events
+    const hasDebugger = Boolean(
+      window.PointaBrowser &&
+      typeof window.PointaBrowser.hasCapability === 'function' &&
+      window.PointaBrowser.hasCapability('debugger')
+    );
+    this.cdpRecordingActive = false;
+
+    if (hasDebugger) {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'startCDPRecording' });
+        if (response.success) {
+          this.cdpRecordingActive = true;
+        } else {
+          console.warn('[BugRecorder] CDP recording failed to start:', response.error);
+          // Continue anyway - page-level fallback will cover fetch/XHR metadata
+        }
+      } catch (error) {
+        console.warn('[BugRecorder] Could not start CDP recording:', error.message);
       }
-    } catch (error) {
-      console.warn('[BugRecorder] Could not start CDP recording:', error.message);
     }
 
     // Start backend log recording if enabled
@@ -330,35 +709,59 @@ const BugRecorder = {
     }
 
     this.isRecording = false;
+    const fallbackNetworkEvents = await this.stopNetworkInstrumentation();
+    const fallbackConsoleEvents = await this.stopConsoleInstrumentation();
+    let cdpNetworkEvents = [];
+    let cdpConsoleEvents = [];
 
     // Stop CDP recording and get captured events
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'stopCDPRecording' });
-      if (response.success) {
-        // Merge CDP events into recording data
-        // CDP captures network and console from the page's MAIN world
-        if (response.events.network) {
-          this.recordingData.network = [
-            ...this.recordingData.network,
-            ...response.events.network
-          ];
+    if (this.cdpRecordingActive) {
+      try {
+        const response = await chrome.runtime.sendMessage({ action: 'stopCDPRecording' });
+        if (response.success) {
+          // CDP captures network and console from the page's MAIN world
+          cdpNetworkEvents = response.events.network || [];
+          cdpConsoleEvents = response.events.console || [];
+        } else {
+          console.warn('[BugRecorder] CDP recording stop failed:', response.error);
         }
-        if (response.events.console) {
-          this.recordingData.console = [
-            ...this.recordingData.console,
-            ...response.events.console
-          ];
-        }
-        console.log('[BugRecorder] Merged CDP events:', {
-          network: response.events.network?.length || 0,
-          console: response.events.console?.length || 0
-        });
-      } else {
-        console.warn('[BugRecorder] CDP recording stop failed:', response.error);
+      } catch (error) {
+        console.warn('[BugRecorder] Could not stop CDP recording:', error.message);
+      } finally {
+        this.cdpRecordingActive = false;
       }
-    } catch (error) {
-      console.warn('[BugRecorder] Could not stop CDP recording:', error.message);
     }
+
+    const networkEventsToMerge = this.mergeNetworkEvents(cdpNetworkEvents, fallbackNetworkEvents);
+    const networkSource = cdpNetworkEvents.length > 0
+      ? (networkEventsToMerge.length > cdpNetworkEvents.length ? 'cdp+content-fetch-xhr' : 'cdp')
+      : 'content-fetch-xhr';
+    if (networkEventsToMerge.length > 0) {
+      this.recordingData.network = [
+        ...this.recordingData.network,
+        ...networkEventsToMerge
+      ];
+    }
+
+    const consoleEventsToMerge = this.mergeConsoleEvents(cdpConsoleEvents, fallbackConsoleEvents);
+    const consoleSource = cdpConsoleEvents.length > 0
+      ? (consoleEventsToMerge.length > cdpConsoleEvents.length ? 'cdp+page-console' : 'cdp')
+      : 'page-console';
+    if (consoleEventsToMerge.length > 0) {
+      this.recordingData.console = [
+        ...this.recordingData.console,
+        ...consoleEventsToMerge
+      ];
+    }
+
+    console.log('[BugRecorder] Merged recording events:', {
+      network: networkEventsToMerge.length,
+      networkSource,
+      fallbackNetwork: fallbackNetworkEvents.length,
+      console: consoleEventsToMerge.length,
+      consoleSource,
+      fallbackConsole: fallbackConsoleEvents.length
+    });
 
     // Stop backend log recording and get captured logs
     if (this.includeBackendLogs) {
@@ -840,14 +1243,19 @@ const BugRecorder = {
     // Find network failures
     const networkFailures = events.filter((e) => e.type === 'network' && e.subtype === 'failed');
     networkFailures.forEach((failure) => {
+      const statusOrError = failure.data.status
+        ? `status ${failure.data.status}`
+        : failure.data.error || 'unknown reason';
+
       keyIssues.push({
         type: 'network-failure',
-        description: `${failure.data.method} ${failure.data.url} failed with status ${failure.data.status || 'unknown'}`,
+        description: `${failure.data.method} ${failure.data.url} failed with ${statusOrError}`,
         timestamp: failure.timestamp,
         relativeTime: failure.relativeTime,
         severity: 'error',
         url: failure.data.url,
         status: failure.data.status,
+        error: failure.data.error,
         responseBody: failure.data.responseBody
       });
     });

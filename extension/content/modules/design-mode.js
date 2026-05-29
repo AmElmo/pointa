@@ -950,7 +950,7 @@ const PointaDesignMode = {
     overlay.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
     overlay.innerHTML = `
       <div class="pointa-inspection-content">
-        <p>✅ ${message}</p>
+        <p>✅ ${PointaUtils.escapeHtml(message)}</p>
       </div>
     `;
 

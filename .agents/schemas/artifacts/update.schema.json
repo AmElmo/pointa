@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/artifacts/update.schema.json",
+  "title": "Delano update frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "date": { "type": "string", "format": "date-time" },
+    "related_task": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "status": { "type": "string", "minLength": 1 }
+  }
+}

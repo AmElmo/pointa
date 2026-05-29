@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/metrics/delivery-event.schema.json",
+  "title": "Delano privacy-safe delivery metric event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "event_type", "project", "created_at", "source", "privacy", "summary"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "pattern": "^metric-[0-9TZ._-]+-[a-z0-9-]+$" },
+    "event_type": { "enum": ["task-status-change", "validation-run", "sync-drift", "evidence-gap", "blocked-time", "closeout-learning"] },
+    "project": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "created_at": { "type": "string" },
+    "source": { "enum": ["local-runtime", "pm-validation", "sync-inspection", "closeout"] },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_text_allowed", "summary_only", "redaction_required"],
+      "properties": {
+        "raw_text_allowed": { "const": false },
+        "summary_only": { "const": true },
+        "redaction_required": { "const": true }
+      }
+    },
+    "summary": { "type": "string", "minLength": 1 },
+    "metrics": { "type": "object", "additionalProperties": { "type": ["number", "string", "boolean"] } }
+  }
+}

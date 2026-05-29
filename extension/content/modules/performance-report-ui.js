@@ -13,8 +13,9 @@ const PerformanceReportUI = {
    * Format performance report ID in human-friendly way
    */
   formatPerfId(perfId) {
-    const match = perfId.match(/PERF-(\d+)/);
-    if (!match) return perfId;
+    const idText = perfId == null ? '' : String(perfId);
+    const match = idText.match(/PERF-(\d+)/);
+    if (!match) return this.escapeHtml(idText);
 
     const timestamp = parseInt(match[1], 10);
     const date = new Date(timestamp);
@@ -29,7 +30,7 @@ const PerformanceReportUI = {
     };
     const friendlyDate = date.toLocaleString('en-US', options);
 
-    return `${perfId} <span class="bug-id-date">(${friendlyDate})</span>`;
+    return `${this.escapeHtml(idText)} <span class="bug-id-date">(${friendlyDate})</span>`;
   },
 
   /**
@@ -233,24 +234,24 @@ const PerformanceReportUI = {
         <div class="perf-metrics-grid">
           <div class="perf-metric-card">
             <div class="perf-metric-label">CPU Cores</div>
-            <div class="perf-metric-value">${deviceInfo.cpuCores}</div>
+            <div class="perf-metric-value">${this.escapeHtml(deviceInfo.cpuCores)}</div>
           </div>
           
           <div class="perf-metric-card">
             <div class="perf-metric-label">Device Memory</div>
-            <div class="perf-metric-value">${deviceInfo.deviceMemory}</div>
+            <div class="perf-metric-value">${this.escapeHtml(deviceInfo.deviceMemory)}</div>
           </div>
           
           ${connection ? `
             <div class="perf-metric-card ${connectionClass}">
               <div class="perf-metric-label">Connection Type</div>
-              <div class="perf-metric-value">${connection.effectiveType || 'unknown'}</div>
-              <div class="perf-metric-rating">${connection.downlink || 'N/A'}</div>
+              <div class="perf-metric-value">${this.escapeHtml(connection.effectiveType || 'unknown')}</div>
+              <div class="perf-metric-rating">${this.escapeHtml(connection.downlink || 'N/A')}</div>
             </div>
             
             <div class="perf-metric-card">
               <div class="perf-metric-label">Network RTT</div>
-              <div class="perf-metric-value">${connection.rtt || 'N/A'}</div>
+              <div class="perf-metric-value">${this.escapeHtml(connection.rtt || 'N/A')}</div>
             </div>
           ` : ''}
         </div>
@@ -417,10 +418,10 @@ const PerformanceReportUI = {
       return `
         <div class="perf-resource-item">
           <div class="perf-resource-header">
-            <span class="perf-resource-type">${resource.type}</span>
-            <span class="perf-resource-duration ${durationClass}">${resource.duration}ms</span>
+            <span class="perf-resource-type">${this.escapeHtml(resource.type)}</span>
+            <span class="perf-resource-duration ${durationClass}">${this.escapeHtml(resource.duration)}ms</span>
           </div>
-          <div class="perf-resource-name">${this.truncateUrl(resource.name)}</div>
+          <div class="perf-resource-name">${this.escapeHtml(this.truncateUrl(resource.name))}</div>
           <div class="perf-resource-details">
             ${resource.size ? `<span>${this.formatBytes(resource.size)}</span>` : ''}
             ${resource.cached ? '<span class="perf-cached">✓ cached</span>' : '<span class="perf-not-cached">not cached</span>'}
@@ -466,10 +467,10 @@ const PerformanceReportUI = {
           return `Clicked "${this.escapeHtml(desc)}"`;
         }
         if (event.subtype === 'input') {
-          return `Input to ${event.data.element.tagName}`;
+          return `Input to ${this.escapeHtml(event.data.element.tagName)}`;
         }
         if (event.subtype === 'scroll') {
-          return `Scrolled to ${event.data.scrollY}px`;
+          return `Scrolled to ${this.escapeHtml(event.data.scrollY)}px`;
         }
         return 'User interaction';
       default:
@@ -509,7 +510,7 @@ const PerformanceReportUI = {
         <div class="bug-ai-prompt">
           <p>Tell your AI:</p>
           <div class="bug-ai-prompt-container">
-            <code id="perf-ai-prompt-text">"Analyze and fix performance report ${perfReportId}"</code>
+            <code id="perf-ai-prompt-text">"Analyze and fix performance report ${this.escapeHtml(perfReportId)}"</code>
             <div class="bug-ai-actions">
               <button class="bug-ai-copy-btn" id="perf-ai-copy-btn" title="Copy to clipboard">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -786,11 +787,12 @@ const PerformanceReportUI = {
 
   escapeHtml(text) {
     const div = document.createElement('div');
-    div.textContent = text;
+    div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
   },
 
   truncateUrl(url) {
+    url = url == null ? '' : String(url);
     try {
       const urlObj = new URL(url);
       let path = urlObj.pathname;

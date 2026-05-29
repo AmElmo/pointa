@@ -585,6 +585,12 @@ class Pointa {
 
     // Get element position
     const rect = element.getBoundingClientRect();
+    const parent = element.parentElement;
+    const siblingIndex = parent ? Array.from(parent.children).indexOf(element) : -1;
+    const sameTagSiblings = parent
+      ? Array.from(parent.children).filter((sibling) => sibling.tagName === element.tagName)
+      : [];
+    const sameTagIndex = sameTagSiblings.indexOf(element);
     const position = {
       x: rect.left + window.scrollX,
       y: rect.top + window.scrollY,
@@ -603,15 +609,20 @@ class Pointa {
 
     // Get parent chain context for better element disambiguation
     const parentChain = PointaContextAnalyzer.getParentChainContext(element);
+    const stableAttributes = PointaSelectorGenerator.getStableAttributes(element);
 
     return {
       selector,
       tag: element.tagName.toLowerCase(),
+      id: stableAttributes.id || null,
+      stable_attributes: stableAttributes,
       // CRITICAL: Filter out temporary pointa- classes to ensure clean selectors
       classes: Array.from(element.classList).filter((cls) => !cls.startsWith('pointa-')),
       text: element.textContent.substring(0, 100).trim(),
       styles: relevantStyles,
       position,
+      sibling_index: siblingIndex,
+      same_tag_index: sameTagIndex,
       viewport,
       source_mapping: sourceMapping,
       parent_chain: parentChain
@@ -632,6 +643,8 @@ class Pointa {
     const modal = document.createElement('div');
     modal.className = 'pointa-comment-modal';
     modal.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
+    const selectorText = PointaUtils.escapeHtml(context.selector);
+    const annotationComment = PointaUtils.escapeHtml(annotation.comment || '');
     modal.innerHTML = `
       <div class="pointa-comment-modal-content">
         <div class="pointa-comment-modal-header">
@@ -665,7 +678,7 @@ class Pointa {
         <div class="pointa-element-details">
           <div class="pointa-detail-item">
             <span class="pointa-icon pointa-icon--code-bracket-square"></span>
-            <span class="pointa-detail-value">${context.selector}</span>
+            <span class="pointa-detail-value">${selectorText}</span>
           </div>
           <div class="pointa-detail-item">
             <span class="pointa-icon pointa-icon--computer-desktop"></span>
@@ -687,7 +700,7 @@ class Pointa {
             class="pointa-comment-textarea" 
             placeholder="Describe what needs to be changed or improved..."
             maxlength="1000"
-          >${annotation.comment || ''}</textarea>
+          >${annotationComment}</textarea>
           <div class="pointa-comment-helper">${PointaUtils.isMac() ? '⌘↩' : 'Ctrl+Enter'} to save</div>
         </div>
         
@@ -735,6 +748,7 @@ class Pointa {
     const modal = document.createElement('div');
     modal.className = 'pointa-comment-modal';
     modal.setAttribute('data-pointa-theme', PointaThemeManager.getEffective());
+    const selectorText = PointaUtils.escapeHtml(context.selector);
     modal.innerHTML = `
       <div class="pointa-comment-modal-content">
         <div class="pointa-comment-modal-header">
@@ -768,7 +782,7 @@ class Pointa {
         <div class="pointa-element-details">
           <div class="pointa-detail-item">
             <span class="pointa-icon pointa-icon--code-bracket-square"></span>
-            <span class="pointa-detail-value">${context.selector}</span>
+            <span class="pointa-detail-value">${selectorText}</span>
           </div>
           <div class="pointa-detail-item">
             <span class="pointa-icon pointa-icon--computer-desktop"></span>
@@ -839,58 +853,32 @@ class Pointa {
     }
 
     let status;
-    const isLocalhost = PointaUtils.isLocalhostUrl(window.location.href);
 
-    // For non-localhost pages OR file:// protocol, use background script to avoid browser permission dialogs
-    // Background script can make localhost requests without triggering permission prompts
-    if (!isLocalhost || PointaUtils.isFileProtocol()) {
-      try {
-        const bgResponse = await chrome.runtime.sendMessage({
-          action: 'checkMCPStatus'
+    try {
+      const bgResponse = await chrome.runtime.sendMessage({
+        action: 'checkMCPStatus'
+      });
+
+      if (bgResponse && bgResponse.success && bgResponse.status) {
+        status = window.PointaBrowser.normalizeLocalServerStatus(bgResponse.status);
+      } else {
+        status = window.PointaBrowser.normalizeLocalServerStatus({
+          connected: false,
+          error: bgResponse?.error || 'Background check failed'
         });
-
-        if (bgResponse && bgResponse.success && bgResponse.status) {
-          status = { connected: bgResponse.status.connected };
-        } else {
-          status = { connected: false, error: 'Background check failed' };
-        }
-      } catch (bgError) {
-        console.error('[Pointa] Background API check failed:', bgError);
-        status = { connected: false, error: 'Cannot connect to API server' };
       }
-    } else {
-      // For localhost URLs, try direct fetch first
+    } catch (bgError) {
       try {
-        const response = await fetch('http://127.0.0.1:4242/health', {
-          method: 'GET',
-          signal: AbortSignal.timeout(2000), // 2 second timeout
-          mode: 'cors', // Explicitly set CORS mode
-          credentials: 'omit' // Don't send credentials for localhost
+        status = await window.PointaBrowser.checkLocalServerHealth({
+          timeoutMs: 2000,
+          mode: 'cors',
+          credentials: 'omit'
         });
-
-        if (response.ok) {
-          status = { connected: true };
-        } else {
-          status = { connected: false, error: `Server returned ${response.status}` };
-        }
-      } catch (error) {
-        // If direct fetch fails, try via background script as fallback
-        console.warn('Direct API check failed, trying via background script:', error);
-
-        try {
-          const bgResponse = await chrome.runtime.sendMessage({
-            action: 'checkMCPStatus'
-          });
-
-          if (bgResponse && bgResponse.success && bgResponse.status) {
-            status = { connected: bgResponse.status.connected };
-          } else {
-            status = { connected: false, error: 'Background check failed' };
-          }
-        } catch (bgError) {
-          console.error('Background API check also failed:', bgError);
-          status = { connected: false, error: error.message };
-        }
+      } catch (directError) {
+        status = window.PointaBrowser.normalizeLocalServerStatus({
+          connected: false,
+          error: directError.message || bgError.message || 'Cannot connect to API server'
+        });
       }
     }
 
@@ -1414,7 +1402,7 @@ class Pointa {
    * @param {Object} updates - Updates to apply to the annotation
    */
   async updateAnnotationDirectly(id, updates) {
-    const apiServerUrl = 'http://127.0.0.1:4242';
+    const apiServerUrl = window.PointaBrowser.getLocalServerBaseUrl();
 
     try {
 
@@ -1452,7 +1440,7 @@ class Pointa {
    * @param {Object} annotation - Annotation object to save
    */
   async saveAnnotationDirectly(annotation) {
-    const apiServerUrl = 'http://127.0.0.1:4242';
+    const apiServerUrl = window.PointaBrowser.getLocalServerBaseUrl();
 
     try {
 
@@ -1490,7 +1478,7 @@ class Pointa {
    * @param {string} id - Annotation ID to delete
    */
   async deleteAnnotationDirectly(id) {
-    const apiServerUrl = 'http://127.0.0.1:4242';
+    const apiServerUrl = window.PointaBrowser.getLocalServerBaseUrl();
 
     try {
 
@@ -1528,7 +1516,7 @@ class Pointa {
    * @returns {Array} Array of annotations
    */
   async getAnnotationsDirectly(url) {
-    const apiServerUrl = 'http://127.0.0.1:4242';
+    const apiServerUrl = window.PointaBrowser.getLocalServerBaseUrl();
 
     try {
 

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/leases/lease.schema.json",
+  "title": "Delano multi-agent path lease",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "lease_id", "owner", "project", "task_id", "status", "mode", "paths", "conflict_zones", "created_at", "acquired_at", "expires_at"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "lease_id": { "type": "string", "pattern": "^lease-[0-9TZ._-]+-[a-z0-9-]+$" },
+    "owner": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["agent_id", "stream"],
+          "properties": {
+            "agent_id": { "type": "string", "minLength": 1 },
+            "stream": { "type": "string", "minLength": 1 },
+            "task": { "type": "string" }
+          }
+        }
+      ]
+    },
+    "project": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "mode": { "enum": ["shared", "exclusive"] },
+    "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "not": { "pattern": "^/" } } },
+    "conflict_zones": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "not": { "pattern": "^/" } } },
+    "created_at": { "type": "string" },
+    "acquired_at": { "type": "string" },
+    "expires_at": { "type": "string" },
+    "released_at": { "type": "string" },
+    "status": { "enum": ["active", "expired", "released"] },
+    "release_reason": { "type": "string" },
+    "handoff_summary": { "type": "string" }
+  }
+}

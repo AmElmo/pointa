@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "purpose": "Defines Delano operating modes used to size governance, evidence, and coordination overhead for delivery work.",
+  "modes": [
+    {
+      "mode": 0,
+      "slug": "patch",
+      "name": "Patch",
+      "use_when": "A small, well-understood correction with low uncertainty and no meaningful coordination surface.",
+      "requires": ["single task or direct patch", "focused validation evidence", "no new workstream unless needed"]
+    },
+    {
+      "mode": 1,
+      "slug": "scoped-change",
+      "name": "Scoped change",
+      "use_when": "A bounded change with clear acceptance criteria, known affected files, and no material discovery risk.",
+      "requires": ["task contract", "acceptance criteria evidence", "local validation"]
+    },
+    {
+      "mode": 2,
+      "slug": "feature",
+      "name": "Feature",
+      "use_when": "A feature-sized delivery with multiple implementation steps but a clear solution direction.",
+      "requires": ["spec and plan", "workstream or task sequence", "validation gate before done"]
+    },
+    {
+      "mode": 3,
+      "slug": "uncertain-feature",
+      "name": "Uncertain feature",
+      "use_when": "A feature where the solution, user value, or integration path is uncertain enough to require a probe first.",
+      "requires": ["uncertainty statement", "probe_required=true or explicit skip rationale", "probe evidence before build commitment"]
+    },
+    {
+      "mode": 4,
+      "slug": "multi-stream",
+      "name": "Multi-stream delivery",
+      "use_when": "Delivery spans concurrent streams, leases, external sync, or coordination boundaries where collision risk matters.",
+      "requires": ["workstream map", "conflict zones or leases", "handoff summaries", "sync/drift checks when external systems are involved"]
+    }
+  ]
+}

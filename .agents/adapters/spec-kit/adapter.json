@@ -1,0 +1,71 @@
+{
+  "id": "spec-kit",
+  "name": "Spec Kit Interop",
+  "type": "authoring-tool",
+  "owner": "delano-team",
+  "status": "experimental",
+  "summary": "Imports Spec Kit-style intent artifacts into Delano-governed delivery projects.",
+  "commands": [
+    {
+      "name": "delano import-spec-kit",
+      "description": "Create a planned Delano project from a supported Spec Kit-style markdown artifact.",
+      "input": ["slug", "source-md", "--name", "--owner", "--lead", "--json"],
+      "output": ["human summary", "JSON result with ok, command, project, source, validation"],
+      "writes": [".project/projects/<slug>/"],
+      "validation": ["delano validate"]
+    },
+    {
+      "name": "delano research",
+      "description": "Open repo-native research intake for unclear imported intent.",
+      "input": ["project-slug", "research-slug", "--title", "--question", "--json"],
+      "output": ["human summary", "JSON result with ok, command, project, research, files, validation"],
+      "writes": [".project/projects/<project-slug>/research/<research-slug>/"],
+      "validation": ["delano validate"]
+    }
+  ],
+  "generated_files": [
+    {
+      "path": ".project/projects/<slug>/spec.md",
+      "owner": "spec-kit adapter",
+      "mode": "create-only",
+      "conflict_behavior": "abort",
+      "fold_forward": "canonical spec"
+    },
+    {
+      "path": ".project/projects/<slug>/plan.md",
+      "owner": "spec-kit adapter",
+      "mode": "create-only",
+      "conflict_behavior": "abort",
+      "fold_forward": "canonical plan"
+    },
+    {
+      "path": ".project/projects/<slug>/tasks/*.md",
+      "owner": "spec-kit adapter",
+      "mode": "create-only",
+      "conflict_behavior": "abort",
+      "fold_forward": "canonical tasks with evidence gates"
+    },
+    {
+      "path": ".project/projects/<project-slug>/research/<research-slug>/",
+      "owner": "research intake",
+      "mode": "create-only",
+      "conflict_behavior": "abort",
+      "fold_forward": "spec, plan, decisions, workstreams, tasks, or updates"
+    }
+  ],
+  "validation": [
+    "delano validate",
+    "npm run check:text-safety for Delano repo changes",
+    "fixture import smoke before release"
+  ],
+  "install": {
+    "categories": ["agent-runtime", "project-templates", "skills"],
+    "conflict_policy": "Use existing Delano install allowlist behavior; abort on generated project collisions unless an operator approves a diff-backed change."
+  },
+  "limits": [
+    "Does not replace Spec Kit.",
+    "Does not execute imported tasks automatically.",
+    "Does not write Linear or GitHub state directly.",
+    "Does not depend on Obsidian, OpenClaw, or private local paths."
+  ]
+}

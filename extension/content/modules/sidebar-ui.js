@@ -22,11 +22,25 @@ const PointaSidebar = {
   async checkServerStatus() {
     if (!PointaUtils.isLocalhostUrl(window.location.href)) return false;
     try {
-      const response = await fetch('http://127.0.0.1:4242/health', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+      if (window.pointa && typeof window.pointa.checkAPIStatus === 'function') {
+        const status = await window.pointa.checkAPIStatus();
+        return status.connected;
+      }
+
+      const bgResponse = await chrome.runtime.sendMessage({
+        action: 'checkMCPStatus'
       });
-      return response.ok;
+
+      if (bgResponse?.success && bgResponse.status) {
+        return window.PointaBrowser.normalizeLocalServerStatus(bgResponse.status).connected;
+      }
+
+      const status = await window.PointaBrowser.checkLocalServerHealth({
+        timeoutMs: 2000,
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      return status.connected;
     } catch {
       return false;
     }

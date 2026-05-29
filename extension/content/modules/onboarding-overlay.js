@@ -204,6 +204,7 @@ const PointaOnboarding = {
    * Get instructions for specific AI agent
    */
   getAgentInstructions(agent) {
+    const mcpHttpUrl = this.getMcpHttpUrl();
     const instructions = {
       cursor: `
         <div class="agent-instructions">
@@ -339,14 +340,14 @@ const PointaOnboarding = {
           
           <p style="margin-top: 20px;">If your tool only supports HTTP endpoints, first run <code>pointa-server start</code>, then use:</p>
           <div class="code-block">
-            <button class="copy-btn" data-copy="http://127.0.0.1:4242/mcp">
+            <button class="copy-btn" data-copy="${mcpHttpUrl}">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <rect x="5" y="5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.5"/>
                 <path d="M3 11V3c0-.6.4-1 1-1h8" stroke="currentColor" stroke-width="1.5"/>
               </svg>
               Copy
             </button>
-            <pre>http://127.0.0.1:4242/mcp</pre>
+            <pre>${mcpHttpUrl}</pre>
           </div>
           <p class="note">HTTP endpoint (requires manual server start)</p>
         </div>
@@ -372,6 +373,26 @@ const PointaOnboarding = {
         PointaToolbar.show(window.pointa);
       }
     }, 400);
+  },
+
+  /**
+   * Skip onboarding without advancing through setup screens.
+   */
+  async skip() {
+    await chrome.storage.local.set({
+      onboardingCompleted: true,
+      onboardingSkipped: true
+    });
+
+    this.hide();
+  },
+
+  getMcpHttpUrl() {
+    if (window.PointaBrowser && typeof window.PointaBrowser.getLocalServerUrl === 'function') {
+      return window.PointaBrowser.getLocalServerUrl('/mcp');
+    }
+
+    return 'http://127.0.0.1:4242/mcp';
   },
   
   /**
@@ -436,7 +457,7 @@ const PointaOnboarding = {
           </div>
           
           <div class="onboarding-footer">
-            <button class="btn-text skip-btn">Skip Setup</button>
+            <button class="btn-text skip-btn">Skip Wizard</button>
             <button class="btn-primary next-btn">Get Started</button>
           </div>
           
@@ -522,6 +543,7 @@ pointa-server start</pre>
           
           <div class="onboarding-footer">
             <button class="btn-text back-btn">Back</button>
+            <button class="btn-text skip-btn">Skip Wizard</button>
             <button class="btn-primary next-btn">Continue to MCP Setup</button>
           </div>
           
@@ -541,6 +563,7 @@ pointa-server start</pre>
    * Step 2: MCP Setup
    */
   buildMCPStep() {
+    const selectedAgent = this.selectedAgent;
     return `
       <div class="onboarding-content">
         <div class="onboarding-card large">
@@ -551,21 +574,22 @@ pointa-server start</pre>
           
           <div class="onboarding-body compact">
             <div class="agent-tabs">
-              <button class="agent-tab" data-agent="cursor">Cursor</button>
-              <button class="agent-tab" data-agent="claude">Claude Code</button>
-              <button class="agent-tab" data-agent="windsurf">Windsurf</button>
-              <button class="agent-tab" data-agent="vscode">VS Code</button>
-              <button class="agent-tab" data-agent="other">Other</button>
+              <button class="agent-tab ${selectedAgent === 'cursor' ? 'active' : ''}" data-agent="cursor">Cursor</button>
+              <button class="agent-tab ${selectedAgent === 'claude' ? 'active' : ''}" data-agent="claude">Claude Code</button>
+              <button class="agent-tab ${selectedAgent === 'windsurf' ? 'active' : ''}" data-agent="windsurf">Windsurf</button>
+              <button class="agent-tab ${selectedAgent === 'vscode' ? 'active' : ''}" data-agent="vscode">VS Code</button>
+              <button class="agent-tab ${selectedAgent === 'other' ? 'active' : ''}" data-agent="other">Other</button>
             </div>
             
             <div id="agent-instructions" class="agent-instructions-container">
-              <p class="placeholder">Select your AI coding tool above</p>
+              ${selectedAgent ? this.getAgentInstructions(selectedAgent) : '<p class="placeholder">Select your AI coding tool above</p>'}
             </div>
           </div>
           
           <div class="onboarding-footer">
             <button class="btn-text back-btn">Back</button>
-            <button class="btn-primary next-btn" disabled>Continue</button>
+            <button class="btn-text skip-btn">Skip Wizard</button>
+            <button class="btn-primary next-btn" ${selectedAgent ? '' : 'disabled'}>Continue</button>
           </div>
           
           <div class="step-indicator">
@@ -630,6 +654,7 @@ pointa-server start</pre>
           
           <div class="onboarding-footer">
             <button class="btn-text back-btn">Back</button>
+            <button class="btn-text skip-btn">Skip Wizard</button>
             <button class="btn-primary next-btn">Almost Done!</button>
           </div>
           
@@ -790,7 +815,7 @@ pointa-server start</pre>
     const skipBtn = this.overlay.querySelector('.skip-btn');
     if (skipBtn) {
       skipBtn.addEventListener('click', () => {
-        this.complete();
+        this.skip();
       });
     }
     

@@ -1393,8 +1393,12 @@ class PointaAnnotationMode {
       // Request full page screenshot from background
       const response = await chrome.runtime.sendMessage({ action: 'captureScreenshot' });
 
-      if (!response.success) {
-        throw new Error('Failed to capture screenshot');
+      if (!response?.success) {
+        const message = response?.error || 'Failed to capture screenshot';
+        const error = new Error(message);
+        error.code = response?.code || 'SCREENSHOT_CAPTURE_FAILED';
+        error.details = response?.details || null;
+        throw error;
       }
 
       // Create canvas to crop selection
@@ -1467,7 +1471,7 @@ class PointaAnnotationMode {
 
     } catch (error) {
       console.error('[Pointa Screenshot] Error:', error);
-      alert('Failed to capture screenshot. Please try again.');
+      alert(error.message || 'Failed to capture screenshot. Please try again.');
       this.exitScreenshotSelectionMode();
     }
   }

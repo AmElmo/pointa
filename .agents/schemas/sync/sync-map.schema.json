@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/sync/sync-map.schema.json",
+  "title": "Delano operational sync map",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "projects"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "local_path"],
+        "properties": {
+          "slug": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "local_path": { "type": "string", "pattern": "^\\.project/projects/[^/]+$" },
+          "linear_project_id": { "type": "string" },
+          "github_repo": { "type": "string" },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["local_id"],
+              "properties": {
+                "local_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+                "linear_issue_id": { "type": "string" },
+                "github_issue": { "type": "string" },
+                "github_pr": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

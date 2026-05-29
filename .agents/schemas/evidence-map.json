@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "purpose": "Maps task acceptance criteria to proof signals required before a task can be treated as done.",
+  "done_task_rules": [
+    {
+      "id": "acceptance-criteria-checked",
+      "description": "Done tasks must have no unchecked acceptance criteria."
+    },
+    {
+      "id": "evidence-log-present",
+      "description": "Done tasks must have an Evidence Log section with at least one implementation evidence item."
+    },
+    {
+      "id": "repo-inspection-proof",
+      "acceptance_criterion_contains": "repo state has been inspected",
+      "proof_terms": [
+        "inspected"
+      ]
+    },
+    {
+      "id": "representation-proof",
+      "acceptance_criterion_contains": "represented in Delano runtime assets",
+      "proof_terms": [
+        "added",
+        "updated",
+        "wired",
+        "rebuilt",
+        "represented",
+        "mirrored"
+      ]
+    },
+    {
+      "id": "validation-proof",
+      "acceptance_criterion_contains": "validated with the smallest meaningful command",
+      "proof_terms": [
+        "validation passed",
+        "passed:",
+        "npm test",
+        "check:",
+        "Validation:"
+      ]
+    },
+    {
+      "id": "evidence-recorded-proof",
+      "acceptance_criterion_contains": "Evidence is recorded",
+      "proof_terms": [
+        "Evidence Log"
+      ]
+    }
+  ],
+  "strict_since": "2026-04-29T00:00:00Z"
+}

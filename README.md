@@ -89,12 +89,27 @@ You can also use Pointa to...
 ### Prerequisites
 
 - Node.js 18+
-- A Chromium-based browser (Chrome, Edge, Brave, etc.)
+- A supported browser:
+  - Chrome, Edge, Brave, or another Chromium-based browser
+  - Firefox for local development builds
 - An AI coding agent that supports MCP (Cursor, Claude Code, Windsurf, etc.)
 
 ### 1. Install the browser extension
 
 Install from the [Chrome Web Store](https://chromewebstore.google.com/detail/pointa/chfdkemckcihigkepbnpegcopkncoane) (recommended), or [load unpacked](docs/DEVELOPMENT.md) for development.
+
+Firefox support is available as a local development build while AMO release
+work is in progress:
+
+```bash
+npm install
+npm run firefox:build
+```
+
+Then open `about:debugging#/runtime/this-firefox`, choose **Load Temporary
+Add-on...**, and select `dist/firefox/manifest.json`. Start `pointa-server`
+through your MCP configuration or with `cd annotations-server && npm run dev`
+before annotating localhost pages.
 
 ### 2. Connect your AI coding agent
 
@@ -120,6 +135,11 @@ This automatically installs the server, starts the HTTP daemon for the extension
 3. Click on any element to annotate
 4. Add your feedback
 5. Ask your AI agent to "implement the Pointa annotations"
+
+In Firefox, annotation CRUD, element-linked screenshots, console/error/network
+evidence, and backend logs use the shared Pointa server flow. Responsive
+viewport capture is hidden because Firefox does not expose the required
+viewport-emulation capability to this package.
 
 ## AI Agent Setup
 

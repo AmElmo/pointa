@@ -42,7 +42,7 @@ const PointaImageUploader = {
       formData.append('image', compressed, `${file.name}.webp`);
       formData.append('annotationId', annotationId);
 
-      const response = await fetch('http://127.0.0.1:4242/api/upload-image', {
+      const response = await fetch(window.PointaBrowser.getLocalServerUrl('/api/upload-image'), {
         method: 'POST',
         body: formData
       });
@@ -91,7 +91,7 @@ const PointaImageUploader = {
 
       const [, annotationId, filename] = parts;
 
-      const response = await fetch(`http://127.0.0.1:4242/api/images/${annotationId}/${filename}`, {
+      const response = await fetch(window.PointaBrowser.getLocalServerUrl(`/api/images/${annotationId}/${filename}`), {
         method: 'DELETE'
       });
 
@@ -196,6 +196,6 @@ const PointaImageUploader = {
     }
 
     const [, annotationId, filename] = parts;
-    return `http://127.0.0.1:4242/api/images/${annotationId}/${filename}`;
+    return window.PointaBrowser.getLocalServerUrl(`/api/images/${annotationId}/${filename}`);
   }
 };
